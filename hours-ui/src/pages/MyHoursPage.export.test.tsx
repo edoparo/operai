@@ -55,7 +55,7 @@ const serveApi = (overrides: Parameters<typeof fakeApi>[0] = {}) => {
   apiFetch.mockImplementation(api)
 }
 
-const renderPage = async (path = '/hours') => {
+const renderPage = async (path = '/hours?view=list') => {
   const history = createMemoryHistory({ initialEntries: [path] })
   render(<RouterProvider router={createAppRouter('/hours', undefined, history)} />)
   await screen.findByTestId('hours-my-page')
@@ -167,14 +167,14 @@ describe('the Export button (AC-4.6)', () => {
 
   it('is not there for a Custom range that cannot be sent: nothing is asked and there is nothing to export', async () => {
     serveApi()
-    await renderPage('/hours?period=custom&from=2026-11-10&to=2026-11-01')
+    await renderPage('/hours?view=list&period=custom&from=2026-11-10&to=2026-11-01')
     await screen.findByTestId('hours-entries-invalid')
     expect(queryExportButton()).toBeNull()
   })
 
   it('exports every page of the filters the view applies, with limit=500, as one file named from the period', async () => {
     serveApi()
-    await renderPage('/hours?period=custom&from=2026-10-05&to=2026-10-11&category=tc-formazione')
+    await renderPage('/hours?view=list&period=custom&from=2026-10-05&to=2026-10-11&category=tc-formazione')
     await screen.findByTestId('hours-day-list')
     await userEvent.click(exportButton())
     await waitFor(() => expect(downloads).toHaveLength(1))
@@ -212,7 +212,7 @@ describe('the Export button (AC-4.6)', () => {
 
   it('exports the Recorded on the view applies (T44, D52): every page of the walk carries target, the one now chosen and not a stale one', async () => {
     serveApi()
-    await renderPage('/hours?target=meeting')
+    await renderPage('/hours?view=list&target=meeting')
     await screen.findByTestId('hours-day-list')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: f.recordedOn.label }), 'Other work')
     await waitFor(() => expect(screenCalls().at(-1)!.query['target']).toBe('none'))

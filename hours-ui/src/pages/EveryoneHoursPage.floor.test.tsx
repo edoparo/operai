@@ -39,16 +39,17 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+// My hours' Filters card is the List's here: `view=list` (T19, AC-5.1 reversed: `/hours` is the table view now).
 const VIEWS = [
-  ['My hours', '/hours', 'hours-my-page'],
-  ['Everyone’s hours', '/hours/all', 'hours-everyone-page'],
+  ['My hours', '/hours', 'view=list&', 'hours-my-page'],
+  ['Everyone’s hours', '/hours/all', '', 'hours-everyone-page'],
 ] as const
 
-describe.each(VIEWS)('%s', (_name, path, testId) => {
+describe.each(VIEWS)('%s', (_name, path, view, testId) => {
   const open = async (search: string) => {
     const api = fakeApi({ 'GET /time-lists': listsHandler(LISTS) })
     apiFetch.mockImplementation(api)
-    const history = createMemoryHistory({ initialEntries: [`${path}?${search}`] })
+    const history = createMemoryHistory({ initialEntries: [`${path}?${view}${search}`] })
     render(<RouterProvider router={createAppRouter('/hours', undefined, history)} />)
     await screen.findByTestId(testId)
     await screen.findByTestId('hours-filters')

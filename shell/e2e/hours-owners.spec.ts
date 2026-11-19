@@ -87,7 +87,9 @@ async function openDialogOn(
   target: { id: string; text: string },
   minutes: number,
 ): Promise<Locator> {
-  await page.goto('/hours')
+  // The List (`?view=list`): My hours opens on the table view since specs/20261116-record-hours-in-place T19 (AC-5.1 reversed),
+  // and these journeys read the List's day headings and Totals.
+  await page.goto('/hours?view=list')
   await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
   await page.getByTestId('hours-record').click()
   const dialog = page.getByRole('dialog', { name: 'Record hours' })
@@ -244,7 +246,7 @@ test.describe('specs/20261112-time-tracking T36: booking checked by the real own
     await createEntryViaApi(owner, { day: today, minutes: 60, on: { type: 'deal', id: secondDeal.id } })
     await createEntryViaApi(owner, { day: today, minutes: 60, on: { type: 'none', categoryId: trainingId } })
 
-    await page.goto('/hours')
+    await page.goto('/hours?view=list')
     await expect(page.getByTestId(`hours-day-total-${today}`)).toContainText('5 h 30', { timeout: 30_000 })
     // The meeting's row says which deal its hours count for.
     await expect(page.getByTestId(`hours-day-${today}`)).toContainText(`Counts for deal ${deal.title}`)
@@ -278,7 +280,7 @@ test.describe('specs/20261112-time-tracking T36: booking checked by the real own
   }) => {
     const ownerCtx = await personContext(browser, owner)
     const page = await ownerCtx.newPage()
-    await page.goto('/hours')
+    await page.goto('/hours?view=list')
     await expect(page.getByTestId(`hours-day-total-${today}`)).toContainText('5 h 30', { timeout: 30_000 })
     await page.getByTestId('hours-totals-group').selectOption('deal')
     await expect(page.getByTestId('hours-totals-table')).toContainText(deal.title, { timeout: 30_000 })

@@ -143,7 +143,7 @@ const useApi = (overrides: Parameters<typeof fakeApi>[0] = {}) => {
   apiFetch.mockImplementation(api)
 }
 
-const renderPage = async (path = '/hours?view=week') => {
+const renderPage = async (path = '/hours') => {
   const history = createMemoryHistory({ initialEntries: [path] })
   const router = createAppRouter('/hours', undefined, history)
   render(<RouterProvider router={router} />)
@@ -305,7 +305,7 @@ describe('a day that has not come offers nothing (AC-5.14, WA7)', () => {
 
   it('a week that has not started has no grid and so nothing to record on', async () => {
     useApi()
-    await renderPage('/hours?view=week&week=2026-11-16')
+    await renderPage('/hours?week=2026-11-16')
 
     await screen.findByTestId('hours-table-empty')
     expect(recordButtons()).toEqual([])
@@ -314,7 +314,7 @@ describe('a day that has not come offers nothing (AC-5.14, WA7)', () => {
   it('a week that is over offers every empty day of a row that had hours in it, its weekend included', async () => {
     useApi()
     held.push(entry('2026-11-03', 180, projectOn('p-alpha', 'Alpenstrom')))
-    await renderPage(`/hours?view=week&week=${LAST_MONDAY}`)
+    await renderPage(`/hours?week=${LAST_MONDAY}`)
     await screen.findByTestId('hours-table-table')
 
     expect(heading().textContent).toContain('02.11.2026 – 08.11.2026')
@@ -483,7 +483,7 @@ describe('a save on a day outside the week shown says so (design F6, S7)', () =>
   it('a cell of an earlier week whose day was changed to another week says so; the week shown stays the one it was', async () => {
     useApi()
     held.push(entry('2026-11-03', 180, projectOn('p-alpha', 'Alpenstrom')))
-    const router = await renderPage(`/hours?view=week&week=${LAST_MONDAY}`)
+    const router = await renderPage(`/hours?week=${LAST_MONDAY}`)
     await screen.findByTestId('hours-table-table')
 
     await userEvent.click(recordCell(ALPENSTROM, 'Thursday 5 November 2026'))
@@ -499,7 +499,7 @@ describe('a save on a day outside the week shown says so (design F6, S7)', () =>
 
   it('the List still says it about its period, as it did', async () => {
     useApi()
-    await renderPage('/hours?period=thisMonth')
+    await renderPage('/hours?view=list&period=thisMonth')
     await screen.findByTestId('hours-entries')
 
     await recordFromHeader('2026-10-30')
@@ -692,10 +692,10 @@ describe('after a write whose re-read fails (design S7 "States")', () => {
     holdNext = false
     reading.resolve({ status: 200, body: entriesPage(held) })
     await screen.findByTestId('hours-entries')
-    await userEvent.click(screen.getByRole('tab', { name: w.view.week }))
+    await userEvent.click(screen.getByRole('tab', { name: w.view.table }))
     await screen.findByTestId('hours-table-table')
 
-    expect(document.activeElement).toBe(screen.getByRole('tab', { name: w.view.week }))
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: w.view.table }))
   })
 })
 
@@ -723,7 +723,7 @@ describe('the Week never shows what it read before the entries changed (useHours
 
     // Back to the Week, whose read is slow: what it held before the delete (6 h 30 on Alpenstrom) must not come back.
     holdWeek = true
-    await userEvent.click(screen.getByRole('tab', { name: w.view.week }))
+    await userEvent.click(screen.getByRole('tab', { name: w.view.table }))
 
     expect(screen.queryByTestId('hours-table-table')).toBeNull()
     expect(screen.getByTestId('hours-table-skeleton')).not.toBeNull()
@@ -828,7 +828,7 @@ describe('a cell that holds hours opens its entries (AC-5.15)', () => {
     await openCellOf('project:p-alpha', '2026-11-09')
     expect(cellDialog()).not.toBeNull()
 
-    act(() => router.history.push(`/hours?view=week&week=${LAST_MONDAY}`))
+    act(() => router.history.push(`/hours?week=${LAST_MONDAY}`))
     await waitFor(() => expect(heading().textContent).toContain('02.11.2026'))
     expect(screen.queryByRole('dialog')).toBeNull()
 

@@ -18,9 +18,10 @@
  *  D. A CRM company task with no deal records other work with a category, and the entry carries no task (AC-3.4, 3.5).
  *  E. With hours-ui's `remoteEntry.js` aborted, the project page, the deal page and My tasks load and show the My
  *     hours link (AC-4.5, the remote-failure.spec.ts pattern).
- *  F. The Week: entries on two projects over three days with the right cells and totals, an empty past cell
+ *  F. The table view, week: entries on two projects over three days with the right cells and totals, an empty past cell
  *     records, a cell's Edit changes an entry, Delete asks first, and the figures follow without a reload
- *     (AC-5.1, 5.2, 5.12, 5.14, 5.16, 5.17, 5.19, 5.20).
+ *     (AC-5.1, 5.2, 5.12, 5.14, 5.16, 5.17, 5.19, 5.20; reversed default and the address: T19. The empty cell still
+ *     records until T20 withdraws it, and T24 rewrites F).
  *
  * Needs the stack up (`mise run dev`) with the specs/20261112-time-tracking and specs/20261110-activities wiring (see the
  * headers of hours-owners.spec.ts and activities-crm.spec.ts). Against the dev stack Playwright reuses the servers when
@@ -308,6 +309,14 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     expect(await page.evaluate(() => (window as unknown as { __hipSameDocument?: boolean }).__hipSameDocument)).toBe(
       true,
     )
+    // My hours opens on the table view (AC-5.1 reversed 2026-11-19): the current week shows the entry's 2 h 30 in today's
+    // cell, on the project's row …
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
+    await expect(page.locator(`[data-cell="project:${project.id}:${today}"]`)).toHaveText('2 h 30', {
+      timeout: 30_000,
+    })
+    // … and the List, the other view of the same page, lists the entry with the same values.
+    await page.getByRole('tab', { name: 'List' }).click()
     const row = page.getByTestId(`hours-entry-${saved[0]!.id}`)
     await expect(row).toBeVisible({ timeout: 30_000 })
     await expect(row).toContainText(project.name)
@@ -615,14 +624,15 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     const gammaKey = `project:${gamma.id}`
     const otherKey = `category:${training.id}`
 
-    // AC-5.1: My hours opens on the List, with a List | Week switch.
+    // AC-5.1 (reversed 2026-11-19): My hours opens on the table view, this week, with a Table | List switch.
     await page.goto('/hours')
     await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
     const switcher = page.getByTestId('hours-view-switch')
-    await expect(switcher.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByTestId('hours-table')).toHaveCount(0)
+    await expect(switcher.getByRole('tab', { name: 'Table' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
+    await expect(page.getByTestId('hours-entries')).toHaveCount(0)
 
-    // AC-5.2 and AC-5.4: the Week opens, on this week, from its own address.
+    // AC-5.2 and AC-5.4: the first contract's address of the week (`?view=week`) still opens this week.
     await page.goto('/hours?view=week')
     await expect(page.getByTestId('hours-table')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday))
@@ -637,11 +647,13 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     }
     await expect(cell(alphaKey, today)).toHaveText('30 min')
 
-    // The List's switch and the Week's address agree: from the List, the Week tab asks for the same view.
-    await page.goto('/hours')
+    // The List has its own address and the switch agrees: `?view=list` opens it, and the Table tab takes `view` out again.
+    await page.goto('/hours?view=list')
     await expect(page.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
-    await switcher.getByRole('tab', { name: 'Week' }).click()
-    await expect(page).toHaveURL(/view=week/)
+    await expect(switcher.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('hours-table')).toHaveCount(0)
+    await switcher.getByRole('tab', { name: 'Table' }).click()
+    await expect(page).not.toHaveURL(/view=/)
     await expect(page.getByTestId('hours-table-heading')).toHaveText(weekLabel(currentMonday), { timeout: 30_000 })
 
     // Last week: the figures. Rows in order (projects by name, then other work), a total row last.

@@ -32,9 +32,9 @@ export type HoursFiltersProps = {
    */
   people?: PeopleView
   /**
-   * Period, with From and To under Custom range (default true). The Week of My hours passes false: the week it shows
-   * takes the place of Period (specs/20261116-record-hours-in-place T10, WA5), so neither is drawn, whatever the
-   * period held in the address is; every other control is as in the List.
+   * Period, with From and To under Custom range (default true). The table view of My hours passes false, whichever
+   * period it shows: the week (or month) it shows takes the place of Period (specs/20261116-record-hours-in-place T10,
+   * T19, WA5), so neither is drawn, whatever the period held in the address is; every other control is as in the List.
    */
   showPeriod?: boolean
   /** Whether anything differs from the defaults: only then is "Clear filters" offered. */

@@ -1,12 +1,13 @@
 /**
  * @vitest-environment jsdom
  *
- * HoursShell's column (specs/20261116-record-hours-in-place T10; design S6 "Width", C1): `wide` — the full width, the
- * EstimAI workspace's — while My hours shows the Week, `default` (80 rem) everywhere else: the List, Everyone's hours
- * and Settings, whatever their address carries.
+ * HoursShell's column (specs/20261116-record-hours-in-place T10, T19; design S6 and § Width, C1, D16; AC-5.33): `wide` —
+ * the full width, the EstimAI workspace's — on EVERY hours page and view: My hours (the table view in either period and the
+ * List), Everyone's hours, Settings and the not-found panel, so no switch of view, period or tab moves the column. It was
+ * `wide` only while My hours showed the Week (T10); it no longer reads the route or the address at all.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -36,46 +37,62 @@ const renderAt = async (path: string, page: string) => {
 
 const isWide = () => screen.getByTestId('hours-shell').classList.contains('tool-width-wide')
 
-describe('the column of the tool (C1)', () => {
-  it('is the default width on the List', async () => {
-    await renderAt('/hours', 'hours-my-page')
-    expect(isWide()).toBe(false)
-    expect(screen.getByTestId('hours-shell').className).not.toContain('tool-width')
-  })
-
-  it('is wide on the Week', async () => {
-    await renderAt('/hours?view=week', 'hours-my-page')
+describe('the column of the tool (C1, AC-5.33)', () => {
+  it.each([
+    ['/hours', 'the table view, the current week'],
+    ['/hours?week=2026-11-02', 'the table view, another week'],
+    ['/hours?view=week', 'the first contract’s address of the week'],
+    ['/hours?view=month', 'the month’s address'],
+    ['/hours?view=list', 'the List'],
+    ['/hours/?view=list', 'the List, with the address’s trailing slash'],
+    ['/hours?view=anything-else', 'a view this page does not have'],
+  ])('is wide on My hours at %s (%s)', async (path) => {
+    await renderAt(path, 'hours-my-page')
     expect(isWide()).toBe(true)
   })
 
-  it('reads the address with its trailing slash the same: /hours/?view=week is the Week', async () => {
-    await renderAt('/hours/?view=week', 'hours-my-page')
+  it('is wide on Everyone’s hours, on Settings and on the not-found panel: no page of the tool is narrower than another', async () => {
+    await renderAt('/hours/all', 'hours-everyone-page')
+    expect(isWide()).toBe(true)
+    cleanup()
+    await renderAt('/hours/settings', 'hours-shell')
+    expect(isWide()).toBe(true)
+    cleanup()
+    await renderAt('/hours/nope', 'hours-not-found')
     expect(isWide()).toBe(true)
   })
 
-  it('is the default width again on a view this page does not have: ?view=anything-else is the List', async () => {
-    await renderAt('/hours?view=month', 'hours-my-page')
-    expect(isWide()).toBe(false)
+  it('follows no address: ?view=list on Everyone’s hours and Settings changes nothing', async () => {
+    await renderAt('/hours/all?view=list', 'hours-everyone-page')
+    expect(isWide()).toBe(true)
+    cleanup()
+    await renderAt('/hours/settings?view=list', 'hours-shell')
+    expect(isWide()).toBe(true)
   })
 
-  it('follows the address from the List to the Week and back, without remounting the page', async () => {
+  it('stays wide from the table view to the List and back, without remounting the page: nothing jumps', async () => {
     const router = await renderAt('/hours', 'hours-my-page')
     const page = screen.getByTestId('hours-my-page')
-    expect(isWide()).toBe(false)
+    expect(isWide()).toBe(true)
 
-    await act(() => router.navigate({ to: '/', search: { view: 'week' } as never }))
-    await waitFor(() => expect(isWide()).toBe(true))
+    await act(() => router.navigate({ to: '/', search: { view: 'list' } as never }))
+    expect(isWide()).toBe(true)
 
     await act(() => router.navigate({ to: '/', search: {} as never }))
-    await waitFor(() => expect(isWide()).toBe(false))
+    expect(isWide()).toBe(true)
     expect(screen.getByTestId('hours-my-page')).toBe(page)
   })
 
-  it('stays the default width on Everyone’s hours and Settings, which have no Week, even with view=week in the address (WA4)', async () => {
-    await renderAt('/hours/all?view=week', 'hours-everyone-page')
-    expect(isWide()).toBe(false)
-    cleanup()
-    await renderAt('/hours/settings?view=week', 'hours-shell')
-    expect(isWide()).toBe(false)
+  it('stays wide from My hours to Everyone’s hours and Settings: the tabs do not change the column either', async () => {
+    const router = await renderAt('/hours', 'hours-my-page')
+    const shell = screen.getByTestId('hours-shell')
+
+    await act(() => router.navigate({ to: '/all' }))
+    await screen.findByTestId('hours-everyone-page')
+    expect(isWide()).toBe(true)
+
+    await act(() => router.navigate({ to: '/settings' }))
+    expect(isWide()).toBe(true)
+    expect(screen.getByTestId('hours-shell')).toBe(shell)
   })
 })

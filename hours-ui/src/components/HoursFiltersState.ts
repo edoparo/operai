@@ -14,16 +14,24 @@
 import type { EntryTargetType } from '../lib/hoursApi.types'
 import { DEFAULT_PERIOD, PERIODS } from '../lib/period'
 import type { Period } from '../lib/period'
-import { mondayOf } from '../lib/week'
+import { holding, isCurrent } from '../lib/tablePeriod'
+import type { TablePeriod } from '../lib/tablePeriod'
+import { readWeekParam } from '../lib/week'
 import { EVERYONE_GROUP_CHOICES, GROUP_CHOICES } from './TotalsCardRows'
 import type { GroupChoice } from './TotalsCardRows'
 
 /**
- * The view of My hours (specs/20261116-record-hours-in-place T10; plan § My hours' address, Decision 5): the List
- * (`/hours`, the default, left out of the address) or the Week (`?view=week`). A view of the same page, not a filter:
- * the filters below apply to both, and `period`, `from`, `to` and `group` are read by the List only.
+ * The view of My hours (specs/20261116-record-hours-in-place T10, T19; plan § The address of My hours, decisions 5 and
+ * 10): the table view (`/hours`, the default, left out of the address) or the List (`?view=list`). A view of the same
+ * page, not a filter: the filters below apply to both, and `period`, `from`, `to` and `group` are read by the List only.
  */
-export type MyHoursView = 'list' | 'week'
+export type MyHoursView = 'table' | 'list'
+
+/**
+ * What an address of My hours says to show: the List, or the table view at a period (the week, until T22 adds the
+ * month).
+ */
+export type MyHoursAddress = { view: 'list' } | { view: 'table'; period: TablePeriod }
 
 /** Which screen the filters belong to: Person exists, and is the default Group by, only on Everyone's hours. */
 export type FilterView = 'mine' | 'everyone'
@@ -99,29 +107,54 @@ export const parseFilterSearch = (search: Record<string, unknown>, view: FilterV
   }
 }
 
-/** The view an address names: `week` only for `week`; anything else is the List, so a pasted link lands somewhere real. */
-export const readView = (search: Record<string, unknown>): MyHoursView => (search['view'] === 'week' ? 'week' : 'list')
+/**
+ * What the address names (plan § The address of My hours): the List for `view=list` and nothing else; anything else —
+ * absent, `week`, garbage, a number — is the table view, so a pasted link always lands somewhere real, now on the default
+ * view. The table's period is the week `week` names (`readWeekParam`: any day of it, else the current week) and, until the
+ * month is an address (T22), always a week: `view=month` and `month` are not read yet. Nothing here writes: an address
+ * that was ignored is not rewritten, the period shown is derived from it and the next write puts it there. `today` is a
+ * `YYYY-MM-DD` (hours-ui passes `todayZurich()`).
+ */
+export const readMyHoursAddress = (search: Record<string, unknown>, today: string): MyHoursAddress =>
+  search['view'] === 'list'
+    ? { view: 'list' }
+    : { view: 'table', period: holding('week', readWeekParam(search, today)) }
 
 /**
- * The search after the person chose `view`: the Week is `view=week`, the List leaves `view` out. Every other key is
- * kept, `week` too — leaving the Week and coming back lands on the week that was shown, as the List's `period` does.
+ * The search after the table view moved to `period` — the navigator, and later the period switch and the date field. The
+ * table view is the default, so `view` (and the first contract's `view=week`) is left out; the week is written as its
+ * Monday except the current one, which is the default and is left out too, so a bookmark of "this week" keeps meaning the
+ * current week. A `month` is taken out: the week is the period shown. Every other key is kept, the List's `period`,
+ * `from`, `to` and `group` among them (design G5).
  */
-export const withView = (previous: Record<string, unknown>, view: MyHoursView): Record<string, unknown> => {
+export const withTablePeriod = (
+  previous: Record<string, unknown>,
+  period: TablePeriod,
+  today: string,
+): Record<string, unknown> => {
   const next = { ...previous }
-  if (view === 'week') next['view'] = 'week'
-  else delete next['view']
+  delete next['view']
+  delete next['month']
+  if (isCurrent(period, today)) delete next['week']
+  else next['week'] = period.monday
   return next
 }
 
 /**
- * The search after the person stepped to the week that begins on `monday`: written as that Monday, except this week
- * (the one holding `today`), which is the default and is left out — a default is never written, and a bookmark of
- * "this week" keeps meaning the current week. Every other key is kept.
+ * The search after the person chose the List: `view=list`, every other key kept — `week` too, so coming back lands on the
+ * week that was shown, as the List's own `period` survives the other way. A `month` is taken out, as the week is the
+ * period that was shown (T22 writes it instead when the month was).
  */
-export const withWeek = (previous: Record<string, unknown>, monday: string, today: string): Record<string, unknown> => {
+export const withList = (previous: Record<string, unknown>): Record<string, unknown> => {
+  const next: Record<string, unknown> = { ...previous, view: 'list' }
+  delete next['month']
+  return next
+}
+
+/** The search after the person chose the table view: `view` is left out (the default), every other key kept. */
+export const withTable = (previous: Record<string, unknown>): Record<string, unknown> => {
   const next = { ...previous }
-  if (monday === mondayOf(today)) delete next['week']
-  else next['week'] = monday
+  delete next['view']
   return next
 }
 
@@ -153,9 +186,10 @@ export const applyFilterPatch = (
 }
 
 /**
- * Clear filters: back to the defaults, keeping Group by (a view choice, not a filter), `view`, `week` and any other
- * key. In the Week the controls it does not show — Period with its dates — are not reset either: the List reads them
- * again when the person goes back, and clearing a control nobody can see would be a surprise there (design G5).
+ * Clear filters: back to the defaults, keeping Group by (a view choice, not a filter), `view`, `week`, `month` and any
+ * other key. In the table view the controls it does not show — Period with its dates — are not reset either: the List
+ * reads them again when the person goes back, and clearing a control nobody can see would be a surprise there
+ * (design G5).
  */
 export const clearFilterSearch = (
   previous: Record<string, unknown>,
@@ -163,13 +197,13 @@ export const clearFilterSearch = (
 ): Record<string, unknown> => {
   const next = { ...previous }
   const keys = ['person', 'target', 'category', 'workType']
-  for (const key of view === 'week' ? keys : ['period', 'from', 'to', ...keys]) delete next[key]
+  for (const key of view === 'table' ? keys : ['period', 'from', 'to', ...keys]) delete next[key]
   return next
 }
 
 /**
- * Whether anything differs from the defaults — the only time "Clear filters" is offered. In the Week the period is not
- * a filter: its control is not there, and a "Clear filters" that appears for a setting nobody can see would clear
+ * Whether anything differs from the defaults — the only time "Clear filters" is offered. In the table view the period is
+ * not a filter: its control is not there, and a "Clear filters" that appears for a setting nobody can see would clear
  * nothing the person can see (design G5).
  */
 export const isFiltered = (

@@ -42,7 +42,7 @@ const useApi = (overrides: Parameters<typeof fakeApi>[0] = {}) => {
   apiFetch.mockImplementation(api)
 }
 
-const renderPage = async (path = '/hours') => {
+const renderPage = async (path = '/hours?view=list') => {
   const history = createMemoryHistory({ initialEntries: [path] })
   const router = createAppRouter('/hours', undefined, history)
   render(<RouterProvider router={router} />)
@@ -55,8 +55,16 @@ const totalsCalls = (groupBy?: string) =>
   requests(api, 'GET /time-entries/totals').filter(
     (request) => groupBy === undefined || request.query['groupBy'] === groupBy,
   )
-const urlOf = (router: Awaited<ReturnType<typeof renderPage>>) =>
-  Object.fromEntries(new URLSearchParams(router.state.location.searchStr))
+/**
+ * What the address holds besides the view. This suite opens the List as `?view=list` (specs/20261116-record-hours-in-place
+ * T19, AC-5.1 reversed: `/hours` is the table view now), and a replacing navigation keeps `view`, so it is left out here: what
+ * these tests assert is the filters in the address. That `view=list` stays is asserted in `MyHoursPage.table.test.tsx`.
+ */
+const urlOf = (router: Awaited<ReturnType<typeof renderPage>>) => {
+  const search = Object.fromEntries(new URLSearchParams(router.state.location.searchStr))
+  delete search['view']
+  return search
+}
 
 /** "Clear filters" of the Filters card: with the entries empty, the Entries card offers one too (T25). */
 const clearButton = () => within(screen.getByTestId('hours-filters')).queryByRole('button', { name: f.clear })
@@ -236,7 +244,7 @@ describe('Period (AC-4.4)', () => {
 
   it('a Custom link with no dates asks nothing and says why', async () => {
     useApi()
-    await renderPage('/hours?period=custom')
+    await renderPage('/hours?view=list&period=custom')
     expect(screen.getByText(t.invalidPeriod)).not.toBeNull()
     expect(entriesCalls()).toHaveLength(0)
     expect(totalsCalls()).toHaveLength(0)
@@ -246,7 +254,7 @@ describe('Period (AC-4.4)', () => {
 describe('the URL carries the filters (design § Frame of hours-ui)', () => {
   it('reads period, dates and Group by from the link and asks for exactly that', async () => {
     useApi()
-    await renderPage('/hours?period=custom&from=2026-10-05&to=2026-10-09&group=month')
+    await renderPage('/hours?view=list&period=custom&from=2026-10-05&to=2026-10-09&group=month')
 
     await screen.findByRole('table', { name: t.caption.month })
     const range = { whose: 'mine', from: '2026-10-05', to: '2026-10-09' }
@@ -260,7 +268,7 @@ describe('the URL carries the filters (design § Frame of hours-ui)', () => {
 
   it('a link with a category and a work type asks for them from the first request, once the lists have arrived', async () => {
     useApi()
-    await renderPage('/hours?category=tc-formazione&workType=wt-d-demo')
+    await renderPage('/hours?view=list&category=tc-formazione&workType=wt-d-demo')
 
     await waitFor(() => expect(entriesCalls().length).toBeGreaterThan(0))
     await screen.findByText('Project Beta')
@@ -274,7 +282,7 @@ describe('the URL carries the filters (design § Frame of hours-ui)', () => {
 
   it('a category the lists do not hold is not applied and not shown as applied (garbage in a link)', async () => {
     useApi()
-    await renderPage('/hours?category=nope&workType=gone')
+    await renderPage('/hours?view=list&category=nope&workType=gone')
     await screen.findByText('Project Beta')
     for (const request of [...entriesCalls(), ...totalsCalls()]) {
       expect(request.query).not.toHaveProperty('categoryId')
@@ -286,7 +294,7 @@ describe('the URL carries the filters (design § Frame of hours-ui)', () => {
 
   it('an unknown period or Group by in the link is the default', async () => {
     useApi()
-    await renderPage('/hours?period=forever&group=person')
+    await renderPage('/hours?view=list&period=forever&group=person')
     await screen.findByText('Project Beta')
     expect(entriesCalls()[0]!.query).toMatchObject({ from: '2026-11-01', to: '2026-11-30' })
     expect(totalsCalls('project')).toHaveLength(1)
@@ -335,7 +343,7 @@ describe('Recorded on: what an entry is on, sent as hours-api’s `target` (AC-4
 
   it('a change of Group by keeps asking the chosen totals under the target', async () => {
     useApi()
-    const router = await renderPage('/hours?target=deal')
+    const router = await renderPage('/hours?view=list&target=deal')
     await screen.findByText('Project Beta')
 
     await choose(t.groupBy.label, 'month')
@@ -347,7 +355,7 @@ describe('Recorded on: what an entry is on, sent as hours-api’s `target` (AC-4
 
   it('choosing All again drops it from the next asks and from the address, and leaves the other keys', async () => {
     useApi()
-    const router = await renderPage('/hours?target=meeting&group=month')
+    const router = await renderPage('/hours?view=list&target=meeting&group=month')
     await screen.findByRole('table', { name: t.caption.month })
     expect(recordedOn().value).toBe('meeting')
 
@@ -361,7 +369,7 @@ describe('Recorded on: what an entry is on, sent as hours-api’s `target` (AC-4
 
   it('a link with target= asks for it from the first request: never an unfiltered ask that the filtered one replaces', async () => {
     useApi()
-    await renderPage('/hours?target=none')
+    await renderPage('/hours?view=list&target=none')
     await screen.findByText('Project Beta')
     expect(entriesCalls().length).toBeGreaterThan(0)
     for (const request of [...entriesCalls(), ...totalsCalls()]) expect(request.query).toMatchObject({ target: 'none' })
@@ -370,7 +378,7 @@ describe('Recorded on: what an entry is on, sent as hours-api’s `target` (AC-4
 
   it('a typed ?target= outside the four is ignored as the other filters’ bad values are: All, nothing sent, no Clear filters', async () => {
     useApi()
-    await renderPage('/hours?target=everything&category=nope')
+    await renderPage('/hours?view=list&target=everything&category=nope')
     await screen.findByText('Project Beta')
     for (const request of [...entriesCalls(), ...totalsCalls()]) expect(request.query).not.toHaveProperty('target')
     expect(recordedOn().value).toBe('')
@@ -499,7 +507,7 @@ describe('every change re-asks the list, the chosen totals and the day totals wi
 describe('Clear filters', () => {
   it('is offered only once something differs from the defaults, and puts everything back (Group by stays)', async () => {
     useApi({ 'GET /projects': () => ({ status: 200, body: page([projectItem({ id: 'p1', name: 'Project Alpha' })]) }) })
-    const router = await renderPage('/hours?group=month')
+    const router = await renderPage('/hours?view=list&group=month')
     await screen.findByRole('table', { name: t.caption.month })
     expect(clearButton()).toBeNull()
 
@@ -524,7 +532,7 @@ describe('Clear filters', () => {
 describe('Clear filters and Recorded on (T44)', () => {
   it('is offered once Recorded on is set, whichever kind, and only then; it puts All back and keeps Group by', async () => {
     useApi()
-    const router = await renderPage('/hours?group=month')
+    const router = await renderPage('/hours?view=list&group=month')
     await screen.findByRole('table', { name: t.caption.month })
     expect(clearButton()).toBeNull()
 
@@ -542,7 +550,7 @@ describe('Clear filters and Recorded on (T44)', () => {
 
   it('choosing All by hand takes it away again: nothing differs from the defaults', async () => {
     useApi()
-    await renderPage('/hours?target=deal')
+    await renderPage('/hours?view=list&target=deal')
     await waitFor(() => expect(clearButton()).not.toBeNull())
     await choose(f.recordedOn.label, 'All')
     await waitFor(() => expect(clearButton()).toBeNull())
@@ -681,7 +689,7 @@ describe('the Totals card in its states', () => {
 
   it('months are written in the language of the page and keep the server’s order', async () => {
     useApi({ 'GET /time-entries/totals': (url, init, params) => totalsHandler(url, init, params) })
-    await renderPage('/hours?group=month')
+    await renderPage('/hours?view=list&group=month')
     const table = await screen.findByRole('table', { name: t.caption.month })
     expect(
       within(table)
@@ -717,7 +725,7 @@ describe('the lists the filters need', () => {
     useApi({
       'GET /time-lists': sequence(() => ({ status: 500, body: problem(500) }), listsHandler(LISTS)) as FakeHandler,
     })
-    await renderPage('/hours?category=tc-formazione')
+    await renderPage('/hours?view=list&category=tc-formazione')
 
     const banner = await screen.findByTestId('hours-filters-lists-error')
     // The page still shows the hours, unfiltered by what it could not check.

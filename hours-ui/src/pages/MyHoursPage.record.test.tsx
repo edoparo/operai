@@ -43,7 +43,7 @@ const useApi = (overrides: Parameters<typeof fakeApi>[0] = {}) => {
   apiFetch.mockImplementation(api)
 }
 
-const renderPage = async (path = '/hours') => {
+const renderPage = async (path = '/hours?view=list') => {
   const history = createMemoryHistory({ initialEntries: [path] })
   render(<RouterProvider router={createAppRouter('/hours', undefined, history)} />)
   await screen.findByTestId('hours-my-page')

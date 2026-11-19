@@ -1,18 +1,17 @@
-import { Link, Outlet, useMatchRoute, useSearch } from '@tanstack/react-router'
+import { Link, Outlet } from '@tanstack/react-router'
 import { TabNav, ToolLayout, tabLinkClassName } from '@operai/ui'
 import { useHoursAccess } from '../lib/permissions'
 import { strings } from '../strings'
-import { readView } from './HoursFiltersState'
 
 /**
  * HoursShell — hours-ui's root layout: the tool title (h1) and the routed page. No suite chrome and no auth guard:
  * the shell owns both (ADR 20260709-suite-frontend-module-federation), and mounts this remote
  * for every signed-in user, whatever their grants (AC-5.1, ADR 20261112-hours-ui-ungated-remote).
  *
- * The column is ToolLayout's `default` width, `wide` while My hours shows its Week view (C1,
- * specs/20261116-record-hours-in-place T10): a grid of seven days wants the room the EstimAI workspace has, and
- * the tool title and tabs follow so every column lines up. Everyone's hours and Settings have no Week and stay at
- * the default whatever `?view` says.
+ * The column is ToolLayout's `wide` — the full width, the EstimAI workspace's — on every route and every view: My hours
+ * (the table view in either period, and the List), Everyone's hours, Settings and the not-found panel (C1, D16, AC-5.33,
+ * specs/20261116-record-hours-in-place T10, T19). A table of a week or a month wants the room, and a tool whose pages are
+ * different widths jumps when the tabs or the view change, so none is: it reads neither the route nor the address.
  *
  * The tabs exist only for a holder of `time-entry:read-all` or `time-list:manage`: for everyone else there
  * is just My hours, so there is no TabNav at all (one tab is noise; the `MyDevices` precedent, ADR
@@ -29,14 +28,11 @@ import { readView } from './HoursFiltersState'
  */
 export default function HoursShell() {
   const { canReadAll, canManageLists } = useHoursAccess()
-  const onMyHours = Boolean(useMatchRoute()({ to: '/' }))
-  const search = useSearch({ strict: false }) as Record<string, unknown>
-  const wide = onMyHours && readView(search) === 'week'
 
   return (
     <ToolLayout
       title={strings.common.title}
-      width={wide ? 'wide' : 'default'}
+      width="wide"
       testId="hours-shell"
       nav={
         canReadAll || canManageLists ? (

@@ -12,7 +12,8 @@ export type ViewSwitchProps = {
 }
 
 /**
- * ViewSwitch — List | Week, under My hours' header (specs/20261116-record-hours-in-place T10; design S6; AC-5.1).
+ * ViewSwitch — Table | List, under My hours' header (specs/20261116-record-hours-in-place T10, T19; design S6; AC-5.1).
+ * Table is first because it is the view My hours opens on.
  *
  * Two views of the SAME page, not two pages: the library's `Tabs` (a tablist, one tab stop, the arrow keys), not
  * `TabNav`, which is for sections with an address of their own (plan Decision 5 rejected a route). It keeps no state:
@@ -21,8 +22,8 @@ export type ViewSwitchProps = {
 export default function ViewSwitch({ value, idPrefix, onChange }: ViewSwitchProps) {
   const t = strings.table.view
   const tabs: readonly TabItem<MyHoursView>[] = [
+    { id: 'table', label: t.table },
     { id: 'list', label: t.list },
-    { id: 'week', label: t.week },
   ]
   return (
     <Tabs

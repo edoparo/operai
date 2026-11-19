@@ -28,9 +28,10 @@ import {
   clearFilterSearch,
   isFiltered,
   parseFilterSearch,
-  readView,
-  withView,
-  withWeek,
+  readMyHoursAddress,
+  withList,
+  withTable,
+  withTablePeriod,
 } from '../components/HoursFiltersState'
 import type { FilterPatch, MyHoursView } from '../components/HoursFiltersState'
 import SuccessBanner from '../components/SuccessBanner'
@@ -59,10 +60,9 @@ import type { DealChoice, ProjectChoice } from '../lib/searchers'
 import { todayZurich } from '../lib/todayZurich'
 import { useHoursPages, useHoursQuery } from '../lib/useHoursQuery'
 import type { HoursQueryState } from '../lib/useHoursQuery'
-import { readWeekParam } from '../lib/week'
 import { tableGrid } from '../lib/tableGrid'
 import type { TableGrid, TableGridRow } from '../lib/tableGrid'
-import { daysOf, firstDayOf, holding, lastDayOf } from '../lib/tablePeriod'
+import { daysOf, firstDayOf, lastDayOf } from '../lib/tablePeriod'
 import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 
@@ -117,9 +117,11 @@ const dayTotalsOf = (answer: TotalsAnswer): ReadonlyMap<string, number> =>
   new Map(answer.groups.flatMap((group) => (group.kind === 'keyed' ? [[group.key, group.minutes] as const] : [])))
 
 /**
- * My hours — `/hours`. The filters and the Totals card (T24), the entries by day with the server's day totals
- * and the banners (T25); the entry dialog (T27, T28); the Export button of the Entries card (T30,
- * `HoursExport`: every page of the same filters as one XLSX).
+ * My hours — `/hours`, which opens on the table view of the current week (T19, AC-5.1 reversed: it opened on the List); the
+ * List is `?view=list`, and `?week=<day>` shows another week (`readMyHoursAddress`, plan § The address of My hours). The
+ * filters and the Totals card (T24), the entries by day with the server's day totals and the banners (T25); the entry
+ * dialog (T27, T28); the Export button of the Entries card (T30, `HoursExport`: every page of the same filters as one
+ * XLSX) are the List's.
  *
  * Filters are the URL's search params (`period`, `from`, `to`, `target` (Recorded on), `category`, `workType`,
  * `group`), read with `useSearch` and written by a replacing navigation, the inventory-ui way; the picked project and deal live
@@ -185,12 +187,14 @@ export default function MyHoursPage() {
   }
   const waitingForLists = (requested.categoryId !== '' || requested.workTypeId !== '') && listsView.status === 'loading'
 
-  // The view of the page (plan Decision 5): the List, or the table of the period `?week` names. One page, two reads; the
-  // other view's reads ask nothing (a null key), so only what is on screen is asked.
-  const view = readView(search)
-  const tableShown = view === 'week'
+  // The view of the page (plan Decision 5, 10): the table view, at the period the address names — the current week unless
+  // `?week` names another — or the List, at `?view=list`. One page, two reads; the other view's reads ask nothing (a null
+  // key), so only what is on screen is asked.
   const today = todayZurich()
-  const period = holding('week', readWeekParam(search, today))
+  const address = readMyHoursAddress(search, today)
+  const view: MyHoursView = address.view
+  const period: TablePeriod | null = address.view === 'table' ? address.period : null
+  const tableShown = period !== null
 
   const { range, errors } = rangeOf(requested.period, requested.from, requested.to, today)
   const applied = {
@@ -206,7 +210,7 @@ export default function MyHoursPage() {
   const filterKey = JSON.stringify(filters)
   // The table: its period takes the place of the List's, every other filter applies (AC-5.21, WA5).
   const tableFilters: EntryFilters | null =
-    !tableShown || waitingForLists ? null : { ...applied, from: firstDayOf(period), to: lastDayOf(period) }
+    period === null || waitingForLists ? null : { ...applied, from: firstDayOf(period), to: lastDayOf(period) }
   const tableKey = JSON.stringify(tableFilters)
 
   // The three reads of a filter change: the entries (a cursor-paged list), the day totals that label them,
@@ -220,7 +224,7 @@ export default function MyHoursPage() {
   )
   // The table's one read: every entry of the period, complete or failed, folded into the grid (plan Decision 1).
   const tableRead = useHoursQuery(tableFilters && `table:${tableKey}`, (signal) =>
-    readTable(tableFilters!, period, signal),
+    readTable(tableFilters!, period!, signal),
   )
   const loadedTable = tableRead.state.status === 'loaded' ? tableRead.state.data : null
 
@@ -337,8 +341,8 @@ export default function MyHoursPage() {
   }
 
   // The view and the period are addresses of the page, not filters: they change nothing else in it (AC-5.22).
-  const switchView = (next: MyHoursView) => writeSearch((previous) => withView(previous, next))
-  const changePeriod = (next: TablePeriod) => writeSearch((previous) => withWeek(previous, firstDayOf(next), today))
+  const switchView = (next: MyHoursView) => writeSearch(next === 'list' ? withList : withTable)
+  const changePeriod = (next: TablePeriod) => writeSearch((previous) => withTablePeriod(previous, next, today))
 
   const clear = () => {
     writeSearch((previous) => clearFilterSearch(previous, view))
@@ -445,7 +449,7 @@ export default function MyHoursPage() {
   // so nothing is said about it there), the table's is the period it shows, first day to last (design F6, S7).
   const savedMessage = (day: string | undefined) => {
     if (day === undefined) return strings.entry.saved
-    if (tableShown) {
+    if (period !== null) {
       return day < firstDayOf(period) || day > lastDayOf(period)
         ? strings.table.savedOutside(formatDate(day))
         : strings.entry.saved
@@ -598,7 +602,7 @@ export default function MyHoursPage() {
           onRetryLists={lists.reload}
         />
 
-        {tableShown ? (
+        {period !== null ? (
           <TableView
             ref={tableView}
             period={period}

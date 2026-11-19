@@ -14,11 +14,11 @@
 type Week7 = [string, string, string, string, string, string, string]
 
 const en = {
-  /** The List | Week switch under the page header (design S6, AC-5.1): a tab list of two views of the same page. */
+  /** The Table | List switch under the page header (design S6, AC-5.1): a tab list of two views of the same page, Table first. */
   view: {
     label: 'View of your hours',
+    table: 'Table',
     list: 'List',
-    week: 'Week',
   },
   /** The card's heading — the week as two dates, "Week 16.11.2026 – 22.11.2026". */
   title: (range: string) => `Week ${range}`,
@@ -88,8 +88,8 @@ const en = {
 const it: typeof en = {
   view: {
     label: 'Vista delle tue ore',
+    table: 'Tabella',
     list: 'Elenco',
-    week: 'Settimana',
   },
   title: (range: string) => `Settimana ${range}`,
   nav: {

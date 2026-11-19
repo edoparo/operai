@@ -9,7 +9,9 @@ import SettingsPage from './pages/SettingsPage'
  * hours-ui's inner router (specs/20261112-time-tracking, ADR 20261112-hours-ui-ungated-remote), basepath `/hours` — the shell mounts
  * this remote at its own ungated `/hours/$` route (no `beforeLoad`, not a TOOLS entry):
  *
- *   /hours        My hours: the person's own entries, totals and the entry dialog (T24–T28, T30)
+ *   /hours        My hours: the person's own hours as a table of the current week (`?week=<day>`; the table view, T19), or
+ *                 as the List at `?view=list` — entries, totals and the entry dialog (T24–T28, T30); the address is
+ *                 `HoursFiltersState.readMyHoursAddress`
  *   /hours/all    Everyone's hours: read only, for holders of `time-entry:read-all` (T29)
  *   /hours/settings  Settings: the time lists (categories, work types), for holders of `time-list:manage` (T43, D51;
  *                 was admin-ui's /admin/time-lists)

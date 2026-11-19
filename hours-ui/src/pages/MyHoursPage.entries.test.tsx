@@ -66,7 +66,7 @@ const useApi = (overrides: Parameters<typeof fakeApi>[0] = {}) => {
   apiFetch.mockImplementation(api)
 }
 
-const renderPage = async (path = '/hours') => {
+const renderPage = async (path = '/hours?view=list') => {
   const history = createMemoryHistory({ initialEntries: [path] })
   render(<RouterProvider router={createAppRouter('/hours', undefined, history)} />)
   await screen.findByTestId('hours-my-page')
@@ -467,7 +467,7 @@ describe('the Entries card in its states', () => {
 
   it('a Custom range that cannot be sent asks nothing and says why in the card', async () => {
     useApi()
-    await renderPage('/hours?period=custom')
+    await renderPage('/hours?view=list&period=custom')
     expect(within(screen.getByTestId('hours-entries')).getByText(e.invalidPeriod)).not.toBeNull()
     expect(entriesCalls()).toHaveLength(0)
   })
@@ -547,7 +547,7 @@ describe('what the view says about names it could not load or may not show', () 
             }
           : totalsWithDays(url, init, params),
     })
-    await renderPage('/hours?group=deal')
+    await renderPage('/hours?view=list&group=deal')
 
     const warning = await screen.findByTestId('hours-banner-deal-grouping')
     expect(warning.textContent).toContain(e.banners.dealGrouping)

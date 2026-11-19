@@ -275,8 +275,8 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
     const deletes = new RegExp(`^${escapeRegExp(HOURS_API_URL)}/time-entries/[^/?]+$`)
     const confirm = (): Locator => page.getByTestId('hours-entry-delete-dialog-confirm')
 
-    // The List.
-    await page.goto('/hours')
+    // The List (`?view=list`: My hours opens on the table view since T19, AC-5.1 reversed).
+    await page.goto('/hours?view=list')
     const deleteButton = page.getByTestId(`hours-entry-${entry.id}-delete`)
     await expect(deleteButton).toBeVisible({ timeout: 30_000 })
     await breakRequests(page, deletes, 'DELETE', 'internal')
@@ -289,7 +289,7 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
     await expect(confirm()).toHaveCount(0)
     await page.unroute(deletes)
 
-    // The Week's cell dialog: the Delete is confirmed over it.
+    // The Week's cell dialog: the Delete is confirmed over it. `?view=week` is the first contract's address, still read.
     await page.goto('/hours?view=week')
     const cell = page.locator(`[data-cell="category:${training.id}:${today}"]`)
     await expect(cell).toBeVisible({ timeout: 30_000 })
