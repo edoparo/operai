@@ -311,3 +311,14 @@ It is drift: amend the spec/plan and re-sync tasks — do not quietly edit the c
 - observation: a one-off entry-count script left one stray `hip-admin-*@operai.test` user in the local dev auth DB (its run id was lost before cleanup was added); harmless; every other per-run person was cleaned, and whose=all entries since 2026-09-01 were 1272 before and after the run
 - observation: D25's straddling-current-week case cannot occur on 2026-11-19 (Monday 16 Nov); only unit tests pin it; e2e covers the Monday rule on a past straddling week (Thu 1 Oct 2026 → September)
 - observation: T26's L1 (a long row label can hide the month's days) is not covered by any e2e step
+
+## owasp L1 fix · frontend-dev · 2026-11-19
+- default: used `wrap-anywhere` (`overflow-wrap: anywhere`) on the label span, as the brief prescribed — why: simplest rule, the report's own suggested fix — where: hours-ui/src/components/TableView.tsx (`RowLabel`). (Main loop: replaced right after by `break-words` + a width cap, see the next section — the measured cost was ordinary words breaking mid-word.)
+- scope: applied to the shared `RowLabel`, so the week's unpinned label wraps too and a week with a 200-character name fits its region instead of scrolling 3,283 px — where: TableView.tsx, G.7 week step
+- scope: no `@operai/ui` guard (`max-width` on `.data-table .is-pinned-start`) — why: the hours-ui fix meets AC-5.34 and the brief said to report rather than add one — where: not changed
+- default: G.7 is a new test in journey G's serial describe with its own person `wide`, not a step in G.5 — why: G.1–G.6 assert exact grids from `gSeeded` — where: shell/e2e/hours-in-place.spec.ts
+- default: G.7's measurements are `expect.soft`; hard assertions only for setup and for the `scrollLeft` decrease after keyboard focus — why: a red run reports every number at once — where: G.7
+- assumption: the hit-test helper scrolls only vertically scrolling ancestors (the shell's `<main>`), never the region's `scrollLeft` — why: `scrollIntoView` would move `scrollLeft` and could mask the defect — where: G.7 `hitBy`
+- default: no component or unit test — why: jsdom has no layout; a test of the class would be vacuous
+- observation: the 200-character test project stays in the dev database (projects cannot be deleted from e2e; the existing convention); the person and the entries are cleaned
+- observation: 4 pre-existing `tsc -p tsconfig.e2e.json` errors in T24's `expectPeriodShown` (NodeListOf iteration, spec lines ~1002–1007); not part of `pnpm build` (shell's tsconfig.json does not reference tsconfig.e2e.json)
