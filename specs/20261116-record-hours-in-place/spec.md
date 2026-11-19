@@ -1,10 +1,11 @@
 ---
 id: 20261116
 slug: record-hours-in-place
-status: in-progress
+status: done
 rigor: production
 created: 2026-11-16
 approved: 2026-11-16
+done: 2026-11-19
 depends-on: 20261112-time-tracking
 ---
 
