@@ -59,9 +59,11 @@ import type { DealChoice, ProjectChoice } from '../lib/searchers'
 import { todayZurich } from '../lib/todayZurich'
 import { useHoursPages, useHoursQuery } from '../lib/useHoursQuery'
 import type { HoursQueryState } from '../lib/useHoursQuery'
-import { readWeekParam, weekDays } from '../lib/week'
+import { readWeekParam } from '../lib/week'
 import { tableGrid } from '../lib/tableGrid'
 import type { TableGrid, TableGridRow } from '../lib/tableGrid'
+import { daysOf, firstDayOf, holding, lastDayOf } from '../lib/tablePeriod'
+import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 
 type Search = Record<string, unknown>
@@ -83,13 +85,13 @@ const tableFailure = (error: unknown): string =>
   statusOf(error) === null && !(error instanceof RangeError) ? strings.common.networkError : strings.entries.error.body
 
 /**
- * The one read of a week: every entry of the week and filters, all or nothing (`readAllEntries`, plan Decision 1),
- * folded into the grid here, so an entry outside the week (a server bug) is a failed read with Retry rather than an
+ * The one read of a period: every entry of the period and filters, all or nothing (`readAllEntries`, plan Decision 1),
+ * folded into the grid here, so an entry outside the period (a server bug) is a failed read with Retry rather than an
  * error thrown while the page draws.
  */
-const readTable = async (filters: EntryFilters, monday: string, signal: AbortSignal) => {
+const readTable = async (filters: EntryFilters, period: TablePeriod, signal: AbortSignal) => {
   const { items, unavailable } = await readAllEntries(filters, { signal })
-  return { grid: tableGrid(items, monday), items, unavailable }
+  return { grid: tableGrid(items, daysOf(period)), items, unavailable }
 }
 
 /** The grid row an entry of this `on` lands on, by `tableGrid`'s key: `project:<id>`, `deal:<id>`, `meeting:<id>`, `category:<id>`. */
@@ -183,12 +185,12 @@ export default function MyHoursPage() {
   }
   const waitingForLists = (requested.categoryId !== '' || requested.workTypeId !== '') && listsView.status === 'loading'
 
-  // The view of the page (plan Decision 5): the List, or the Week of `?week`. One page, two reads; the other
-  // view's reads ask nothing (a null key), so only what is on screen is asked.
+  // The view of the page (plan Decision 5): the List, or the table of the period `?week` names. One page, two reads; the
+  // other view's reads ask nothing (a null key), so only what is on screen is asked.
   const view = readView(search)
   const tableShown = view === 'week'
   const today = todayZurich()
-  const monday = readWeekParam(search, today)
+  const period = holding('week', readWeekParam(search, today))
 
   const { range, errors } = rangeOf(requested.period, requested.from, requested.to, today)
   const applied = {
@@ -202,9 +204,9 @@ export default function MyHoursPage() {
   const filters: EntryFilters | null =
     tableShown || range === null || waitingForLists ? null : { ...applied, from: range.from, to: range.to }
   const filterKey = JSON.stringify(filters)
-  // The Week: the week takes the place of the period, every other filter applies (AC-5.21, WA5).
+  // The table: its period takes the place of the List's, every other filter applies (AC-5.21, WA5).
   const tableFilters: EntryFilters | null =
-    !tableShown || waitingForLists ? null : { ...applied, from: monday, to: weekDays(monday)[6]! }
+    !tableShown || waitingForLists ? null : { ...applied, from: firstDayOf(period), to: lastDayOf(period) }
   const tableKey = JSON.stringify(tableFilters)
 
   // The three reads of a filter change: the entries (a cursor-paged list), the day totals that label them,
@@ -216,9 +218,9 @@ export default function MyHoursPage() {
   const totals = useHoursQuery(filters && `totals:${state.group}:${filterKey}`, (signal) =>
     getTotals(state.group, filters!, { signal }),
   )
-  // The Week's one read: every entry of the week, complete or failed, folded into the grid (plan Decision 1).
+  // The table's one read: every entry of the period, complete or failed, folded into the grid (plan Decision 1).
   const tableRead = useHoursQuery(tableFilters && `table:${tableKey}`, (signal) =>
-    readTable(tableFilters!, monday, signal),
+    readTable(tableFilters!, period, signal),
   )
   const loadedTable = tableRead.state.status === 'loaded' ? tableRead.state.data : null
 
@@ -334,9 +336,9 @@ export default function MyHoursPage() {
     writeSearch((previous) => applyFilterPatch(previous, withRange))
   }
 
-  // The view and the week are addresses of the page, not filters: they change nothing else in it (AC-5.22).
+  // The view and the period are addresses of the page, not filters: they change nothing else in it (AC-5.22).
   const switchView = (next: MyHoursView) => writeSearch((previous) => withView(previous, next))
-  const changeWeek = (next: string) => writeSearch((previous) => withWeek(previous, next, today))
+  const changePeriod = (next: TablePeriod) => writeSearch((previous) => withWeek(previous, firstDayOf(next), today))
 
   const clear = () => {
     writeSearch((previous) => clearFilterSearch(previous, view))
@@ -439,12 +441,12 @@ export default function MyHoursPage() {
   // it to the button that opened the dialog), asks the three reads again with the same filters, and says so;
   // a save that was refused rejects into the dialog, which words it, and nothing here changes.
   const [recording, setRecording] = useState(false)
-  // A saved day the view does not show is said, or the entry looks lost: the List's is its period (hidden in the Week,
-  // so nothing is said about it there), the Week's is the week it shows, Monday to Sunday (design F6, S7).
+  // A saved day the view does not show is said, or the entry looks lost: the List's is its period (hidden in the table,
+  // so nothing is said about it there), the table's is the period it shows, first day to last (design F6, S7).
   const savedMessage = (day: string | undefined) => {
     if (day === undefined) return strings.entry.saved
     if (tableShown) {
-      return day < monday || day > weekDays(monday)[6]!
+      return day < firstDayOf(period) || day > lastDayOf(period)
         ? strings.table.savedOutside(formatDate(day))
         : strings.entry.saved
     }
@@ -599,11 +601,11 @@ export default function MyHoursPage() {
         {tableShown ? (
           <TableView
             ref={tableView}
-            monday={monday}
+            period={period}
             today={today}
             filtered={filtered}
             state={tableState}
-            onWeekChange={changeWeek}
+            onPeriodChange={changePeriod}
             onRetry={retryAll}
             onClearFilters={clear}
             onRecordCell={(row, day) => setRecordingCell({ row, day, viaDialog: false })}
@@ -724,7 +726,6 @@ export default function MyHoursPage() {
           row={cellInGrid.row}
           cell={cellInGrid.cell}
           day={openCell.day}
-          dayIndex={cellInGrid.index}
           onEdit={setEditing}
           onDelete={setDeleting}
           onAdd={

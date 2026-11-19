@@ -2,11 +2,12 @@
  * @vitest-environment jsdom
  *
  * PeriodNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9; design S7
- * "Navigator"; AC-5.5). It holds no state: it is told the week shown and today, and reports the Monday asked for.
+ * "Navigator"; AC-5.5). It holds no state: it is told the period shown and today, and reports the period asked for.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 import PeriodNavigator from './PeriodNavigator'
 import type { PeriodNavigatorProps } from './PeriodNavigator'
@@ -15,14 +16,18 @@ afterEach(() => cleanup())
 
 const n = strings.table.nav
 
+const week = (monday: string): TablePeriod => ({ kind: 'week', monday })
+
 // Today is Wednesday 18 November 2026: its week begins on Monday 16 November.
 const TODAY = '2026-11-18'
 const THIS_WEEK = '2026-11-16'
 
 const renderNavigator = (props: Partial<PeriodNavigatorProps> = {}) => {
-  const onWeekChange = vi.fn()
-  const view = render(<PeriodNavigator monday={THIS_WEEK} today={TODAY} onWeekChange={onWeekChange} {...props} />)
-  return { onWeekChange, ...view }
+  const onPeriodChange = vi.fn()
+  const view = render(
+    <PeriodNavigator period={week(THIS_WEEK)} today={TODAY} onPeriodChange={onPeriodChange} {...props} />,
+  )
+  return { onPeriodChange, ...view }
 }
 
 const previous = () => screen.getByRole('button', { name: n.previous })
@@ -48,78 +53,78 @@ describe('the controls (AC-5.5)', () => {
   })
 })
 
-describe('previous and next week call back with the shifted Monday (AC-5.5)', () => {
-  it('Previous week asks for the Monday seven days before', async () => {
-    const { onWeekChange } = renderNavigator()
+describe('previous and next week call back with the shifted week (AC-5.5)', () => {
+  it('Previous week asks for the week that began seven days before', async () => {
+    const { onPeriodChange } = renderNavigator()
     await userEvent.click(previous())
-    expect(onWeekChange).toHaveBeenCalledExactlyOnceWith('2026-11-09')
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week('2026-11-09'))
   })
 
-  it('Next week asks for the Monday seven days after', async () => {
-    const { onWeekChange } = renderNavigator()
+  it('Next week asks for the week that begins seven days after', async () => {
+    const { onPeriodChange } = renderNavigator()
     await userEvent.click(next())
-    expect(onWeekChange).toHaveBeenCalledExactlyOnceWith('2026-11-23')
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week('2026-11-23'))
   })
 
   it('shifts from the week shown, not from today, and over a month and a year', async () => {
-    const { onWeekChange, rerender } = renderNavigator({ monday: '2026-12-28' })
+    const { onPeriodChange, rerender } = renderNavigator({ period: week('2026-12-28') })
     await userEvent.click(next())
-    expect(onWeekChange).toHaveBeenLastCalledWith('2027-01-04')
-    rerender(<PeriodNavigator monday="2026-11-02" today={TODAY} onWeekChange={onWeekChange} />)
+    expect(onPeriodChange).toHaveBeenLastCalledWith(week('2027-01-04'))
+    rerender(<PeriodNavigator period={week('2026-11-02')} today={TODAY} onPeriodChange={onPeriodChange} />)
     await userEvent.click(previous())
-    expect(onWeekChange).toHaveBeenLastCalledWith('2026-10-26')
+    expect(onPeriodChange).toHaveBeenLastCalledWith(week('2026-10-26'))
   })
 
   it('offers Next week in a week that has not started: the grid there is blank, not forbidden', async () => {
-    const { onWeekChange } = renderNavigator({ monday: '2026-11-30' })
+    const { onPeriodChange } = renderNavigator({ period: week('2026-11-30') })
     await userEvent.click(next())
-    expect(onWeekChange).toHaveBeenCalledExactlyOnceWith('2026-12-07')
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week('2026-12-07'))
   })
 
   it('works from the keyboard, with Enter on the focused button', async () => {
-    const { onWeekChange } = renderNavigator()
+    const { onPeriodChange } = renderNavigator()
     previous().focus()
     await userEvent.keyboard('{Enter}')
-    expect(onWeekChange).toHaveBeenCalledExactlyOnceWith('2026-11-09')
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week('2026-11-09'))
   })
 
   it('keeps focus on the button once the week has changed, so a second step needs no new Tab', async () => {
-    const { onWeekChange, rerender } = renderNavigator()
+    const { onPeriodChange, rerender } = renderNavigator()
     await userEvent.click(next())
-    rerender(<PeriodNavigator monday="2026-11-23" today={TODAY} onWeekChange={onWeekChange} />)
+    rerender(<PeriodNavigator period={week('2026-11-23')} today={TODAY} onPeriodChange={onPeriodChange} />)
     expect(document.activeElement).toBe(next())
   })
 })
 
 describe('This week returns to the current week (AC-5.5)', () => {
-  it('asks for the Monday of the week holding today from any other week', async () => {
-    const { onWeekChange } = renderNavigator({ monday: '2026-10-05' })
+  it('asks for the week holding today from any other week', async () => {
+    const { onPeriodChange } = renderNavigator({ period: week('2026-10-05') })
     expect(thisWeek().getAttribute('aria-disabled')).toBeNull()
     await userEvent.click(thisWeek())
-    expect(onWeekChange).toHaveBeenCalledExactlyOnceWith(THIS_WEEK)
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week(THIS_WEEK))
   })
 
   it('knows a Sunday belongs to the week that began six days before', async () => {
-    const { onWeekChange } = renderNavigator({ monday: '2026-12-07', today: '2026-11-22' })
+    const { onPeriodChange } = renderNavigator({ period: week('2026-12-07'), today: '2026-11-22' })
     await userEvent.click(thisWeek())
-    expect(onWeekChange).toHaveBeenCalledExactlyOnceWith('2026-11-16')
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week('2026-11-16'))
   })
 
   it('is aria-disabled while the current week is shown, still a button that keeps focus, and asks for nothing', async () => {
-    const { onWeekChange } = renderNavigator()
+    const { onPeriodChange } = renderNavigator()
     const button = thisWeek()
     expect(button.getAttribute('aria-disabled')).toBe('true')
     expect(button).toHaveProperty('disabled', false)
     await userEvent.click(button)
-    expect(onWeekChange).not.toHaveBeenCalled()
+    expect(onPeriodChange).not.toHaveBeenCalled()
     expect(document.activeElement).toBe(button)
   })
 
   it('does not ask for the week it is already on from the keyboard either', async () => {
-    const { onWeekChange } = renderNavigator()
+    const { onPeriodChange } = renderNavigator()
     thisWeek().focus()
     await userEvent.keyboard('{Enter}')
     await userEvent.keyboard(' ')
-    expect(onWeekChange).not.toHaveBeenCalled()
+    expect(onPeriodChange).not.toHaveBeenCalled()
   })
 })

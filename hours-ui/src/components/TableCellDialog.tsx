@@ -11,9 +11,8 @@ export type TableCellDialogProps = {
   row: TableGridRow
   /** What the cell holds: the entries, in the server's order, and their total. Never empty (the page closes the dialog then). */
   cell: TableGridCell
-  /** `YYYY-MM-DD` and its place in the week (Monday is 0), for the weekday the title's description names. */
+  /** `YYYY-MM-DD`: the description names its weekday, read from the date (R17). */
   day: string
-  dayIndex: number
   /** Edit and Delete of one entry: the page opens its own entry dialog and delete confirmation over this one. */
   onEdit: (entry: TimeEntryView) => void
   onDelete: (entry: TimeEntryView) => void
@@ -23,7 +22,7 @@ export type TableCellDialogProps = {
 }
 
 /**
- * TableCellDialog — the entries of one cell of the table: one row, one day (specs/20261116-record-hours-in-place T12;
+ * TableCellDialog — the entries of one cell of the table: one row, one day (specs/20261116-record-hours-in-place T12, T18;
  * design S8; AC-5.15–AC-5.18, AC-5.24).
  *
  * A `Dialog`, not a drawer or a popover: it holds Edit and Delete, and a modal gives the stack the library already
@@ -38,16 +37,7 @@ export type TableCellDialogProps = {
  * focus has gone from the cell (deleted, or edited onto another day or row) focus goes to the dialog's heading, never
  * to the page behind it. An empty cell is not drawn: the page closes the dialog.
  */
-export default function TableCellDialog({
-  row,
-  cell,
-  day,
-  dayIndex,
-  onEdit,
-  onDelete,
-  onAdd,
-  onClose,
-}: TableCellDialogProps) {
+export default function TableCellDialog({ row, cell, day, onEdit, onDelete, onAdd, onClose }: TableCellDialogProps) {
   const body = useRef<HTMLDivElement>(null)
   const date = formatDateLong(day)
 
@@ -70,7 +60,7 @@ export default function TableCellDialog({
       size="lg"
       title={strings.table.cellDialog.title(strings.entries.type[row.kind], rowLabel(row))}
       description={strings.table.cellDialog.description(
-        longDay(day, dayIndex),
+        longDay(day),
         cell.entries.length,
         formatDuration(cell.minutes * 60_000, { style: 'short' }),
       )}

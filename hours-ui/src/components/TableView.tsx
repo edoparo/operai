@@ -14,15 +14,17 @@ import {
 } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import type { TableGrid, TableGridRow } from '../lib/tableGrid'
+import { firstDayOf } from '../lib/tablePeriod'
+import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 import ErrorBanner from './ErrorBanner'
 import PeriodNavigator from './PeriodNavigator'
-import { longDay, rowLabel, rowPhrase, weekRange } from './TableViewModel'
+import { longDay, periodLabel, rowLabel, rowPhrase, shortDay } from './TableViewModel'
 
 export type TableViewState =
-  /** The week is being read (or read again after a write): nothing of any other week is shown. */
+  /** The period is being read (or read again after a write): nothing of any other period is shown. */
   | { status: 'loading' }
-  /** The grid of the week the page asked for (`tableGrid(entries, monday)`); no rows is an empty week. */
+  /** The grid of the period the page asked for (`tableGrid(entries, daysOf(period))`); no rows is an empty period. */
   | { status: 'loaded'; grid: TableGrid }
   /** The read failed, in whole or in part; `message` is the sentence in the person's language. No partial grid. */
   | { status: 'error'; message: string }
@@ -48,15 +50,15 @@ export type TableViewHandle = {
 }
 
 export type TableViewProps = {
-  /** The Monday of the week asked for (`YYYY-MM-DD`): the heading and the navigator. A loaded `grid` is the grid of this week. */
-  monday: string
+  /** The period asked for: the heading and the navigator. A loaded `grid` is the grid of this period. */
+  period: TablePeriod
   /** Today as hours-api counts it (`todayZurich()`): marks its column; a day after it offers no recording (AC-5.14). */
   today: string
-  /** A filter the Week applies is set: an empty week then says no entry matches, and offers Clear filters. */
+  /** A filter the table applies is set: an empty period then says no entry matches, and offers Clear filters. */
   filtered: boolean
   state: TableViewState
-  /** The Monday of the week the navigator asks for: the one before, the one after, or the one holding today. */
-  onWeekChange: (monday: string) => void
+  /** The period the navigator asks for: the one before, the one after, or the one holding today. */
+  onPeriodChange: (period: TablePeriod) => void
   /** Retry after a failed read. */
   onRetry: () => void
   /** Clear filters, from the empty-and-filtered state. */
@@ -73,11 +75,12 @@ type TableRow = { type: 'row'; row: TableGridRow } | { type: 'total' }
 
 const short = (minutes: number) => formatDuration(minutes * 60_000, { style: 'short' })
 
-function DayHeader({ day, index, today }: { day: string; index: number; today: string }) {
+/** A day's column header: the weekday of its date (never of its place among the columns, R17) and the date. */
+function DayHeader({ day, today }: { day: string; today: string }) {
   return (
     <span className="inline-flex flex-col items-end gap-0.5">
       <span className="inline-flex items-center gap-1">
-        {strings.table.weekday.short[index]}
+        {shortDay(day)}
         {day === today && <Badge tone="accent">{strings.table.today}</Badge>}
       </span>{' '}
       <span>{formatDate(day)}</span>
@@ -106,14 +109,13 @@ type CellActions = Pick<TableViewProps, 'onRecordCell' | 'onOpenCell'>
 function Cell({
   row,
   day,
-  index,
   today,
   onRecordCell,
   onOpenCell,
-}: CellActions & { row: TableGridRow; day: string; index: number; today: string }) {
+}: CellActions & { row: TableGridRow; day: string; today: string }) {
   const cell = row.cells[day]
   const on = rowPhrase(row)
-  const dayName = longDay(day, index)
+  const dayName = longDay(day)
   const dataCell = `${row.key}:${day}`
   if (cell) {
     const figure = short(cell.minutes)
@@ -147,7 +149,13 @@ function Cell({
   )
 }
 
-function GridTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { grid: TableGrid; today: string }) {
+function GridTable({
+  grid,
+  label,
+  today,
+  onRecordCell,
+  onOpenCell,
+}: CellActions & { grid: TableGrid; label: string; today: string }) {
   const columns: DataTableColumn<TableRow>[] = [
     {
       id: 'on',
@@ -162,7 +170,7 @@ function GridTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
     },
     ...grid.days.map((day, index): DataTableColumn<TableRow> => ({
       id: day,
-      header: <DayHeader day={day} index={index} today={today} />,
+      header: <DayHeader day={day} today={today} />,
       numeric: true,
       render: (item) =>
         item.type === 'total' ? (
@@ -172,14 +180,7 @@ function GridTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
             short(grid.dayMinutes[index]!)
           )
         ) : (
-          <Cell
-            row={item.row}
-            day={day}
-            index={index}
-            today={today}
-            onRecordCell={onRecordCell}
-            onOpenCell={onOpenCell}
-          />
+          <Cell row={item.row} day={day} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
         ),
     })),
     {
@@ -192,10 +193,9 @@ function GridTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
     },
   ]
   const rows: TableRow[] = [...grid.rows.map((row): TableRow => ({ type: 'row', row })), { type: 'total' }]
-  const range = weekRange(grid.days[0]!)
   return (
     <DataTable
-      caption={strings.table.grid.caption(range)}
+      caption={strings.table.grid.caption(label)}
       columns={columns}
       rows={rows}
       getRowKey={(item) => (item.type === 'total' ? 'total' : item.row.key)}
@@ -206,18 +206,18 @@ function GridTable({ grid, today, onRecordCell, onOpenCell }: CellActions & { gr
 }
 
 /**
- * A week with no entries (design S7 States). A week that begins after today says it has not started, whatever the
+ * A period with no entries (design S7 States). A period that begins after today says it has not started, whatever the
  * filters are: nothing can be recorded on a day that has not come, so clearing a filter would change nothing and is
  * not offered. Otherwise the List's own sentence for "a filter is set" with Clear filters, or the plain one — the
  * page header has the Record hours action, so the panel has none.
  */
 function EmptyPeriod({
-  monday,
+  period,
   today,
   filtered,
   onClearFilters,
-}: Pick<TableViewProps, 'monday' | 'today' | 'filtered' | 'onClearFilters'>) {
-  if (monday > today) {
+}: Pick<TableViewProps, 'period' | 'today' | 'filtered' | 'onClearFilters'>) {
+  if (firstDayOf(period) > today) {
     return (
       <StatePanel headingLevel={4} title={strings.table.emptyFuture.title} testId="hours-table-empty">
         {strings.table.emptyFuture.body}
@@ -248,31 +248,31 @@ function EmptyPeriod({
 }
 
 /**
- * What the one polite live region says: the wait, then the week that arrived with its total (spoken, as a sentence is,
+ * What the one polite live region says: the wait, then the period that arrived with its total (spoken, as a sentence is,
  * and as the Totals card says its figure). Nothing on an error — its banner is an alert — and nothing on a state the page
  * supplies, which words itself.
  */
-const announcement = (state: TableViewState, monday: string): string => {
+const announcement = (state: TableViewState, label: string): string => {
   if (state.status === 'loading') return strings.table.loading
   if (state.status !== 'loaded') return ''
-  const range = weekRange(monday)
   return state.grid.rows.length === 0
-    ? strings.table.announceEmpty(range)
-    : strings.table.announce(range, formatDuration(state.grid.totalMinutes * 60_000, { style: 'spoken' }))
+    ? strings.table.announceEmpty(label)
+    : strings.table.announce(label, formatDuration(state.grid.totalMinutes * 60_000, { style: 'spoken' }))
 }
 
 /**
- * TableView — the table card of My hours, its period the week (specs/20261116-record-hours-in-place T9; design S7; AC-5.3, AC-5.5,
- * AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24).
+ * TableView — the table card of My hours, drawn for a `TablePeriod` (specs/20261116-record-hours-in-place T9, T18; design
+ * S7; AC-5.3, AC-5.5, AC-5.9–AC-5.11, AC-5.14, AC-5.23, AC-5.24).
  *
- * Presentational. It is handed `monday` (the week asked for), `today` (`todayZurich()`), the `state` of the one read
- * of that week and, when loaded, the `TableGrid` the pure fold of T8 made of it. It sums nothing and compares nothing:
- * every figure is one the grid states, and the same markup draws a 1 h week and a 42 h week (AC-5.11).
+ * Presentational. It is handed `period` (the period asked for), `today` (`todayZurich()`), the `state` of the one read
+ * of that period and, when loaded, the `TableGrid` the pure fold of T8 made of it. It sums nothing and compares nothing:
+ * every figure is one the grid states, and the same markup draws a 1 h week and a 42 h week (AC-5.11). A day is named by
+ * its date — the weekday in a column header and in a cell's name — never by the column's place (R17).
  *
- * The card's heading is the week as two dates and its action the navigator, in every state, so the week can be changed
- * out of an error or an empty one. The body is exactly one of: a skeleton while the week is read (so the previous
- * week's figures are never on screen under the new span), the table, the empty week, one error with Retry (the read is
- * all or nothing: never a partial grid), or whatever the page supplies in place of the grid (`replaced`: the deal
+ * The card's heading is the period's label and its action the navigator, in every state, so the period can be changed
+ * out of an error or an empty one. The body is exactly one of: a skeleton while the period is read (so the previous
+ * period's figures are never on screen under the new span), the table, the empty period, one error with Retry (the read
+ * is all or nothing: never a partial grid), or whatever the page supplies in place of the grid (`replaced`: the deal
  * filter that cannot be answered).
  *
  * A cell's actions are callbacks that give the row and the day (T11 records on an empty cell, T12 lists a cell's
@@ -281,11 +281,11 @@ const announcement = (state: TableViewState, monday: string): string => {
  * read again.
  */
 export default function TableView({
-  monday,
+  period,
   today,
   filtered,
   state,
-  onWeekChange,
+  onPeriodChange,
   onRetry,
   onClearFilters,
   onRecordCell,
@@ -293,6 +293,7 @@ export default function TableView({
   ref,
 }: TableViewProps) {
   const root = useRef<HTMLDivElement>(null)
+  const label = periodLabel(period)
 
   // `Card` has no focusable heading yet, so the heading is found through the card's own `aria-labelledby` (the way
   // `TotalsCard` does it) and made a programmatic focus target; a cell is found by the `data-cell` it carries.
@@ -324,27 +325,33 @@ export default function TableView({
   return (
     <div ref={root} className="contents">
       <Card
-        title={strings.table.title(weekRange(monday))}
+        title={strings.table.title(label)}
         titleTestId="hours-table-heading"
-        action={<PeriodNavigator monday={monday} today={today} onWeekChange={onWeekChange} />}
+        action={<PeriodNavigator period={period} today={today} onPeriodChange={onPeriodChange} />}
         data-testid="hours-table"
       >
         <VisuallyHidden live data-testid="hours-table-live">
-          {announcement(state, monday)}
+          {announcement(state, label)}
         </VisuallyHidden>
 
         {state.status === 'loading' && <SkeletonRows rows={4} actions={0} testId="hours-table-skeleton" />}
 
         {state.status === 'loaded' &&
           (state.grid.rows.length === 0 ? (
-            <EmptyPeriod monday={monday} today={today} filtered={filtered} onClearFilters={onClearFilters} />
+            <EmptyPeriod period={period} today={today} filtered={filtered} onClearFilters={onClearFilters} />
           ) : (
             <>
               {/* Below 1024 px the grid scrolls inside the card and nothing else says so; with a grid only (design S7 "Phone"). */}
               <p className="mb-3 text-xs text-soft lg:hidden" aria-hidden="true">
                 {strings.table.scrollHint}
               </p>
-              <GridTable grid={state.grid} today={today} onRecordCell={onRecordCell} onOpenCell={onOpenCell} />
+              <GridTable
+                grid={state.grid}
+                label={label}
+                today={today}
+                onRecordCell={onRecordCell}
+                onOpenCell={onOpenCell}
+              />
             </>
           ))}
 

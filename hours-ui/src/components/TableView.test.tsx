@@ -16,6 +16,7 @@ import type { TimeEntryView } from '../lib/hoursApi.types'
 import { rowName } from '../lib/names'
 import { tableGrid } from '../lib/tableGrid'
 import type { TableGrid } from '../lib/tableGrid'
+import type { TablePeriod } from '../lib/tablePeriod'
 import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../test-support/fakeApi'
 import TableView from './TableView'
 import type { TableViewProps } from './TableView'
@@ -31,6 +32,7 @@ const TODAY = '2026-11-19'
 const DAYS = ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22']
 const [MON, TUE, WED, THU, FRI, , SUN] = DAYS as [string, string, string, string, string, string, string]
 const RANGE = '16.11.2026 – 22.11.2026'
+const week = (monday: string): TablePeriod => ({ kind: 'week', monday })
 
 let sequence = 0
 const entry = (day: string, minutes: number, on: TimeEntryView['on']): TimeEntryView =>
@@ -47,16 +49,16 @@ const ENTRIES = [
   entry(THU, 120, otherWorkOn('Training', 'c-training')),
   entry(TUE, 120, projectOn('p3', 'Secret', 'hidden')),
 ]
-const GRID: TableGrid = tableGrid(ENTRIES, MONDAY)
+const GRID: TableGrid = tableGrid(ENTRIES, DAYS)
 
 const renderWeek = (props: Partial<TableViewProps> = {}) =>
   render(
     <TableView
-      monday={MONDAY}
+      period={week(MONDAY)}
       today={TODAY}
       filtered={false}
       state={{ status: 'loaded', grid: GRID }}
-      onWeekChange={vi.fn()}
+      onPeriodChange={vi.fn()}
       onRetry={vi.fn()}
       onClearFilters={vi.fn()}
       {...props}
@@ -112,6 +114,33 @@ describe('the grid is a table with the seven days of the week (AC-5.3)', () => {
   })
 })
 
+describe('a day is named by its date, never by its column (R17)', () => {
+  // Sunday 1 November 2026 begins a run of days that is not Monday-first: Sunday, Monday, Tuesday. A month that begins
+  // there (T22) is drawn by the same code, so the first column must read "Sun", not "Mon".
+  const RUN = ['2026-11-01', '2026-11-02', '2026-11-03']
+
+  it('heads each column with the weekday of its date and the date', () => {
+    const grid = tableGrid([entry(RUN[0]!, 60, projectOn('p1', 'Alpenstrom'))], RUN)
+    renderWeek({ state: { status: 'loaded', grid } })
+    const headers = within(table()).getAllByRole('columnheader').slice(1, 4)
+    RUN.forEach((day, index) => {
+      const text = headers[index]?.textContent ?? ''
+      expect(text).toContain(['Sun', 'Mon', 'Tue'][index])
+      expect(text).toContain(formatDate(day))
+    })
+    // The first column of a Monday-first week would say "Mon": the weekday does not come from the column's place.
+    expect(headers[0]?.textContent).not.toContain('Mon')
+  })
+
+  it('names a cell button with the weekday of its date: 1 November 2026 is a Sunday', () => {
+    const grid = tableGrid([entry(RUN[0]!, 60, projectOn('p1', 'Alpenstrom'))], RUN)
+    renderWeek({ state: { status: 'loaded', grid }, onOpenCell: vi.fn() })
+    const button = within(screen.getByTestId('hours-table-row-project:p1')).getByRole('button')
+    expect(button.getAttribute('aria-label')).toBe(w.cell.open('1 h', 'Alpenstrom', 'Sunday 1 November 2026', 1))
+    expect(button.getAttribute('aria-label')).toContain('Sunday 1 November 2026')
+  })
+})
+
 describe('the figures: a cell, a row, a day and the week, each as the grid states it (AC-5.9, AC-5.10)', () => {
   it('shows in a cell the total of its row and day as hours and minutes, and nothing where the grid has no cell', () => {
     renderWeek()
@@ -133,7 +162,7 @@ describe('the figures: a cell, a row, a day and the week, each as the grid state
         entry(TUE, 150, projectOn('p1', 'A')),
         entry(WED, 1440, projectOn('p1', 'A')),
       ],
-      MONDAY,
+      DAYS,
     )
     renderWeek({ state: { status: 'loaded', grid } })
     expect(dayCell('project:p1', MON).textContent).toBe('30 min')
@@ -266,7 +295,7 @@ describe('a cell is a control only where an action is offered (AC-5.12, AC-5.14,
   })
 
   it('offers no recording on a retired category, on any day (AC-5.24)', () => {
-    const grid = tableGrid([entry(TUE, 60, otherWorkOn('Old training', 'c-old', true))], MONDAY)
+    const grid = tableGrid([entry(TUE, 60, otherWorkOn('Old training', 'c-old', true))], DAYS)
     renderWeek({ ...handlers(), state: { status: 'loaded', grid }, today: '2026-11-30' })
     expect(within(row('category:c-old')).queryByRole('button', { name: /^Record hours/ })).toBeNull()
   })
@@ -278,7 +307,7 @@ describe('a cell is a control only where an action is offered (AC-5.12, AC-5.14,
         entry(WED, 90, projectOn('p1', 'Alpenstrom')),
         entry(MON, 240, projectOn('p1', 'Alpenstrom')),
       ],
-      MONDAY,
+      DAYS,
     )
     renderWeek({ ...handlers(), state: { status: 'loaded', grid } })
     const two = within(dayCell('project:p1', WED)).getByRole('button', {
@@ -308,7 +337,7 @@ describe('a cell is a control only where an action is offered (AC-5.12, AC-5.14,
   })
 
   it('still opens the hours of a retired category (AC-5.24)', () => {
-    const grid = tableGrid([entry(TUE, 60, otherWorkOn('Old training', 'c-old', true))], MONDAY)
+    const grid = tableGrid([entry(TUE, 60, otherWorkOn('Old training', 'c-old', true))], DAYS)
     renderWeek({ ...handlers(), state: { status: 'loaded', grid } })
     expect(buttonIn('category:c-old', TUE)?.getAttribute('aria-label')).toBe(
       '1 h on other work (Old training), Tuesday 17 November 2026, 1 entry',
@@ -364,7 +393,7 @@ describe('a row is named as the List names an entry (AC-5.8, AC-5.23)', () => {
   it('says "Name unavailable" for a deal whose owner did not answer, and for a visible one that arrived without a label', () => {
     const grid = tableGrid(
       [entry(MON, 60, dealOn('d2', 'Unseen', 'unavailable')), entry(TUE, 60, projectOn('p4', null))],
-      MONDAY,
+      DAYS,
     )
     renderWeek({ state: { status: 'loaded', grid } })
     expect(within(header('deal:d2')).getByText(strings.names.unavailable)).not.toBeNull()
@@ -372,7 +401,7 @@ describe('a row is named as the List names an entry (AC-5.8, AC-5.23)', () => {
   })
 
   it('tells a retired category as the List does', () => {
-    const grid = tableGrid([entry(TUE, 60, otherWorkOn('Old training', 'c-old', true))], MONDAY)
+    const grid = tableGrid([entry(TUE, 60, otherWorkOn('Old training', 'c-old', true))], DAYS)
     renderWeek({ state: { status: 'loaded', grid } })
     expect(within(header('category:c-old')).getByText(strings.entries.retired('Old training'))).not.toBeNull()
   })
@@ -402,7 +431,7 @@ describe('the same markup for a 42 h week and a 1 h week, and nothing compares a
         entry(WED, minutesEach, dealOn('d1', 'Brera')),
         entry(THU, minutesEach, dealOn('d1', 'Brera')),
       ],
-      MONDAY,
+      DAYS,
     )
   const BIG = weekOf(630) // 4 × 10 h 30 = 42 h
   const SMALL = weekOf(15) // 4 × 15 min = 1 h
@@ -454,7 +483,7 @@ describe('the same markup for a 42 h week and a 1 h week, and nothing compares a
 
 describe('the card: the week is its heading and the navigator its action, in every state (AC-5.5)', () => {
   const heading = () => screen.getByRole('heading', { level: 3 })
-  const EMPTY: TableGrid = tableGrid([], MONDAY)
+  const EMPTY: TableGrid = tableGrid([], DAYS)
 
   it('is headed with the week as two formatDates and an en dash', () => {
     renderWeek()
@@ -464,28 +493,28 @@ describe('the card: the week is its heading and the navigator its action, in eve
   })
 
   it('names the week it is told, not the one the figures belong to, so a week that is still loading has its own heading', () => {
-    renderWeek({ monday: '2026-11-23', state: { status: 'loading' } })
+    renderWeek({ period: week('2026-11-23'), state: { status: 'loading' } })
     expect(heading().textContent).toBe('Week 23.11.2026 – 29.11.2026')
   })
 
-  it('has the navigator, which asks for the Monday after or before the one shown, and for this week', async () => {
-    const onWeekChange = vi.fn()
-    renderWeek({ onWeekChange })
+  it('has the navigator, which asks for the week after or before the one shown, and for this week', async () => {
+    const onPeriodChange = vi.fn()
+    renderWeek({ onPeriodChange })
     const navigator = screen.getByRole('group', { name: strings.table.nav.label })
     await userEvent.click(within(navigator).getByRole('button', { name: strings.table.nav.next }))
-    expect(onWeekChange).toHaveBeenLastCalledWith('2026-11-23')
+    expect(onPeriodChange).toHaveBeenLastCalledWith(week('2026-11-23'))
     await userEvent.click(within(navigator).getByRole('button', { name: strings.table.nav.previous }))
-    expect(onWeekChange).toHaveBeenLastCalledWith('2026-11-09')
+    expect(onPeriodChange).toHaveBeenLastCalledWith(week('2026-11-09'))
     expect(
       within(navigator).getByRole('button', { name: strings.table.nav.thisWeek }).getAttribute('aria-disabled'),
     ).toBe('true')
   })
 
-  it('asks for this week from another week, by the Monday of the week that holds today', async () => {
-    const onWeekChange = vi.fn()
-    renderWeek({ monday: '2026-12-07', onWeekChange })
+  it('asks for this week from another week: the week that holds today', async () => {
+    const onPeriodChange = vi.fn()
+    renderWeek({ period: week('2026-12-07'), onPeriodChange })
     await userEvent.click(screen.getByRole('button', { name: strings.table.nav.thisWeek }))
-    expect(onWeekChange).toHaveBeenCalledExactlyOnceWith(MONDAY)
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith(week(MONDAY))
   })
 
   it.each<[string, Partial<TableViewProps>]>([
@@ -532,11 +561,11 @@ describe('the grid on a phone and a laptop: the label floor and the scroll hint 
   })
 
   it('is on a grid only: not while the week loads, on an empty week, on an error nor on a state the page supplies', () => {
-    const EMPTY = tableGrid([], MONDAY)
+    const EMPTY = tableGrid([], DAYS)
     const without: [string, Partial<TableViewProps>][] = [
       ['loading', { state: { status: 'loading' } }],
       ['an empty week', { state: { status: 'loaded', grid: EMPTY } }],
-      ['an empty week that has not started', { monday: '2026-11-23', state: { status: 'loaded', grid: EMPTY } }],
+      ['an empty week that has not started', { period: week('2026-11-23'), state: { status: 'loaded', grid: EMPTY } }],
       ['an empty filtered week', { filtered: true, state: { status: 'loaded', grid: EMPTY } }],
       ['an error', { state: { status: 'error', message: 'nope' } }],
       ['a state the page supplies', { state: { status: 'replaced', content: <p>the page says so</p> } }],
@@ -567,11 +596,11 @@ describe('loading: a skeleton, one polite line, and no figure of another week (d
     expect(screen.getByRole('table')).not.toBeNull()
     rerender(
       <TableView
-        monday="2026-11-23"
+        period={week('2026-11-23')}
         today={TODAY}
         filtered={false}
         state={{ status: 'loading' }}
-        onWeekChange={vi.fn()}
+        onPeriodChange={vi.fn()}
         onRetry={vi.fn()}
         onClearFilters={vi.fn()}
       />,
@@ -583,7 +612,7 @@ describe('loading: a skeleton, one polite line, and no figure of another week (d
 })
 
 describe('a week with no entries (design S7 States; AC-5.14)', () => {
-  const EMPTY = tableGrid([], MONDAY)
+  const EMPTY = tableGrid([], DAYS)
   const empty = (props: Partial<TableViewProps> = {}) =>
     renderWeek({ state: { status: 'loaded', grid: EMPTY }, ...props })
 
@@ -597,12 +626,12 @@ describe('a week with no entries (design S7 States; AC-5.14)', () => {
   })
 
   it('says the week has not started when it begins after today, however the filters are set', () => {
-    empty({ monday: '2026-11-23' })
+    empty({ period: week('2026-11-23') })
     expect(screen.getByRole('heading', { level: 4, name: w.emptyFuture.title })).not.toBeNull()
     expect(screen.getByTestId('hours-table-empty').textContent).toContain(w.emptyFuture.body)
     cleanup()
     // clearing a filter cannot put hours in a week that has not come, so it is not offered
-    empty({ monday: '2026-11-23', filtered: true })
+    empty({ period: week('2026-11-23'), filtered: true })
     expect(screen.getByRole('heading', { level: 4, name: w.emptyFuture.title })).not.toBeNull()
     expect(screen.queryByRole('button', { name: strings.filters.clear })).toBeNull()
   })
@@ -662,7 +691,7 @@ describe('what a screen reader is told when a week arrives (design S7 "Announcem
   })
 
   it('hears that nothing was recorded in a week with no entries', () => {
-    renderWeek({ state: { status: 'loaded', grid: tableGrid([], MONDAY) } })
+    renderWeek({ state: { status: 'loaded', grid: tableGrid([], DAYS) } })
     expect(live().textContent).toBe(w.announceEmpty(RANGE))
   })
 
@@ -671,11 +700,11 @@ describe('what a screen reader is told when a week arrives (design S7 "Announcem
     const region = live()
     rerender(
       <TableView
-        monday={MONDAY}
+        period={week(MONDAY)}
         today={TODAY}
         filtered={false}
         state={{ status: 'loaded', grid: GRID }}
-        onWeekChange={vi.fn()}
+        onPeriodChange={vi.fn()}
         onRetry={vi.fn()}
         onClearFilters={vi.fn()}
       />,
@@ -685,11 +714,11 @@ describe('what a screen reader is told when a week arrives (design S7 "Announcem
     expect(region.textContent).toContain('18 hours, 30 minutes')
     rerender(
       <TableView
-        monday={MONDAY}
+        period={week(MONDAY)}
         today={TODAY}
         filtered={false}
         state={{ status: 'error', message: 'nope' }}
-        onWeekChange={vi.fn()}
+        onPeriodChange={vi.fn()}
         onRetry={vi.fn()}
         onClearFilters={vi.fn()}
       />,

@@ -1,28 +1,28 @@
 import { Button, Icon } from '@operai/ui'
-import { mondayOf, shiftWeek } from '../lib/week'
+import { current, isCurrent, shift } from '../lib/tablePeriod'
+import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 
 export type PeriodNavigatorProps = {
-  /** The Monday of the week shown (`YYYY-MM-DD`). */
-  monday: string
-  /** Today as hours-api counts it (`todayZurich()`): "This week" returns to the week holding it. */
+  /** The period shown. */
+  period: TablePeriod
+  /** Today as hours-api counts it (`todayZurich()`): "This week" returns to the period holding it. */
   today: string
-  /** The Monday of the week asked for: the one before, the one after, or the one holding today. */
-  onWeekChange: (monday: string) => void
+  /** The period asked for: the one before, the one after, or the one holding today. */
+  onPeriodChange: (period: TablePeriod) => void
 }
 
 /**
- * PeriodNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9; design S7
- * "Navigator"; AC-5.5). It keeps no state and no address: it reports the Monday asked for and the page changes
- * `week`, so the buttons stay mounted and keep focus across a step.
+ * PeriodNavigator — previous week, this week, next week (specs/20261116-record-hours-in-place T9, T18; design S7
+ * "Navigator"; AC-5.5). It keeps no state and no address: it reports the period asked for and the page changes the
+ * address, so the buttons stay mounted and keep focus across a step.
  *
  * Next week is always offered, a week that has not started included (its grid is blank, with its own state).
  * "This week" is `aria-disabled` rather than `disabled` while the current week is shown: it stays in the tab order
  * and keeps focus after a click, and the click asks for nothing.
  */
-export default function PeriodNavigator({ monday, today, onWeekChange }: PeriodNavigatorProps) {
-  const current = mondayOf(today)
-  const showingCurrent = monday === current
+export default function PeriodNavigator({ period, today, onPeriodChange }: PeriodNavigatorProps) {
+  const showingCurrent = isCurrent(period, today)
   return (
     <div
       role="group"
@@ -35,7 +35,7 @@ export default function PeriodNavigator({ monday, today, onWeekChange }: PeriodN
         size="sm"
         iconOnly
         aria-label={strings.table.nav.previous}
-        onClick={() => onWeekChange(shiftWeek(monday, -1))}
+        onClick={() => onPeriodChange(shift(period, -1))}
         data-testid="hours-period-previous"
       >
         <Icon name="chevron-left" />
@@ -45,7 +45,7 @@ export default function PeriodNavigator({ monday, today, onWeekChange }: PeriodN
         size="sm"
         aria-disabled={showingCurrent ? 'true' : undefined}
         onClick={() => {
-          if (!showingCurrent) onWeekChange(current)
+          if (!showingCurrent) onPeriodChange(current(period.kind, today))
         }}
         data-testid="hours-period-current"
       >
@@ -56,7 +56,7 @@ export default function PeriodNavigator({ monday, today, onWeekChange }: PeriodN
         size="sm"
         iconOnly
         aria-label={strings.table.nav.next}
-        onClick={() => onWeekChange(shiftWeek(monday, 1))}
+        onClick={() => onPeriodChange(shift(period, 1))}
         data-testid="hours-period-next"
       >
         <Icon name="chevron-right" />

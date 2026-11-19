@@ -1,11 +1,10 @@
 /**
- * tableGrid — the table view's grid, folded from one complete read of a person's week (specs/20261116-record-hours-in-place
- * T8; plan § `tableGrid`, decision 1; ADR 20261116-week-view-sums-a-complete-read-in-the-browser). A pure function:
- * entries in, rows × days out, no I/O, no state.
+ * tableGrid — the table view's grid, folded from one complete read of a person's period (specs/20261116-record-hours-in-place
+ * T8, T18; plan § `tableGrid`, decisions 1 and 8; ADR 20261116-week-view-sums-a-complete-read-in-the-browser). A pure
+ * function: entries and the period's days in, rows × days out, no I/O, no state.
  */
 import type { TimeEntryView, Visibility } from './hoursApi.types'
 import type { DealChoice, MeetingChoice, ProjectChoice } from './searchers'
-import { weekDays } from './week'
 
 /**
  * What "Add hours" on a row sets in the entry dialog. This is `EntryPreset['on']` of plan § `EntryDialog`, declared
@@ -33,15 +32,15 @@ export type TableGridRow = {
   retired: boolean
   /** What Add hours sets; `null` for a row with no name and for a retired category (AC-5.24, D12). */
   preset: TableGridRowPreset | null
-  /** Key: `YYYY-MM-DD` within the week; only the days that hold entries. */
+  /** Key: `YYYY-MM-DD`, a day of the grid's `days`; only the days that hold entries. */
   cells: Readonly<Record<string, TableGridCell>>
   minutes: number
 }
 
 export type TableGrid = {
-  /** Seven, Monday to Sunday. */
+  /** The period's days, as given: consecutive, ascending (seven, Monday to Sunday, for a week). */
   days: readonly string[]
-  /** Seven; `0` for a day with nothing. */
+  /** One for each of `days`; `0` for a day with nothing. */
   dayMinutes: readonly number[]
   rows: readonly TableGridRow[]
   totalMinutes: number
@@ -121,21 +120,27 @@ const collatorOfPage = (): Intl.Collator => {
 }
 
 /**
- * The grid of a week: one row for each project, deal, meeting and category of other work the entries are on, a cell
- * for each day of the week they hold hours, and every total (row, day, week) summed over the one set given
- * (AC-5.6–5.10). Rows come projects, deals, meetings, other work; inside a kind the named ones by name
- * (`<html lang>`, case and accents ignored), then those with no name, then by key — so the order does not depend on the
- * order the entries came in (AC-5.8). An entry on a day outside the week is a server bug (the read asked for
- * this week): it throws, so no figure is drawn from a set that is not the week's.
+ * The grid of a period: one row for each project, deal, meeting and category of other work the entries are on, a cell
+ * for each day of the period they hold hours, and every total (row, day, period) summed over the one set given
+ * (AC-5.6–5.10). `days` is the period's (`daysOf(period)`, consecutive and ascending: a caller bug otherwise, a
+ * `TypeError`). Rows come projects, deals, meetings, other work; inside a kind the named ones by name (`<html lang>`,
+ * case and accents ignored), then those with no name, then by key — so the order does not depend on the order the
+ * entries came in (AC-5.8). An entry on a day outside `days` is a server bug (the read asked for the period): it throws
+ * a `RangeError` naming the entry's id and day, never its note, so no figure is drawn from a set that is not the period's.
  */
-export const tableGrid = (entries: readonly TimeEntryView[], monday: string): TableGrid => {
-  const days = weekDays(monday)
+export const tableGrid = (entries: readonly TimeEntryView[], days: readonly string[]): TableGrid => {
+  if (days.length === 0 || days.some((day, index) => index > 0 && day <= days[index - 1]!)) {
+    throw new TypeError('tableGrid: expected the consecutive, ascending days of a period')
+  }
+  const placeOf = new Map(days.map((day, index) => [day, index]))
   const dayMinutes = days.map(() => 0)
   const groups = new Map<string, { kind: Kind; id: string | null; entries: TimeEntryView[] }>()
 
   for (const entry of entries) {
-    if (!days.includes(entry.day)) {
-      throw new RangeError(`tableGrid: entry ${entry.id} is on ${entry.day}, outside the week of ${monday}`)
+    if (!placeOf.has(entry.day)) {
+      throw new RangeError(
+        `tableGrid: entry ${entry.id} is on ${entry.day}, outside the period ${days[0]} to ${days.at(-1)}`,
+      )
     }
     const { key, kind, id } = rowOf(entry)
     const group = groups.get(key) ?? { kind, id, entries: [] }
@@ -149,7 +154,7 @@ export const tableGrid = (entries: readonly TimeEntryView[], monday: string): Ta
       const cell = (cells[entry.day] ??= { minutes: 0, entries: [] })
       cell.minutes += entry.minutes
       cell.entries.push(entry)
-      dayMinutes[days.indexOf(entry.day)]! += entry.minutes
+      dayMinutes[placeOf.get(entry.day)!]! += entry.minutes
     }
     const minutes = Object.values(cells).reduce((sum, cell) => sum + cell.minutes, 0)
     return { key, kind, ...summaryOf(kind, id, onRow), cells, minutes }

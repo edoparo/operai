@@ -4,20 +4,22 @@
  * both worded by the List's own functions (`lib/names.ts`) so the two views never disagree about one entry.
  */
 import { describe, expect, it } from 'vitest'
-import { formatDate } from '@operai/ui'
+import { formatDate, formatDateLong } from '@operai/ui'
 import { strings } from '../strings'
 import type { EntryOn } from '../lib/hoursApi.types'
 import { onPhrase, rowName } from '../lib/names'
 import { tableGrid } from '../lib/tableGrid'
 import type { TableGridRow } from '../lib/tableGrid'
+import { daysOf, holding } from '../lib/tablePeriod'
 import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../test-support/fakeApi'
-import { rowLabel, rowPhrase, weekRange } from './TableViewModel'
+import { cellOf, longDay, periodLabel, rowLabel, rowPhrase, shortDay, weekRange } from './TableViewModel'
 
 const MONDAY = '2026-11-16'
+const DAYS = daysOf(holding('week', MONDAY))
 
 /** The one row an entry on `on` makes in the week of `MONDAY`. */
 const rowOf = (on: EntryOn): TableGridRow => {
-  const [row] = tableGrid([timeEntryView({ id: 'e', day: MONDAY, minutes: 60, on })], MONDAY).rows
+  const [row] = tableGrid([timeEntryView({ id: 'e', day: MONDAY, minutes: 60, on })], DAYS).rows
   if (!row) throw new Error('no row')
   return row
 }
@@ -78,5 +80,62 @@ describe('rowPhrase: how a row is named inside a button (AC-5.23)', () => {
 
   it('never carries the name of a record the viewer may not read', () => {
     expect(rowPhrase(rowOf(projectOn('p2', 'Secret', 'hidden')))).not.toContain('Secret')
+  })
+})
+
+describe('periodLabel: the period as the card heads it (AC-5.5)', () => {
+  it('is, for a week, weekRange of its Monday: two dates with an en dash', () => {
+    expect(periodLabel(holding('week', '2026-11-18'))).toBe('16.11.2026 – 22.11.2026')
+    expect(periodLabel(holding('week', '2026-12-02'))).toBe(weekRange('2026-11-30'))
+    expect(periodLabel(holding('week', '2026-12-02'))).toBe('30.11.2026 – 06.12.2026')
+  })
+})
+
+describe("longDay and shortDay: the weekday comes from the date, never from a column's place (R17)", () => {
+  it('names Sunday 1 November 2026 a Sunday: the first day of a month that does not begin on a Monday', () => {
+    expect(longDay('2026-11-01')).toBe(`${strings.table.weekday.long[6]} ${formatDateLong('2026-11-01')}`)
+    expect(longDay('2026-11-01')).toBe('Sunday 1 November 2026')
+    expect(shortDay('2026-11-01')).toBe('Sun')
+  })
+
+  it('names Monday 30 November a Monday and the Sunday 6 December that ends its week a Sunday', () => {
+    expect(longDay('2026-11-30')).toBe('Monday 30 November 2026')
+    expect(longDay('2026-12-06')).toBe('Sunday 6 December 2026')
+    expect(shortDay('2026-11-30')).toBe('Mon')
+    expect(shortDay('2026-12-06')).toBe('Sun')
+  })
+
+  it('names Tuesday 1 September 2026 a Tuesday, and every day of a week as the catalog has it, Monday first', () => {
+    expect(longDay('2026-09-01')).toBe('Tuesday 1 September 2026')
+    expect(shortDay('2026-09-01')).toBe('Tue')
+    expect(DAYS.map(shortDay)).toEqual([...strings.table.weekday.short])
+    expect(DAYS.map((day) => longDay(day).split(' ')[0])).toEqual([...strings.table.weekday.long])
+  })
+
+  it('refuses text that is not a day: a caller bug, never a weekday', () => {
+    expect(() => longDay('2026-02-30')).toThrow(TypeError)
+    expect(() => shortDay('')).toThrow(TypeError)
+  })
+})
+
+describe('cellOf: the cell a dialog was opened on, looked up by row key and day (AC-5.15)', () => {
+  const grid = tableGrid(
+    [
+      timeEntryView({ id: 'a', day: '2026-11-18', minutes: 60, on: projectOn('p1', 'Alpenstrom') }),
+      timeEntryView({ id: 'b', day: '2026-11-18', minutes: 30, on: projectOn('p1', 'Alpenstrom') }),
+    ],
+    DAYS,
+  )
+
+  it("is the row and the cell, and nothing about a column: the weekday is the date's", () => {
+    const found = cellOf(grid, 'project:p1', '2026-11-18')
+    expect(found).toEqual({ row: grid.rows[0], cell: grid.rows[0]!.cells['2026-11-18'] })
+    expect(found?.cell.entries.map((entry) => entry.id)).toEqual(['a', 'b'])
+  })
+
+  it('is null for a day with no entry, a row the grid does not have, and a day outside the grid', () => {
+    expect(cellOf(grid, 'project:p1', '2026-11-19')).toBeNull()
+    expect(cellOf(grid, 'project:p2', '2026-11-18')).toBeNull()
+    expect(cellOf(grid, 'project:p1', '2026-12-18')).toBeNull()
   })
 })

@@ -12,6 +12,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import type { EntryOn } from '../lib/hoursApi.types'
+import { daysOf, holding } from '../lib/tablePeriod'
 
 afterEach(() => {
   cleanup()
@@ -39,16 +40,16 @@ const setup = async (lang: 'it' | 'en') => {
       entry('e', '2026-11-19', 120, otherWorkOn('Formazione', 'c-training')),
       entry('f', '2026-11-17', 120, projectOn('p3', 'Segreto', 'hidden')),
     ],
-    MONDAY,
+    daysOf(holding('week', MONDAY)),
   )
   const draw = (props: Record<string, unknown> = {}) =>
     render(
       <TableView
-        monday={MONDAY}
+        period={{ kind: 'week', monday: MONDAY }}
         today={TODAY}
         filtered={false}
         state={{ status: 'loaded', grid }}
-        onWeekChange={vi.fn()}
+        onPeriodChange={vi.fn()}
         onRetry={vi.fn()}
         onClearFilters={vi.fn()}
         onRecordCell={vi.fn()}
@@ -128,7 +129,7 @@ describe('Italian', () => {
       '16.11.2026 – 22.11.2026: 11 ore e 30 minuti in totale.',
     )
     unmount()
-    draw({ state: { status: 'loaded', grid: tableGrid([], MONDAY) } })
+    draw({ state: { status: 'loaded', grid: tableGrid([], daysOf(holding('week', MONDAY))) } })
     expect(screen.getByTestId('hours-table-live').textContent).toBe('16.11.2026 – 22.11.2026: nessuna ora registrata.')
     cleanup()
     draw({ state: { status: 'loading' } })
@@ -137,11 +138,11 @@ describe('Italian', () => {
 
   it('words the empty week, the week that has not started, the empty filtered week and the error in Italian', async () => {
     const { draw, tableGrid } = await setup('it')
-    const loaded = { status: 'loaded', grid: tableGrid([], MONDAY) }
+    const loaded = { status: 'loaded', grid: tableGrid([], daysOf(holding('week', MONDAY))) }
     draw({ state: loaded })
     expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Nessuna ora registrata in questa settimana')
     cleanup()
-    draw({ state: loaded, monday: '2026-11-23' })
+    draw({ state: loaded, period: { kind: 'week', monday: '2026-11-23' } })
     expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Questa settimana non è ancora iniziata')
     expect(screen.getByTestId('hours-table-empty').textContent).toContain(
       'Puoi registrare le ore di un giorno quando è arrivato.',

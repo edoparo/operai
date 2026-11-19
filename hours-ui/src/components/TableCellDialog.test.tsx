@@ -14,6 +14,7 @@ import { strings } from '../strings'
 import type { TimeEntryView } from '../lib/hoursApi.types'
 import { tableGrid } from '../lib/tableGrid'
 import type { TableGridRow } from '../lib/tableGrid'
+import { daysOf, holding } from '../lib/tablePeriod'
 import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../test-support/fakeApi'
 import EntryDayList from './EntryDayList'
 import TableCellDialog from './TableCellDialog'
@@ -26,13 +27,14 @@ const e = strings.entries
 
 const MONDAY = '2026-11-16'
 const WEDNESDAY = '2026-11-18'
+const DAYS = daysOf(holding('week', MONDAY))
 
 let sequence = 0
 const entry = (overrides: Partial<TimeEntryView> & Pick<TimeEntryView, 'on'>): TimeEntryView =>
   timeEntryView({ id: `c${++sequence}`, day: WEDNESDAY, minutes: 60, ...overrides })
 
 const rowOf = (entries: TimeEntryView[], key: string): TableGridRow => {
-  const row = tableGrid(entries, MONDAY).rows.find((candidate) => candidate.key === key)
+  const row = tableGrid(entries, DAYS).rows.find((candidate) => candidate.key === key)
   if (row === undefined) throw new Error(`no row ${key}`)
   return row
 }
@@ -56,7 +58,6 @@ const renderDialog = (props: Partial<TableCellDialogProps> = {}) => {
       row={row}
       cell={row.cells[day]!}
       day={day}
-      dayIndex={2}
       onEdit={vi.fn()}
       onDelete={vi.fn()}
       onAdd={vi.fn()}
@@ -88,6 +89,28 @@ describe('the title and the description name the row and the day (AC-5.15, desig
     const open = dialog()
     expect(document.getElementById(open.getAttribute('aria-describedby')!)!.textContent).toBe(
       'Wednesday 18 November 2026 · 1 entry, 4 h',
+    )
+  })
+
+  it('names the weekday of the date, not of the column it was opened from (R17)', () => {
+    const sunday = '2026-11-22'
+    const onSunday = rowOf([entry({ day: sunday, minutes: 60, on: projectOn('p1', 'Alpenstrom') })], 'project:p1')
+    renderDialog({ row: onSunday, day: sunday })
+    expect(document.getElementById(dialog().getAttribute('aria-describedby')!)!.textContent).toBe(
+      'Sunday 22 November 2026 · 1 entry, 1 h',
+    )
+    cleanup()
+
+    // Sunday 1 November 2026 is the last day of a week that began in October.
+    const first = '2026-11-01'
+    const grid = tableGrid(
+      [entry({ day: first, minutes: 30, on: projectOn('p1', 'Alpenstrom') })],
+      daysOf(holding('week', first)),
+    )
+    const row = grid.rows[0]!
+    renderDialog({ row, day: first })
+    expect(document.getElementById(dialog().getAttribute('aria-describedby')!)!.textContent).toBe(
+      'Sunday 1 November 2026 · 1 entry, 30 min',
     )
   })
 
@@ -253,7 +276,6 @@ describe('focus (design S8, a11y "The cell dialog")', () => {
         row={afterDelete}
         cell={afterDelete.cells[WEDNESDAY]!}
         day={WEDNESDAY}
-        dayIndex={2}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onAdd={vi.fn()}
@@ -278,7 +300,6 @@ describe('focus (design S8, a11y "The cell dialog")', () => {
         row={grown}
         cell={grown.cells[WEDNESDAY]!}
         day={WEDNESDAY}
-        dayIndex={2}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onAdd={vi.fn()}

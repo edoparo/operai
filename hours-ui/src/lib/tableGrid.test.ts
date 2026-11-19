@@ -9,9 +9,12 @@ import { dealOn, meetingOn, otherWorkOn, projectOn, timeEntryView } from '../tes
 import type { EntryOn, TimeEntryView } from './hoursApi.types'
 import { tableGrid } from './tableGrid'
 import type { TableGrid } from './tableGrid'
+import { daysOf, holding } from './tablePeriod'
 
-// 2026-11-16 is a Monday: the week is Monday 16 – Sunday 22 November.
+// 2026-11-16 is a Monday: the week is Monday 16 – Sunday 22 November. The grid is folded over the days of a period
+// (T18: `tableGrid(entries, daysOf(period))`), here that week's.
 const MONDAY = '2026-11-16'
+const DAYS = daysOf(holding('week', MONDAY))
 const MON = '2026-11-16'
 const TUE = '2026-11-17'
 const WED = '2026-11-18'
@@ -27,7 +30,7 @@ const keys = (grid: TableGrid): string[] => grid.rows.map((row) => row.key)
 
 describe('tableGrid: one row for what the person worked on, one cell for each day (AC-5.3, AC-5.6, AC-5.9)', () => {
   it('has the seven days of the week, Monday to Sunday, and nothing else for a week with no entries', () => {
-    const grid = tableGrid([], MONDAY)
+    const grid = tableGrid([], DAYS)
     expect(grid.days).toEqual([MON, TUE, WED, THU, '2026-11-20', '2026-11-21', SUN])
     expect(grid.rows).toEqual([])
     expect(grid.dayMinutes).toEqual([0, 0, 0, 0, 0, 0, 0])
@@ -37,7 +40,7 @@ describe('tableGrid: one row for what the person worked on, one cell for each da
   it('puts two entries on one project on two days in one row with two cells (AC-5.6)', () => {
     const monday = entry(MON, 240, projectOn('p1', 'Alpenstrom'))
     const wednesday = entry(WED, 150, projectOn('p1', 'Alpenstrom'))
-    const grid = tableGrid([monday, wednesday], MONDAY)
+    const grid = tableGrid([monday, wednesday], DAYS)
 
     expect(grid.rows).toHaveLength(1)
     const [row] = grid.rows
@@ -57,7 +60,7 @@ describe('tableGrid: one row for what the person worked on, one cell for each da
         entry(TUE, 60, otherWorkOn('Training', 'c-training')),
         entry(TUE, 60, otherWorkOn('Administration', 'c-admin')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(keys(grid).sort()).toEqual(
       ['category:c-admin', 'category:c-training', 'deal:d1', 'meeting:m1', 'project:p1'].sort(),
@@ -72,7 +75,7 @@ describe('tableGrid: one row for what the person worked on, one cell for each da
         entry(MON, 30, meetingOn('x', 'A meeting')),
         entry(MON, 30, otherWorkOn('Training', 'x')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(keys(grid)).toEqual(['project:x', 'deal:x', 'meeting:x', 'category:x'])
   })
@@ -84,7 +87,7 @@ describe('tableGrid: one row for what the person worked on, one cell for each da
         entry(THU, 60, otherWorkOn('Training', 'c-training')),
         entry(THU, 90, otherWorkOn('Training', 'c-training')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(keys(grid)).toEqual(['category:c-training'])
     expect(grid.rows[0]?.name).toBe('Training')
@@ -94,7 +97,7 @@ describe('tableGrid: one row for what the person worked on, one cell for each da
     const first = entry(TUE, 60, projectOn('p1', 'Alpenstrom'))
     const second = entry(TUE, 150, projectOn('p1', 'Alpenstrom'))
     const other = entry(TUE, 30, projectOn('p2', 'Operai'))
-    const grid = tableGrid([first, second, other], MONDAY)
+    const grid = tableGrid([first, second, other], DAYS)
 
     const alpenstrom = grid.rows.find((row) => row.key === 'project:p1')
     expect(alpenstrom?.cells[TUE]).toEqual({ minutes: 210, entries: [first, second] })
@@ -107,14 +110,14 @@ describe('tableGrid: one row for what the person worked on, one cell for each da
   it("lists a cell's entries in the order they came, which is the server's", () => {
     const early = entry(WED, 30, projectOn('p1', 'Alpenstrom'), { id: 'z-first' })
     const late = entry(WED, 60, projectOn('p1', 'Alpenstrom'), { id: 'a-second' })
-    const grid = tableGrid([early, late], MONDAY)
+    const grid = tableGrid([early, late], DAYS)
     expect(grid.rows[0]?.cells[WED]?.entries.map((e) => e.id)).toEqual(['z-first', 'a-second'])
   })
 
   it('does not change the entries it is given', () => {
     const entries = [entry(MON, 60, projectOn('p1', 'Alpenstrom')), entry(TUE, 30, dealOn('d1', 'Brera'))]
     const before = structuredClone(entries)
-    tableGrid(entries, MONDAY)
+    tableGrid(entries, DAYS)
     expect(entries).toEqual(before)
   })
 })
@@ -125,7 +128,7 @@ describe("tableGrid: a meeting's hours stay on the meeting's row (AC-5.7, D10)",
 
   it('puts an entry on a meeting linked to a visible deal on the meeting row, and makes no row for the deal', () => {
     const meeting = entry(WED, 60, meetingOn('m1', 'Retrospective', linked('d1')))
-    const grid = tableGrid([meeting], MONDAY)
+    const grid = tableGrid([meeting], DAYS)
 
     expect(keys(grid)).toEqual(['meeting:m1'])
     expect(grid.rows[0]?.cells[WED]?.entries).toEqual([meeting])
@@ -134,7 +137,7 @@ describe("tableGrid: a meeting's hours stay on the meeting's row (AC-5.7, D10)",
   it("leaves the deal's own row as it is when the person also recorded on the deal", () => {
     const onDeal = entry(WED, 120, dealOn('d1', 'Brera'))
     const onMeeting = entry(WED, 60, meetingOn('m1', 'Retrospective', linked('d1')))
-    const grid = tableGrid([onDeal, onMeeting], MONDAY)
+    const grid = tableGrid([onDeal, onMeeting], DAYS)
 
     const deal = grid.rows.find((row) => row.key === 'deal:d1')
     expect(deal?.cells[WED]).toEqual({ minutes: 120, entries: [onDeal] })
@@ -152,7 +155,7 @@ describe("tableGrid: a meeting's hours stay on the meeting's row (AC-5.7, D10)",
         entry(MON, 30, meetingOn('m3', 'Three', { state: 'unknown' })),
         entry(MON, 30, meetingOn('m4', 'Four', { state: 'none' })),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(keys(grid).sort()).toEqual(['meeting:m1', 'meeting:m2', 'meeting:m3', 'meeting:m4'])
   })
@@ -168,8 +171,8 @@ describe('tableGrid: projects, deals, meetings, other work, and by name inside e
       one(dealOn('d1', 'Brera')),
       one(projectOn('p1', 'Alpenstrom')),
     ]
-    expect(keys(tableGrid(entries, MONDAY))).toEqual(['project:p1', 'deal:d1', 'meeting:m1', 'category:c1'])
-    expect(keys(tableGrid([...entries].reverse(), MONDAY))).toEqual([
+    expect(keys(tableGrid(entries, DAYS))).toEqual(['project:p1', 'deal:d1', 'meeting:m1', 'category:c1'])
+    expect(keys(tableGrid([...entries].reverse(), DAYS))).toEqual([
       'project:p1',
       'deal:d1',
       'meeting:m1',
@@ -187,7 +190,7 @@ describe('tableGrid: projects, deals, meetings, other work, and by name inside e
         one(otherWorkOn('Training', 'c-training')),
         one(otherWorkOn('administration', 'c-admin')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(keys(grid)).toEqual([
       'project:p-alpha',
@@ -201,7 +204,7 @@ describe('tableGrid: projects, deals, meetings, other work, and by name inside e
 
   it('reads names that differ only by case or accents as equal, and tells them apart by key', () => {
     const entries = [one(projectOn('p-c', 'cafe')), one(projectOn('p-a', 'Café')), one(projectOn('p-b', 'CAFÉ'))]
-    expect(keys(tableGrid(entries, MONDAY))).toEqual(['project:p-a', 'project:p-b', 'project:p-c'])
+    expect(keys(tableGrid(entries, DAYS))).toEqual(['project:p-a', 'project:p-b', 'project:p-c'])
   })
 
   it('puts the rows with no name after the named ones of their kind, never after another kind', () => {
@@ -213,7 +216,7 @@ describe('tableGrid: projects, deals, meetings, other work, and by name inside e
         one(projectOn('p-unavailable', null, 'unavailable')),
         one(dealOn('d-hidden', null, 'hidden')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(keys(grid)).toEqual([
       'project:p-named',
@@ -232,17 +235,17 @@ describe('tableGrid: projects, deals, meetings, other work, and by name inside e
       one(projectOn('p-c', null, 'hidden')),
     ]
     const expected = ['project:p-a', 'project:p-b', 'project:p-c', 'project:p-d']
-    expect(keys(tableGrid(entries, MONDAY))).toEqual(expected)
-    expect(keys(tableGrid([...entries].reverse(), MONDAY))).toEqual(expected)
+    expect(keys(tableGrid(entries, DAYS))).toEqual(expected)
+    expect(keys(tableGrid([...entries].reverse(), DAYS))).toEqual(expected)
   })
 
   it('collates by the language of the page: in Swedish "Ärlig" comes after "Zeta", in English before', () => {
     const entries = [one(projectOn('p-zeta', 'Zeta')), one(projectOn('p-arlig', 'Ärlig'))]
     try {
       vi.stubGlobal('document', { documentElement: { lang: 'sv' } })
-      expect(keys(tableGrid(entries, MONDAY))).toEqual(['project:p-zeta', 'project:p-arlig'])
+      expect(keys(tableGrid(entries, DAYS))).toEqual(['project:p-zeta', 'project:p-arlig'])
       vi.stubGlobal('document', { documentElement: { lang: 'en' } })
-      expect(keys(tableGrid(entries, MONDAY))).toEqual(['project:p-arlig', 'project:p-zeta'])
+      expect(keys(tableGrid(entries, DAYS))).toEqual(['project:p-arlig', 'project:p-zeta'])
     } finally {
       vi.unstubAllGlobals()
     }
@@ -252,9 +255,9 @@ describe('tableGrid: projects, deals, meetings, other work, and by name inside e
     const entries = [one(projectOn('p-zeta', 'Zeta')), one(projectOn('p-alpha', 'Alpha'))]
     try {
       vi.stubGlobal('document', { documentElement: { lang: '' } })
-      expect(keys(tableGrid(entries, MONDAY))).toEqual(['project:p-alpha', 'project:p-zeta'])
+      expect(keys(tableGrid(entries, DAYS))).toEqual(['project:p-alpha', 'project:p-zeta'])
       vi.stubGlobal('document', { documentElement: { lang: 'not a tag!' } })
-      expect(keys(tableGrid(entries, MONDAY))).toEqual(['project:p-alpha', 'project:p-zeta'])
+      expect(keys(tableGrid(entries, DAYS))).toEqual(['project:p-alpha', 'project:p-zeta'])
     } finally {
       vi.unstubAllGlobals()
     }
@@ -272,7 +275,7 @@ describe('tableGrid: every figure is a sum over the one set, so they agree (AC-5
         entry(WED, 60, dealOn('d1', 'Brera')),
         entry(THU, 120, otherWorkOn('Training', 'c1')),
       ],
-      MONDAY,
+      DAYS,
     )
     const minutesOf = (key: string) => grid.rows.find((row) => row.key === key)?.minutes
     expect(minutesOf('project:p1')).toBe(540)
@@ -285,7 +288,7 @@ describe('tableGrid: every figure is a sum over the one set, so they agree (AC-5
   })
 
   it('counts a Sunday and a Monday: the first and the last day of the week are in it', () => {
-    const grid = tableGrid([entry(MON, 30, projectOn('p1', 'A')), entry(SUN, 60, projectOn('p1', 'A'))], MONDAY)
+    const grid = tableGrid([entry(MON, 30, projectOn('p1', 'A')), entry(SUN, 60, projectOn('p1', 'A'))], DAYS)
     expect(grid.dayMinutes).toEqual([30, 0, 0, 0, 0, 0, 60])
     expect(grid.totalMinutes).toBe(90)
     expect(Object.keys(grid.rows[0]?.cells ?? {})).toEqual([MON, SUN])
@@ -315,7 +318,7 @@ describe('tableGrid: every figure is a sum over the one set, so they agree (AC-5
     const entries = Array.from({ length: 300 }, () =>
       entry(days[next(7)]!, (next(48) + 1) * 30, ons[next(ons.length)]!),
     )
-    const grid = tableGrid(entries, MONDAY)
+    const grid = tableGrid(entries, DAYS)
 
     const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0)
     expect(grid.totalMinutes).toBe(sum(entries.map((e) => e.minutes)))
@@ -354,7 +357,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
         entry(MON, 30, meetingOn('m1', 'Retrospective')),
         entry(MON, 30, otherWorkOn('Training', 'c1')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(grid.rows.map((row) => [row.kind, row.name, row.visibility, row.retired])).toEqual([
       ['project', 'Alpenstrom', 'visible', false],
@@ -371,7 +374,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
         entry(MON, 30, dealOn('d1', null, 'hidden')),
         entry(MON, 30, meetingOn('m1', null, { state: 'none' }, 'hidden')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(grid.rows.map((row) => [row.key, row.name, row.visibility, row.preset])).toEqual([
       ['project:p1', null, 'hidden', null],
@@ -382,7 +385,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
 
   it('has no name for one whose owner did not answer, and for a visible one that arrived without a label', () => {
     const noLabel = { ...projectOn('p2', 'x'), label: null }
-    const grid = tableGrid([entry(MON, 30, projectOn('p1', null, 'unavailable')), entry(MON, 30, noLabel)], MONDAY)
+    const grid = tableGrid([entry(MON, 30, projectOn('p1', null, 'unavailable')), entry(MON, 30, noLabel)], DAYS)
     expect(grid.rows.map((row) => [row.key, row.name, row.visibility, row.preset])).toEqual([
       ['project:p1', null, 'unavailable', null],
       ['project:p2', null, 'unavailable', null],
@@ -391,7 +394,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
 
   it('never carries the label of a record the server said is hidden, even when it (wrongly) sent one', () => {
     const wrong = { ...projectOn('p1', 'Classified project', 'hidden'), label: 'Classified project' }
-    const grid = tableGrid([entry(MON, 30, wrong)], MONDAY)
+    const grid = tableGrid([entry(MON, 30, wrong)], DAYS)
     expect(grid.rows[0]?.name).toBeNull()
     expect(JSON.stringify(grid.rows[0]?.preset)).not.toContain('Classified')
   })
@@ -404,7 +407,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
         entry(MON, 30, meetingOn('m1', 'Retrospective')),
         entry(MON, 30, otherWorkOn('Training', 'c1')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(grid.rows.map((row) => row.preset)).toEqual([
       { kind: 'project', project: { id: 'p1', name: 'Alpenstrom', companyName: null } },
@@ -417,7 +420,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
   it('offers no recording on a retired category, and still names it and keeps its hours (AC-5.24)', () => {
     const grid = tableGrid(
       [entry(TUE, 90, otherWorkOn('Old training', 'c-old', true)), entry(TUE, 30, otherWorkOn('Training', 'c1'))],
-      MONDAY,
+      DAYS,
     )
     const old = grid.rows.find((row) => row.key === 'category:c-old')
     expect(old).toMatchObject({ name: 'Old training', visibility: 'visible', retired: true, preset: null, minutes: 90 })
@@ -430,7 +433,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
   it('says a category is retired when any of its entries says so', () => {
     const grid = tableGrid(
       [entry(MON, 30, otherWorkOn('Training', 'c1', false)), entry(TUE, 30, otherWorkOn('Training', 'c1', true))],
-      MONDAY,
+      DAYS,
     )
     expect(grid.rows).toHaveLength(1)
     expect(grid.rows[0]).toMatchObject({ retired: true, preset: null })
@@ -439,7 +442,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
   it('keeps the name a row has when its owner answered on one page of the read and not on the other', () => {
     const grid = tableGrid(
       [entry(MON, 30, projectOn('p1', null, 'unavailable')), entry(TUE, 30, projectOn('p1', 'Alpenstrom'))],
-      MONDAY,
+      DAYS,
     )
     expect(grid.rows).toHaveLength(1)
     expect(grid.rows[0]).toMatchObject({ name: 'Alpenstrom', visibility: 'visible', minutes: 60 })
@@ -449,7 +452,7 @@ describe('tableGrid: a row whose name cannot be read, and a retired category (AC
   it("hides the name when any of the row's entries says it is hidden: the more careful answer wins", () => {
     const grid = tableGrid(
       [entry(MON, 30, projectOn('p1', 'Alpenstrom')), entry(TUE, 30, projectOn('p1', null, 'hidden'))],
-      MONDAY,
+      DAYS,
     )
     expect(grid.rows).toHaveLength(1)
     expect(grid.rows[0]).toMatchObject({ name: null, visibility: 'hidden', preset: null })
@@ -467,7 +470,7 @@ describe('tableGrid: an entry with no id, and an entry outside the week', () => 
         entry(WED, 30, noId(meetingOn('m1', 'Retrospective'))),
         entry(WED, 30, projectOn('p3', 'Real')),
       ],
-      MONDAY,
+      DAYS,
     )
     expect(grid.rows.map((row) => [row.key, row.name, row.preset, row.minutes])).toEqual([
       ['project:p3', 'Real', { kind: 'project', project: { id: 'p3', name: 'Real', companyName: null } }, 30],
@@ -481,19 +484,43 @@ describe('tableGrid: an entry with no id, and an entry outside the week', () => 
 
   it('throws for an entry before the week or after it: the read asked for the week, anything else is a server bug', () => {
     const inWeek = entry(MON, 30, projectOn('p1', 'A'))
-    expect(() => tableGrid([inWeek, entry('2026-11-15', 30, projectOn('p1', 'A'))], MONDAY)).toThrow(RangeError)
-    expect(() => tableGrid([inWeek, entry('2026-11-23', 30, projectOn('p1', 'A'))], MONDAY)).toThrow(RangeError)
-    expect(() => tableGrid([entry('2026-11-1', 30, projectOn('p1', 'A'))], MONDAY)).toThrow(RangeError)
-    expect(() => tableGrid([entry('', 30, projectOn('p1', 'A'))], MONDAY)).toThrow(RangeError)
+    expect(() => tableGrid([inWeek, entry('2026-11-15', 30, projectOn('p1', 'A'))], DAYS)).toThrow(RangeError)
+    expect(() => tableGrid([inWeek, entry('2026-11-23', 30, projectOn('p1', 'A'))], DAYS)).toThrow(RangeError)
+    expect(() => tableGrid([entry('2026-11-1', 30, projectOn('p1', 'A'))], DAYS)).toThrow(RangeError)
+    expect(() => tableGrid([entry('', 30, projectOn('p1', 'A'))], DAYS)).toThrow(RangeError)
   })
 
   it('does not put the note of the offending entry in the error', () => {
     const offender = entry('2026-12-24', 30, projectOn('p1', 'A'), { note: 'private words' })
-    expect(() => tableGrid([offender], MONDAY)).toThrow(/2026-12-24/)
-    expect(() => tableGrid([offender], MONDAY)).not.toThrow(/private words/)
+    expect(() => tableGrid([offender], DAYS)).toThrow(/2026-12-24/)
+    expect(() => tableGrid([offender], DAYS)).not.toThrow(/private words/)
   })
 
-  it('refuses a "monday" that is not a Monday: the week it would make is not the one that was read', () => {
-    expect(() => tableGrid([], '2026-11-18')).toThrow(TypeError)
+  it("refuses days that are not a period's: none, or not in ascending order, are a caller bug and never a grid", () => {
+    expect(() => tableGrid([], [])).toThrow(TypeError)
+    expect(() => tableGrid([], [...DAYS].reverse())).toThrow(TypeError)
+    expect(() => tableGrid([], [MON, MON, TUE])).toThrow(TypeError)
+  })
+})
+
+describe('tableGrid folds over the days it is given, not over a week it assumes (decision 8)', () => {
+  // Ten consecutive days from Monday 16 November: a span of a period that is not seven days long.
+  const SPAN = Array.from({ length: 10 }, (_, index) => `2026-11-${String(16 + index).padStart(2, '0')}`)
+
+  it('has one column for each day it is given, the totals following them', () => {
+    const grid = tableGrid([entry(SPAN[0]!, 30, projectOn('p1', 'A')), entry(SPAN[9]!, 90, projectOn('p1', 'A'))], SPAN)
+    expect(grid.days).toEqual(SPAN)
+    expect(grid.dayMinutes).toHaveLength(10)
+    expect(grid.dayMinutes[0]).toBe(30)
+    expect(grid.dayMinutes[9]).toBe(90)
+    expect(grid.totalMinutes).toBe(120)
+    expect(Object.keys(grid.rows[0]!.cells)).toEqual([SPAN[0], SPAN[9]])
+  })
+
+  it('throws for an entry on a day it was not given: the days decide what is outside, not a week', () => {
+    const tuesdayAfter = '2026-11-24' // in the ten days, outside the week of Monday 16 November
+    expect(() => tableGrid([entry(tuesdayAfter, 30, projectOn('p1', 'A'))], DAYS)).toThrow(RangeError)
+    expect(() => tableGrid([entry(tuesdayAfter, 30, projectOn('p1', 'A'))], SPAN)).not.toThrow()
+    expect(() => tableGrid([entry('2026-11-26', 30, projectOn('p1', 'A'))], SPAN)).toThrow(RangeError)
   })
 })

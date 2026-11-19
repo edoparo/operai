@@ -1,6 +1,6 @@
 /**
- * TableViewModel — what the table view says about a week and about a row (specs/20261116-record-hours-in-place T9;
- * design S7; AC-5.5, AC-5.23). Pure functions, so the component stays markup.
+ * TableViewModel — what the table view says about a period and about a row (specs/20261116-record-hours-in-place T9,
+ * T18; design S7; AC-5.5, AC-5.23). Pure functions, so the component stays markup.
  *
  * A row is named by the List's own functions (`lib/names.ts`: `rowName`, `onPhrase`), fed an `EntryOn` made from
  * the row, so a project the viewer may not read is "Not visible to you" here exactly as it is in the List and in the
@@ -9,8 +9,9 @@
 import { formatDate, formatDateLong } from '@operai/ui'
 import type { EntryOn } from '../lib/hoursApi.types'
 import { onPhrase, rowName } from '../lib/names'
-import { weekDays } from '../lib/week'
+import { mondayOf, weekDays } from '../lib/week'
 import type { TableGridCell, TableGrid, TableGridRow } from '../lib/tableGrid'
+import type { TablePeriod } from '../lib/tablePeriod'
 import { strings } from '../strings'
 
 /**
@@ -24,11 +25,22 @@ export const weekRange = (monday: string): string => {
 }
 
 /**
- * A day as a button names it, "Thursday 19 November 2026": the weekday from the catalog by the day's place in the
- * week (Monday is 0; the library has no weekday formatter) and the date as `formatDateLong` writes it.
+ * The period as the card's heading, the table's caption and the sentence read when a period arrives name it (AC-5.5):
+ * for a week, `weekRange` of its Monday.
  */
-export const longDay = (day: string, index: number): string =>
-  `${strings.table.weekday.long[index]} ${formatDateLong(day)}`
+export const periodLabel = (period: TablePeriod): string => weekRange(period.monday)
+
+/**
+ * A day's place in its own week, Monday 0, from the date alone (R17). Never a column's index: in a week the two
+ * coincide, in a period that does not begin on a Monday (November 2026 begins on a Sunday) they do not.
+ */
+const weekdayOf = (day: string): number => weekDays(mondayOf(day)).indexOf(day)
+
+/** A day's short weekday, "Mon": from the catalog by the date (the library has no weekday formatter). */
+export const shortDay = (day: string): string => strings.table.weekday.short[weekdayOf(day)]!
+
+/** A day as a button names it, "Thursday 19 November 2026": the long weekday by the date, then `formatDateLong`. */
+export const longDay = (day: string): string => `${strings.table.weekday.long[weekdayOf(day)]} ${formatDateLong(day)}`
 
 /** The row as the entry it holds would be for `rowName` and `onPhrase`: its kind, its name and why it may have none. */
 const onOf = (row: TableGridRow): EntryOn => {
@@ -56,20 +68,17 @@ export const rowLabel = (row: TableGridRow): string => {
 export const rowPhrase = (row: TableGridRow): string => onPhrase(onOf(row))
 
 /**
- * The cell of the grid a cell dialog was opened on (design S8): the row, the cell and the day's place in the week
- * (Monday is 0), looked up by the row's key and the day because the grid itself is replaced every time the week is read
- * again. `null` once the cell holds no entry — the row is gone from the week, or this day of it is empty — which is the
- * page's cue that the dialog has nothing left to list.
+ * The cell of the grid a cell dialog was opened on (design S8): the row and the cell, looked up by the row's key and the
+ * day because the grid itself is replaced every time the period is read again. `null` once the cell holds no entry —
+ * the row is gone from the period, or this day of it is empty — which is the page's cue that the dialog has nothing
+ * left to list. A day outside the grid's days has no cell, so it is `null` too.
  */
 export const cellOf = (
   grid: TableGrid,
   rowKey: string,
   day: string,
-): { row: TableGridRow; cell: TableGridCell; index: number } | null => {
+): { row: TableGridRow; cell: TableGridCell } | null => {
   const row = grid.rows.find((candidate) => candidate.key === rowKey)
   const cell = row?.cells[day]
-  const index = grid.days.indexOf(day)
-  return row !== undefined && cell !== undefined && cell.entries.length > 0 && index !== -1
-    ? { row, cell, index }
-    : null
+  return row !== undefined && cell !== undefined && cell.entries.length > 0 ? { row, cell } : null
 }
