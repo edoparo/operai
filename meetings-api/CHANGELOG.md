@@ -1,5 +1,15 @@
 # @operai/meetings-api
 
+## 0.4.0
+
+### Minor Changes
+
+- 6e831ec: A long recording is no longer lost because the transcription model refuses one half hour of it. When the model refuses a part for its content (a safety, prohibited-content, blocklist, personal-data or recitation filter, or a blocked request), the other parts are kept and the refused stretch is shown as a possible gap: the transcript says "Speech may be missing between …", with markers in the text and the same caveat on summaries and answers as any other gap. The meeting still fails when every part is refused, or when a part fails for any other reason.
+
+### Patch Changes
+
+- 675d753: A recording is no longer refused by the transcription model's content filters. A long meeting could fail every time on the same half hour because Gemini's default harm filters blocked part of the transcript (a word, a joke or a sensitive topic), and one blocked part failed the whole meeting. The transcription request now turns the configurable filters off: a transcript records what was said. A meeting that failed this way can be retried from its page.
+
 ## 0.3.0
 
 ### Minor Changes

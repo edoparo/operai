@@ -1,6 +1,6 @@
 {
   "name": "@operai/letterhead-api",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Letterhead service (Rust, Typst embedded). This package.json is a shim: it carries the name, the version and the CHANGELOG so that Changesets, changeset-check and the aggregate operai version treat the service like every other app. The Cargo version is NOT the source of truth for releases (ADR 20261116-letterhead-api-is-a-rust-service-with-typst-embedded-for-document-layout-only). No dependencies belong here.",
   "scripts": {

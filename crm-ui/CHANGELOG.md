@@ -1,5 +1,12 @@
 # @operai/crm-ui
 
+## 0.7.0
+
+### Minor Changes
+
+- 241b97c: The author of a CRM activity or task now chooses who sees its details: everyone (the default, and every existing activity), the sales team (people who manage deals: today sales and admin), or only the author and, for a task, its assignee. Everyone else still sees the activity, its subject, people, dates and state, but not its text, description, pictures or attachments; it reads "Details are restricted". No role overrides the choice, administrators included. The subject is always visible, and the form says so. Projects' My tasks shows the same restricted line on a CRM task.
+- cc2c3f4: Offer templates can now set the wording of the document title and centre or right-align paragraphs. In the template editor, "Document title" has a field for Italian and one for English; what you write replaces "CONTRATTO DI FORNITURA" / "SUPPLY CONTRACT" before the reference on page 1 (for example "OFFERTA" or "OFFER"), the reference is still added for you, and an empty field keeps the usual title. Offers already issued keep the title they were generated with. In the template text, a paragraph written as `->text<-` is centred and one written as `->text->` is right-aligned; a backslash before the opening marker (`\->`) prints it as written. Both apply to the layout service's pages and to the PDF crm-api draws itself.
+
 ## 0.6.0
 
 ### Minor Changes

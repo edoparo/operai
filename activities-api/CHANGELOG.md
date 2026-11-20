@@ -1,5 +1,11 @@
 # @operai/activities-api
 
+## 0.3.0
+
+### Minor Changes
+
+- 241b97c: The author of a CRM activity or task now chooses who sees its details: everyone (the default, and every existing activity), the sales team (people who manage deals: today sales and admin), or only the author and, for a task, its assignee. Everyone else still sees the activity, its subject, people, dates and state, but not its text, description, pictures or attachments; it reads "Details are restricted". No role overrides the choice, administrators included. The subject is always visible, and the form says so. Projects' My tasks shows the same restricted line on a CRM task.
+
 ## 0.2.2
 
 ### Patch Changes
