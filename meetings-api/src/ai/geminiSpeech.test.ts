@@ -122,6 +122,17 @@ describe("the request (EU endpoint, pinned model, untrusted reply)", () => {
     expect(body.generationConfig.responseSchema.items.required).toEqual(["start", "end", "speaker", "text"]);
   });
 
+  it("turns every configurable harm filter OFF: a transcript records what was said (finish=SAFETY failed a 2 h meeting)", async () => {
+    const { t, calls } = await make([answer([{ start: "00:01", end: "00:03", speaker: "Speaker 1", text: "buongiorno a tutti" }])]);
+    await run(t);
+    expect(calls[0]!.body.safetySettings).toEqual([
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "OFF" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "OFF" },
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "OFF" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "OFF" },
+    ]);
+  });
+
   it("the prompt asks for a verbatim transcript in the meeting's language and never says how many people took part", () => {
     for (const locale of ["it-IT", "en-US"] as const) {
       const prompt = promptFor(locale);

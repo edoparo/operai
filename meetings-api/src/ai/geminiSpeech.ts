@@ -119,6 +119,19 @@ const RESPONSE_SCHEMA = {
   },
 } as const;
 
+/**
+ * The configurable harm filters, OFF. A transcript records what was said; it does not judge it. With Vertex's default
+ * thresholds a 2 h production recording failed three times on the same part with `finish=SAFETY` (2026-11-19/20): at
+ * temperature 0 the same audio is blocked every time, and one blocked part fails the whole meeting. The filters Google
+ * does not let a caller configure stay in force (a block there is still `provider_rejected`). Exported for the tests.
+ */
+export const SAFETY_SETTINGS = [
+  "HARM_CATEGORY_HATE_SPEECH",
+  "HARM_CATEGORY_DANGEROUS_CONTENT",
+  "HARM_CATEGORY_HARASSMENT",
+  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+].map((category) => ({ category, threshold: "OFF" }));
+
 /** `mm:ss`, `h:mm:ss`, optionally with a decimal fraction of a second, to milliseconds; anything else is null. */
 export function parseClockMs(value: string): number | null {
   const match = /^(?:(\d{1,2}):)?(\d{1,3}):(\d{2})(?:[.,](\d{1,3}))?$/.exec(value.trim());
@@ -380,6 +393,7 @@ export function createGeminiTranscriber(options: GeminiTranscriberOptions): Tran
         },
       ],
       generationConfig: { temperature: 0, maxOutputTokens: MAX_OUTPUT_TOKENS, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
+      safetySettings: SAFETY_SETTINGS,
     });
     const started = Date.now();
     const diag: RequestDiagnostics = { part, sample, busy: 0 };
