@@ -31,7 +31,7 @@ const registry = (secret: string, scope = "notifications.push emails.send") =>
   JSON.stringify({
     "inventory-api": { secret, scope },
     "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
-    "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
+    "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send accounting.reference.read" },
   });
 
 /** A fully-correct production suite — the baseline every mutation test starts from. */
@@ -568,7 +568,7 @@ describe("env-doctor checker — meetings (specs/20261104-meetings)", () => {
     JSON.stringify({
       "inventory-api": { secret: CLIENT_SECRET, scope: "notifications.push emails.send" },
       "estimai-api": { secret: CLIENT_SECRET_EST, scope: "notifications.push estimate-notices.send" },
-      "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send" },
+      "refund-api": { secret: CLIENT_SECRET_REF, scope: "notifications.push emails.send accounting.reference.read" },
       // crm-api holds a client of its own since specs/20261103-projects-handoff (it reads projects-api), required in production.
       "crm-api": { secret: "k".repeat(40), scope: "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read letterhead:render legal-entities:read" },
       "meetings-api": { secret, scope },
@@ -1647,9 +1647,8 @@ describe("env-doctor — legal-entity registry configuration (specs/20261117-leg
 
 // specs/20261119-accounting (T43): accounting-api is a new resource server (JWKS + authorization, one narrow service read on /system/v1/*),
 // refund-api reads it live over private networking (ACCOUNTING_INTERNAL_URL, required) and no longer fetches rates (REFUND_FX_SOURCE retired).
-// accounting-api holds no service client of its own. The scope `accounting.reference.read` on refund-api's SERVICE_CLIENTS entry is NOT part
-// of the contract yet: it joins the registry template and the manifest in one change, after the new auth is live (infra/README.md § Accounting
-// release runbook, step 4).
+// accounting-api holds no service client of its own. The scope `accounting.reference.read` on refund-api's SERVICE_CLIENTS entry joined the
+// registry template and the manifest in one change, after the new auth was live (infra/README.md § Accounting release runbook, step 4, 2026-11-20).
 describe("env-doctor checker — accounting-api (specs/20261119-accounting)", () => {
   const errsAbout = (f: Finding[], svc: string) => errs(f).filter((x) => x.scope === svc).map((x) => x.message).join(" | ");
 
@@ -1766,12 +1765,11 @@ describe("env-doctor checker — accounting-api (specs/20261119-accounting)", ()
     expect(JSON.stringify(checkSuite(s, PROD))).not.toContain("a-distinctive-value-0451");
   });
 
-  test("the scope accounting.reference.read is not yet part of the registry contract: refund-api's entry holds exactly its two notify scopes", () => {
-    // Pending by design (release runbook step 4): when the scope joins the manifest it joins auth's template in the same change, and this test is rewritten with it.
+  test("refund-api's entry holds its two notify scopes and accounting.reference.read (granted at release step 4, 2026-11-20)", () => {
     const s = accountingSuite();
     expect(errs(checkSuite(s, PROD))).toEqual([]);
     const reg = JSON.parse(s.auth!.SERVICE_CLIENTS!);
-    expect(reg["refund-api"].scope).toBe("notifications.push emails.send");
+    expect(reg["refund-api"].scope).toBe("notifications.push emails.send accounting.reference.read");
   });
 
   describe("the committed templates", () => {

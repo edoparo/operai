@@ -225,10 +225,9 @@ export const SERVICE_CLIENT_LINKS: ReadonlyArray<{
   // specs/20261101-crm-sales-flow AC-3.3: estimai-api also tells crm-api an estimate was closed or reopened (ADR 20261105-estimai-closes-the-estimate-crm-follows).
   { ...LINK_BASE, caller: "estimai-api", requiredScopes: ["notifications.push", "estimate-notices.send"] },
   // specs/20261119-accounting (AC-3.8): refund-api also reads accounting-api over /system/v1/* with `accounting.reference.read`, verified by
-  // accounting-api. PENDING here on purpose: the scope joins this entry AND auth's SERVICE_CLIENTS template (templates/production/auth.env)
-  // in ONE change, because a scope on one side only fails (both directions), and that edit is the release runbook's step 4, made only
-  // after the new auth is live (an auth that does not know a scope refuses to start, R13).
-  { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send"] },
+  // accounting-api. Granted in production on 2026-11-20 (release runbook step 4), here and in auth's template in one change. `users.contact`
+  // is NOT listed: refund-api holds it only during the accounting release window (T84), and `--live` reports it while it is held.
+  { ...LINK_BASE, caller: "refund-api", requiredScopes: ["notifications.push", "emails.send", "accounting.reference.read"] },
   // One service client per caller, whatever it calls. crm-api's is the notifier's (specs/20261101-crm-notifications: CRM
   // notifications, some with an email notice, both scopes, D-3; notify-api looks up the notice's
   // address in auth, ADR 20261101-notify-api-resolves-email-notice-address-from-auth) and, since specs/20261103-projects-handoff, also reads projects-api for a deal's purchase
