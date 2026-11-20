@@ -175,6 +175,14 @@ was not removed. The spec stays vendor-neutral; the body below is already update
 - **A15 — decided by the user 2026-11-17 (new AC-1.9):** titles keep reading "Call with <name>";
   the creator can ask the AI for a title made from what the meeting was about. It is a
   suggestion in the edit dialog, never an automatic rename.
+- **A16 — decided by the user 2026-11-20 (AC-6.12):** a part of a long recording that the
+  transcription model refuses for its content (a blocked prompt, or a reply stopped by a safety,
+  prohibited-content, blocklist, personal-data or recitation filter) no longer fails the whole
+  meeting: the part counts as returning no words, so the stretch of it in which there was sound
+  (less what the neighbouring parts transcribed in their overlap) becomes a gap of AC-6.12, with
+  its notice, markers and caveats. A refusal of every part still fails the meeting
+  (`provider_rejected`). Why: a 2 h production recording failed three times on the same half hour
+  (2026-11-19/20) and the other 90 minutes were lost with it.
 
 ## Problem
 
@@ -581,7 +589,8 @@ check what was actually said.
   here" after listening to it; the range is then gone from the notice, the markers and every
   caveat (A10). A transcript with
   no notice is not a statement that nothing was missed: a gap shorter than the gap bound is not
-  detected. (A7)
+  detected. (A7) A part the model refuses for its content is a part that returned no words: its
+  sound becomes a gap like any other, unless every part was refused (A16).
 - AC-6.13: Given speech that the transcription returns twice, within one part or in the
   overlap between two consecutive parts, then it appears once in the transcript. Two passages
   are the same speech only when one has at least the repeat bound of consecutive words that

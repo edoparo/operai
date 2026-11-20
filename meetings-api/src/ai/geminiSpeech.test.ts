@@ -342,6 +342,57 @@ describe("long recordings: parts, joined by the stitcher (ADR 20261105-meetings-
   });
 });
 
+describe("a part refused for its content (spec A16)", () => {
+  const spans: [number, number][] = [
+    [0, S(1800)],
+    [S(1710), S(3600)],
+    [S(3510), S(5400)],
+  ];
+  // Sound only where part 2 alone covers, so the gap is part 2's and nothing else.
+  const silences = [
+    { startMs: 0, endMs: S(1700) },
+    { startMs: S(3520), endMs: S(5400) },
+  ];
+  const safety = { candidates: [{ finishReason: "SAFETY", content: { parts: [{ text: "[{\"start\": \"00:01\"" }] } }] };
+
+  for (const [name, refusal] of [
+    ["finish SAFETY", safety],
+    ["a blocked prompt", { promptFeedback: { blockReason: "PROHIBITED_CONTENT" } }],
+  ] as const) {
+    it(`${name}: the other parts are kept and the refused part's sound is a gap`, async () => {
+      const reply = byPart([
+        answer([{ start: "00:10", end: "00:20", speaker: "Speaker 1", text: "inizio della riunione" }]),
+        refusal,
+        answer([{ start: "10:00", end: "10:10", speaker: "Speaker 1", text: "chiusura della riunione" }]),
+      ]);
+      const { t, calls } = await make([reply, reply, reply], spans, silences);
+      const out = await run(t);
+      if (out.kind !== "segments") throw new Error("expected segments");
+      expect(calls).toHaveLength(3);
+      const text = out.segments.map((s) => s.text).join(" ");
+      expect(text).toContain("inizio");
+      expect(text).toContain("chiusura");
+      expect(out.gaps).toHaveLength(1);
+      expect(out.gaps[0]!.startMs).toBeLessThanOrEqual(S(1800));
+      expect(out.gaps[0]!.endMs).toBeGreaterThanOrEqual(S(3500));
+    });
+  }
+
+  it("every part refused: the meeting still fails as provider_rejected", async () => {
+    const { t } = await make([safety, safety], spans.slice(0, 2), []);
+    const error = (await run(t).catch((e) => e)) as TranscriptionError;
+    expect(error.code).toBe("provider_rejected");
+    expect(error.transient).toBe(false);
+  });
+
+  it("a refusal that is not about content (MAX_TOKENS) still fails the whole meeting", async () => {
+    const reply = byPart([answer([{ start: "00:10", end: "00:20", speaker: "Speaker 1", text: "inizio" }]), { candidates: [{ finishReason: "MAX_TOKENS", content: { parts: [] } }] }]);
+    const { t } = await make([reply, reply], spans.slice(0, 2), []);
+    const error = (await run(t).catch((e) => e)) as TranscriptionError;
+    expect(error.code).toBe("provider_rejected");
+  });
+});
+
 describe("pure pieces", () => {
   it("parseClockMs", () => {
     expect(parseClockMs("00:05")).toBe(5000);

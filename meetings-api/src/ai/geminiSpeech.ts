@@ -223,6 +223,21 @@ export function wordsOfReply(segments: readonly ReplySegment[], part: number, pa
 const unavailable = (status?: number) => new TranscriptionError("provider_unavailable", true, status);
 const rejected = (status?: number) => new TranscriptionError("provider_rejected", false, status);
 
+/**
+ * Finish reasons by which the model refuses a reply for its CONTENT (spec A16). Deterministic at temperature 0, so the
+ * part is never asked again; it becomes a part with no words and its sound a gap. Any other non-STOP reason
+ * (MAX_TOKENS, MALFORMED_FUNCTION_CALL, OTHER, ...) still fails the meeting.
+ */
+export const CONTENT_REFUSALS: ReadonlySet<string> = new Set(["SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION"]);
+
+/** One part refused for its content (a blocked prompt or a `CONTENT_REFUSALS` finish): still `provider_rejected`. */
+export class PartRefusedError extends TranscriptionError {
+  constructor() {
+    super("provider_rejected", false);
+    this.name = "PartRefusedError";
+  }
+}
+
 /** A provider enum value (finish reason, block reason) is logged only when it looks like one. */
 const enumOf = (value: unknown): string | undefined => (typeof value === "string" && /^[A-Z_]{1,40}$/.test(value) ? value : undefined);
 
@@ -441,10 +456,11 @@ export function createGeminiTranscriber(options: GeminiTranscriberOptions): Tran
     const finish = enumOf(reply.finishReason);
     const result = (outcome: string) => done(outcome, { status: response.status, bytes: counter.bytes, finish: finish ?? enumOf(reply.blockReason) });
 
-    // A blocked prompt or a refused / cut reply: the same audio would be refused again.
+    // A blocked prompt or a refused / cut reply: the same audio would be refused again. A refusal for content is
+    // `PartRefusedError` (the part becomes a gap, spec A16); any other refusal fails the meeting.
     if (reply.blockReason !== undefined) {
       result("blocked");
-      throw rejected();
+      throw new PartRefusedError();
     }
     if (!reply.sawCandidate) {
       result("no_candidate");
@@ -461,7 +477,7 @@ export function createGeminiTranscriber(options: GeminiTranscriberOptions): Tran
         return null;
       }
       result("refused");
-      throw rejected();
+      throw typeof reply.finishReason === "string" && CONTENT_REFUSALS.has(reply.finishReason) ? new PartRefusedError() : rejected();
     }
     result("ok");
     return reply.text;
@@ -522,17 +538,26 @@ export function createGeminiTranscriber(options: GeminiTranscriberOptions): Tran
           throw error;
         }
 
-        // Parts run at most `concurrency` at a time; the first failure aborts the others.
+        // Parts run at most `concurrency` at a time; the first failure aborts the others. A part refused for its
+        // content (spec A16) is not a failure: it returns no words, so the detector below marks its sound as a gap.
         const failed = new AbortController();
         const stop = AbortSignal.any([lease, failed.signal]);
+        let refused = 0;
         const words = await eachLimited(parts, concurrency, (part, index) =>
-          transcribePart(part, index + 1, parts.length, locale, stop, documents).catch((error: unknown) => {
+          transcribePart(part, index + 1, parts.length, locale, stop, documents).catch((error: unknown): PartWords => {
+            if (error instanceof PartRefusedError && !stop.aborted) {
+              refused += 1;
+              console.warn(`[transcribe] gemini part=${index + 1}/${parts.length} refused for its content, kept as a gap`);
+              return { part: index + 1, startMs: part.startMs, endMs: part.endMs, words: [] };
+            }
             failed.abort();
             throw error;
           }),
         ).catch((error: unknown) => {
           throw lease.aborted ? lease.reason ?? error : error;
         });
+        // Nothing to keep: the meeting fails as before, with the code that says why.
+        if (refused === parts.length) throw rejected();
 
         const assessed = words.map((w) => assess(w, silences));
         const gaps = finalGaps(words.map((w, i) => ({ words: w, gaps: assessed[i]!.gaps })), silences);
@@ -540,7 +565,7 @@ export function createGeminiTranscriber(options: GeminiTranscriberOptions): Tran
         const segments = mapPhrases(stitched.phrases);
         // Counts only: never a range, a text, an id.
         console.log(
-          `[transcribe] provider=gemini parts=${parts.length} gaps=${gaps.length} excused=${assessed.reduce((n, a) => n + a.excused, 0)} untimed=${words.reduce((n, w) => n + w.words.filter((x) => !x.noise && x.span === null).length, 0)} removed=${stitched.stats.removedWithinPart + stitched.stats.removedInOverlap} joined=${stitched.stats.joined} separate=${stitched.stats.separate} speakers=${new Set(segments.map((s) => s.speakerKey)).size}`,
+          `[transcribe] provider=gemini parts=${parts.length} refused=${refused} gaps=${gaps.length} excused=${assessed.reduce((n, a) => n + a.excused, 0)} untimed=${words.reduce((n, w) => n + w.words.filter((x) => !x.noise && x.span === null).length, 0)} removed=${stitched.stats.removedWithinPart + stitched.stats.removedInOverlap} joined=${stitched.stats.joined} separate=${stitched.stats.separate} speakers=${new Set(segments.map((s) => s.speakerKey)).size}`,
         );
         if (segments.length === 0) {
           if (gaps.length > 0) throw new TranscriptionError("speech_not_transcribed", false);
