@@ -72,9 +72,6 @@ export const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 export const offerReferenceOf = (no: number, year: number, revision: number) =>
   `${String(no).padStart(4, "0")}/${year}${revision > 0 ? `r${revision}` : ""}`;
 
-/** A reference as a file name: the slash cannot be part of one. */
-export const referenceFileName = (reference: string) => `${reference.replace(/[/\\]/g, "-")}.pdf`;
-
 /** OF-2026-K3X9QZ-3: the specs/20261101-crm-sales-flow reference. Stable and unique per deal; kept for the old offers. */
 export const offerReference = (dealId: string, number: number, issued: Date) =>
   `OF-${issued.getUTCFullYear()}-${dealId.slice(-6).toUpperCase()}-${number}`;

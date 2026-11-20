@@ -248,6 +248,14 @@ Operai.
 - **AC-4.2** Numbers never collide, even when two offers are generated at the same time,
   and are never reused. A deleted revision leaves its gap (018 AC-4.4).
 - **AC-4.3** Offers generated before this spec keep their `OF-…` reference and their PDF.
+- **AC-4.4** (owner, 2026-11-20) An offer's PDF is downloaded under the name wellD uses in
+  Drive: `WellD_<entity>_<client>_<deal>_<reference>.pdf`, e.g.
+  `WellD_CH_STUDIOV_FMS_00092026.pdf` and, for a revision, `WellD_CH_STUDIOV_FMS_00272026r2.pdf`
+  (the title inside keeps `0027/2026r2`). `<entity>` is `CH` or `IT`; `<client>` is the
+  company's name and `<deal>` the initials of every word of the deal's title, both without
+  accents, spaces or symbols, in upper case; `<reference>` is the reference without its slash.
+  A part that comes out empty is left out. The name is computed at download, so offers
+  generated earlier (an `OF-…` one too) download under it; the PDF is unchanged.
 
 ### US-5 The client's details are complete
 

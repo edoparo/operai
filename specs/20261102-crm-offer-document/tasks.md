@@ -1,7 +1,7 @@
 ---
 spec: 20261102
 status: in-progress
-synced: 2026-11-06
+synced: 2026-11-20
 ---
 
 # Tasks — CRM offer document (specs/20261102-crm-offer-document)
@@ -19,3 +19,4 @@ synced: 2026-11-06
 | T9 | Offer numbering setting (US-8): `GET`/`PUT /offer-sequences/{entity}` (row lock against a generation in flight, never below a used number), numbering card in Settings | T8 | [x] | crm-api 280/280 on `crm_test`; crm-ui lint + build + 194 tests |
 | T10 | Offer without an estimate on an overridden deal (AC-3.6 exception): draft and generate accept it with an empty estimate, no annex, no timeline table; dialog hides AI and annex | T9 | [x] | crm-api typecheck + pure tests (DB tests not run: local DB auth); crm-ui lint + build + 198 tests |
 | T11 | A deal whose earlier offers were all deleted unsent takes a new number (AC-4.1 amendment), so the numbering setting applies; a sent or live offer still holds it | T9 | [x] | crm-api typecheck; DB tests written, not run (local DB auth) |
+| T12 | Offer PDF downloaded under the Drive name (AC-4.4): `offers/fileName.ts` (`WellD_<entity>_<client>_<deal initials>_<reference>.pdf`), used by the download route for every offer | T4 | [x] | crm-api `fileName.test.ts` 6/6, `offers.test.ts` 47/47 on `crm_test`, typecheck |

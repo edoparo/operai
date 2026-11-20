@@ -644,6 +644,9 @@ describe("offer list, download and delete", () => {
     const offer = (await generate(deal.id, await body(deal.id))).json;
     const link = await call("GET", `/deals/${deal.id}/offers/${offer.id}/download`, { as: "admin" });
     expect(link.json.url).toContain("?signed");
+    // The Drive convention: WellD_<entity>_<client>_<deal initials>_<reference without the slash>.pdf
+    expect(bucket.downloads.at(-1)).toMatch(/^WellD_CH_ACME[0-9A-F]{6}_GA_\d{8}\.pdf$/);
+    expect(bucket.downloads.at(-1)).toEndWith(`_${offer.reference.replace("/", "")}.pdf`);
 
     expect((await call("DELETE", `/deals/${deal.id}/offers/${offer.id}`, { as: "managerNoMoney" })).status).toBe(403);
     expect((await call("DELETE", `/deals/${deal.id}/offers/${offer.id}`, { as: "admin" })).status).toBe(204);
@@ -700,6 +703,8 @@ describe("offer list, download and delete", () => {
       templateName: null,
     });
     expect((await call("GET", `/deals/${deal.id}/offers/${row.id}/download`)).status).toBe(200);
+    // an offer issued before the convention is named by it too
+    expect(bucket.downloads.at(-1)).toMatch(/^WellD_CH_ACME[0-9A-F]{6}_GA_OF-2026-ABC123-1\.pdf$/);
     // a new offer on the same deal starts the new numbering at the entity's counter, with no revision
     await putProfile();
     const fresh = await generate(deal.id, await body(deal.id));

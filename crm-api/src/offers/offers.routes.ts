@@ -66,7 +66,6 @@ import {
   notSent,
   offerOrigin,
   prepareOffer,
-  referenceFileName,
   withIssuerPin,
   renderOffer,
   renderOfferThroughService,
@@ -78,6 +77,7 @@ import {
   type StoredSnapshot,
 } from "./generation";
 import { snapshotToBlocks } from "./blocks";
+import { offerFileName } from "./fileName";
 import { legacyContent } from "./legacyContent";
 import { CostColumnsSchema, GenerateOfferSchema, OfferSchema, SectionSchema } from "./offerSchemas";
 import { roundHalfUp, totalManDays } from "./scope";
@@ -576,12 +576,20 @@ const SENDABLE_STAGES: readonly string[] = ["lead", "qualified", "proposal"];
 
 offersRouter.openapi(downloadRoute, async (c) => {
   const { id, offerId } = c.req.valid("param");
-  const offer = await db.dealOffer.findUnique({ where: { id: offerId } });
+  const offer = await db.dealOffer.findUnique({
+    where: { id: offerId },
+    include: { deal: { select: { entity: true, title: true, company: { select: { name: true } } } } },
+  });
   if (!offer || offer.dealId !== id || offer.deletedAt) throw notFound("Offer not found");
   const snapshot = offer.snapshot as unknown as StoredSnapshot;
   const url = await requireStorage().mintPresignedGet(offer.objectKey, {
     contentType: "application/pdf",
-    fileName: referenceFileName(snapshot.reference),
+    fileName: offerFileName({
+      entity: offer.deal.entity,
+      companyName: offer.deal.company.name,
+      dealTitle: offer.deal.title,
+      reference: snapshot.reference,
+    }),
   });
   return c.json({ url }, 200);
 });

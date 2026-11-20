@@ -342,6 +342,8 @@ export const bucket = {
   deleted: [] as string[],
   /** Keys read through `getObject`, in order (ADR 20261102-crm-api-reads-attachment-bytes-for-offer-annexes: nothing is read before the size check). */
   reads: [] as string[],
+  /** The file name of every presigned GET, in order. */
+  downloads: [] as string[],
   /** The `maxBytes` of the last presigned POST (letterhead 5 MiB, attachments 20 MiB). */
   lastPostMaxBytes: 0,
 };
@@ -360,7 +362,8 @@ export const memoryStorage: Storage = {
     const object = bucket.objects.get(objectKey);
     return object ? { sizeBytes: object.sizeBytes, contentType: object.contentType } : null;
   },
-  async mintPresignedGet(objectKey) {
+  async mintPresignedGet(objectKey, options) {
+    bucket.downloads.push(options.fileName);
     return `http://bucket.test/${objectKey}?signed`;
   },
   async putObject(objectKey, bytes, contentType) {
@@ -393,6 +396,7 @@ export async function resetWorld(): Promise<void> {
   bucket.objects.clear();
   bucket.deleted = [];
   bucket.reads = [];
+  bucket.downloads = [];
   bucket.lastPostMaxBytes = 0;
   setStorageForTests(memoryStorage);
 }
