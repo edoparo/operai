@@ -143,6 +143,8 @@ export default defineRailway(() => {
   // - Single replica, EU only (the plan's figure). The rate fetch is single-flight per (entity, month) IN PROCESS (accounting-api/src/rates/rates.service.ts), so a second replica would double
   //   the outbound calls to the federal source, not share them.
   const accountingApi = service("accounting-api", {
+    source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/accounting-api" }),
+    domains: [{ domain: "accounting-api.operai.welld.io", port: 8089 }],
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     start: "bun run src/index.ts",
     healthcheck: "/health",
