@@ -1,7 +1,7 @@
 ---
 spec: 20261104
 generated: 2026-11-04
-synced: 2026-11-17
+synced: 2026-11-20
 ---
 
 # Tasks: Meetings — record, transcribe, summarise and question meetings
@@ -806,6 +806,14 @@ database after `bun run db:deploy`.
   - touch: `meetings-ui/src/components/meeting/EditDetailsDialog.tsx`, `meetings-ui/src/strings/{editDetails,common}.ts`, `meetings-ui/src/lib/meetingsApi.ts`, tests
   - done when: `pnpm lint && pnpm build && pnpm test` pass
 
+## Amendment 2026-11-20 — a part refused for its content becomes a gap (spec A16, AC-6.12)
+
+> Re-synced 2026-11-20 after spec A16 (user decision 2026-11-20). Built directly on `main` in commits 675d753e (harm filters OFF) and 6e831ecc.
+
+- [x] T135: [BE] meetings-api: Gemini transcription sends `safetySettings` OFF for the four configurable harm categories; a blocked prompt or a `SAFETY`/`PROHIBITED_CONTENT`/`BLOCKLIST`/`SPII`/`RECITATION` finish is `PartRefusedError`, the part returns no words and the other parts go on (its sound becomes a gap through `assess`/`finalGaps`); every part refused is still `provider_rejected`, any other refusal still fails the meeting — refs: AC-6.12 — deps: none
+  - touch: `meetings-api/src/ai/geminiSpeech.ts`, `meetings-api/src/ai/geminiSpeech.test.ts`
+  - done when: `bun test src/ai/geminiSpeech.test.ts` passes and `bun run typecheck` is clean
+
 ## Coverage (AC → tasks; T92 closes every AC and is not listed)
 
 | AC | Tasks |
@@ -1009,3 +1017,4 @@ contracts. Only the e2e tasks (T86–T90) join the two tracks.
 | AC-7.10 / AC-9.2 (A14) | T130 |
 | AC-15.1 to AC-15.6 | T129, T130, T131, T132 |
 | AC-1.9 (A15) | T133, T134 |
+| AC-6.12 (A16) | T135 |
