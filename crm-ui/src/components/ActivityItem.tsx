@@ -91,12 +91,26 @@ export default function ActivityItem({
   const contactName = activity.contact?.name ?? null
   const deal = activity.deal?.title ? activity.deal : null
 
+  const hidden = activity.detailsHidden === true
+  const visibility = activity.detailsVisibility ?? 'everyone'
   const body = (
     <>
+      {hidden && (
+        <p className="text-sm text-soft" data-testid={`crm-activity-${activity.id}-restricted`}>
+          {t.detailsRestricted}
+        </p>
+      )}
+      {!hidden && visibility !== 'everyone' && (
+        <p className="text-xs text-soft" data-testid={`crm-activity-${activity.id}-visibility`}>
+          {t.visibilityBadge[visibility === 'author' && task ? 'author_task' : visibility]}
+        </p>
+      )}
       {/* A meeting activity's body is the link and nothing else (AC-14.2): never show one. */}
-      {activity.body && !activity.meeting && <p className="whitespace-pre-line text-sm text-soft">{activity.body}</p>}
+      {!hidden && activity.body && !activity.meeting && (
+        <p className="whitespace-pre-line text-sm text-soft">{activity.body}</p>
+      )}
       {/* A task's text is its rich description, with its pictures and attachments (ADR 20261113-task-description-files-in-activities-api-bucket). */}
-      {task && (
+      {task && !hidden && (
         <RichTextFilesView
           doc={task.description ?? null}
           attachments={(task.files ?? [])

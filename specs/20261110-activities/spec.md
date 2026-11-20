@@ -176,6 +176,27 @@ tool they belong to, so that sharing the storage shares nothing else.
 - AC-8.4 Given a CRM contact is erased (specs/20261101-crm), then no activity refers to it afterwards;
   if that cannot be ensured, the erasure is refused and the contact is unchanged.
 
+### US-9 Who sees the details of a CRM activity (owner, 2026-11-20)
+As a salesperson, I want to choose who sees what I write in an activity, so that a task or a
+note can hold sensitive details without every CRM user reading them.
+
+- AC-9.1 A pre-sales activity has a details visibility, chosen by its author when creating it
+  and changed only by its author afterwards: **everyone** (every CRM user, the default and the
+  value of every existing activity), **sales team** (CRM users who manage deals of at least one
+  entity: today `sales` and `admin`, not `crm-technical`) or **only me** (the author and, for a
+  task, its assignee; participants are not included). A project task has no such choice.
+- AC-9.2 Given a caller who may not see an activity's details, then its type, subject, date,
+  company, contact, deal, author, participants, assignee, due date, blockers and done state are
+  shown as before, and its text, a task's description, images and attachments are not sent at
+  all: the activity says its details are restricted. Downloading one of its files answers as for
+  a file that does not exist.
+- AC-9.3 No role reads restricted details: an administrator sees what the sales team sees, and
+  an "only me" activity only its author and assignee.
+- AC-9.4 Given the CRM cannot say whether the caller is in the sales team, then "sales team"
+  details are not shown (fail closed); "everyone" and the caller's own are unaffected.
+- AC-9.5 The subject is never restricted (it appears in lists, notices and blockers): the form
+  says so next to the choice.
+
 ## Non-goals
 
 - **Operational activities other than tasks** (notes, calls, meetings, emails on a project):
@@ -230,6 +251,11 @@ Technical decisions taken by the user on 2026-11-10, recorded verbatim in substa
   Projects, which keep the full labels, and every other notice and rule. This is a correction
   recorded after the fact, not new scope and not a new AC. See plan.md § System routes
   ("Completion `context`", "Known narrowing") and ADR 20261110-caller-chosen-ids-replace-cross-service-transactions (amendment 2026-11-11).
+- 2026-11-20 (owner): US-9 added, details visibility of pre-sales activities. Owner decisions:
+  only the details are hidden (the activity stays in every list); "sales team" = holders of
+  `deal:manage` for any entity; "only me" includes a task's assignee; no administrator
+  override. The CRM's resolve answer gains `salesTeam`; activities-api stores the choice and
+  withholds the details. An exception to the Non-goal "Changing CRM activity rules or copy".
 
 ## Open questions
 

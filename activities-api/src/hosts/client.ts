@@ -76,6 +76,8 @@ const wireRelated = z.object({
 const readerOnly = z.object({ reader: z.boolean() });
 const readerBody = z.object({
   reader: z.literal(true),
+  /** US-9: optional; anything but `true` (absent included) is "not in the sales team". */
+  salesTeam: z.boolean().optional(),
   items: z.array(wireItem),
   related: z.array(wireRelated).optional(),
 });
@@ -91,7 +93,7 @@ const shorten = (label: string) => (label.length > MAX_LABEL ? `${label.slice(0,
 type CallResult =
   | { readonly kind: "unavailable" }
   | { readonly kind: "not_reader" }
-  | { readonly kind: "ok"; readonly entities: Map<string, HostEntity>; readonly related: HostRelated[] };
+  | { readonly kind: "ok"; readonly entities: Map<string, HostEntity>; readonly related: HostRelated[]; readonly salesTeam: boolean };
 
 interface Call {
   readonly ids: readonly string[];
@@ -178,7 +180,7 @@ async function resolveCall(host: ActivityHost, authorization: string, call: Call
       related.push({ type: item.type, id: item.id, parentId: item.parentId, label: shorten(item.label), href: item.href });
     }
   }
-  return { kind: "ok", entities, related };
+  return { kind: "ok", entities, related, salesTeam: body.data.salesTeam === true };
 }
 
 // ─── resolve ────────────────────────────────────────────────────────────────
@@ -223,6 +225,8 @@ export async function resolve(
 ): Promise<ResolveResult> {
   const entities = new Map<string, HostEntity>();
   const related = new Map<string, HostRelated>();
+  // Every call must say so: one that does not makes the whole answer "not in the sales team".
+  let salesTeam = true;
   // Sequential, not parallel: a page of 25 is one call, and a larger list is rare. A defect in
   // any call ends the whole answer.
   for (const call of planCalls(host, request)) {
@@ -231,6 +235,7 @@ export async function resolve(
     if (result.kind === "not_reader") return { state: "not_reader" };
     for (const [id, entity] of result.entities) if (!entities.has(id)) entities.set(id, entity);
     for (const item of result.related) related.set(`${item.type}/${item.id}`, item);
+    salesTeam &&= result.salesTeam;
   }
-  return { state: "ok", entities, related: [...related.values()] };
+  return { state: "ok", entities, related: [...related.values()], salesTeam };
 }

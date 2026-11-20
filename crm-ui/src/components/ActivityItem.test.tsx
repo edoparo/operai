@@ -40,7 +40,9 @@ const noop = () => undefined
 /** Rendered inside a router: the deal and company lines are router links. */
 const show = async (activity: Activity) => {
   const router = createRouter({
-    routeTree: createRootRoute({ component: () => <ActivityItem activity={activity} onChanged={noop} onEdit={noop} onDeleted={noop} /> }),
+    routeTree: createRootRoute({
+      component: () => <ActivityItem activity={activity} onChanged={noop} onEdit={noop} onDeleted={noop} />,
+    }),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   })
   await router.load()
@@ -110,11 +112,35 @@ describe('ActivityItem — a task with a description and files (ADR 20261113-tas
       completedBy: null,
       description: {
         type: 'doc',
-        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bring the ', marks: [] }, { type: 'text', text: 'cables', marks: [{ type: 'bold' }] }] }],
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Bring the ', marks: [] },
+              { type: 'text', text: 'cables', marks: [{ type: 'bold' }] },
+            ],
+          },
+        ],
       },
       files: [
-        { id: 'f-img', kind: 'image', fileName: 'shot.png', contentType: 'image/png', sizeBytes: 10, uploadedBy: MEETING_ACTIVITY.author, createdAt: '2026-11-13T09:00:00Z' },
-        { id: 'f-pdf', kind: 'attachment', fileName: 'offer.pdf', contentType: 'application/pdf', sizeBytes: 2048, uploadedBy: MEETING_ACTIVITY.author, createdAt: '2026-11-13T09:00:00Z' },
+        {
+          id: 'f-img',
+          kind: 'image',
+          fileName: 'shot.png',
+          contentType: 'image/png',
+          sizeBytes: 10,
+          uploadedBy: MEETING_ACTIVITY.author,
+          createdAt: '2026-11-13T09:00:00Z',
+        },
+        {
+          id: 'f-pdf',
+          kind: 'attachment',
+          fileName: 'offer.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 2048,
+          uploadedBy: MEETING_ACTIVITY.author,
+          createdAt: '2026-11-13T09:00:00Z',
+        },
       ],
     },
   }
@@ -147,5 +173,43 @@ describe('ActivityItem — a task with a description and files (ADR 20261113-tas
   it('a task without a description or files shows neither', async () => {
     await show({ ...TASK, task: { ...TASK.task!, description: null, files: [] } })
     expect(screen.queryByTestId('crm-activity-t1-description-view')).toBeNull()
+  })
+})
+
+describe('ActivityItem — details visibility (specs/20261110-activities US-9)', () => {
+  const NOTE: Activity = { ...MEETING_ACTIVITY, id: 'n1', type: 'note', body: 'Secret pricing', meeting: null }
+
+  it('shows the restricted line and no body when the details are hidden', async () => {
+    await show({ ...NOTE, body: null, detailsVisibility: 'author', detailsHidden: true })
+    expect(screen.getByText('Details are restricted')).not.toBeNull()
+    expect(screen.getByText(NOTE.subject)).not.toBeNull()
+    expect(screen.queryByText('Secret pricing')).toBeNull()
+  })
+
+  it('shows no description or attachments for a hidden task', async () => {
+    await show({
+      ...NOTE,
+      id: 't9',
+      type: 'task',
+      body: null,
+      detailsVisibility: 'sales_team',
+      detailsHidden: true,
+      task: { dueDate: null, assignee: null, completedAt: null, completedBy: null, description: null, files: [] },
+    })
+    expect(screen.getByText('Details are restricted')).not.toBeNull()
+    expect(screen.queryByTestId('crm-activity-t9-description-text')).toBeNull()
+  })
+
+  it('tells the author a visible activity is restricted', async () => {
+    await show({ ...NOTE, detailsVisibility: 'sales_team', detailsHidden: false })
+    expect(screen.getByText('Sales team only')).not.toBeNull()
+    expect(screen.getByText('Secret pricing')).not.toBeNull()
+    expect(screen.queryByText('Details are restricted')).toBeNull()
+  })
+
+  it('shows no indicator for the default visibility', async () => {
+    await show({ ...NOTE, detailsVisibility: 'everyone', detailsHidden: false })
+    expect(screen.queryByText('Sales team only')).toBeNull()
+    expect(screen.queryByText('Only me')).toBeNull()
   })
 })

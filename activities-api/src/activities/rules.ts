@@ -19,6 +19,24 @@ export interface RuleRow {
   readonly assigneeUserId: string | null;
 }
 
+export type DetailsVisibility = "everyone" | "sales_team" | "author";
+
+/**
+ * US-9: whether the caller sees an activity's details (its text, a task's description and files). The author always;
+ * a task's assignee always (they must know what to do); "sales team" only when the host said so in this request
+ * (AC-9.4: no answer is "no"); nobody else, whatever their role (AC-9.3).
+ */
+export function mayReadDetails(
+  row: RuleRow & { readonly detailsVisibility: DetailsVisibility },
+  userId: string,
+  inSalesTeam: boolean,
+): boolean {
+  if (row.detailsVisibility === "everyone") return true;
+  if (row.authorUserId === userId) return true;
+  if (row.type === "task" && row.assigneeUserId === userId) return true;
+  return row.detailsVisibility === "sales_team" && inSalesTeam;
+}
+
 export interface MayFlags {
   readonly edit: boolean;
   readonly delete: boolean;

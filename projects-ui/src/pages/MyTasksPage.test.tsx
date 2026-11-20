@@ -128,7 +128,11 @@ describe('the mixed list', () => {
     await renderPage({
       'GET /tasks': () => ({
         status: 200,
-        body: page([preSalesTask('t1'), preSalesTask('t2', { deal: { id: 'd/2', title: null } }), preSalesTask('t3', { deal: null })]),
+        body: page([
+          preSalesTask('t1'),
+          preSalesTask('t2', { deal: { id: 'd/2', title: null } }),
+          preSalesTask('t3', { deal: null }),
+        ]),
       }),
     })
     const link = await screen.findByTestId('my-task-t1-deal')
@@ -175,7 +179,9 @@ describe('the mixed list', () => {
   })
 
   it('a pre-sales row with no company at all has no CRM link rather than a broken one', async () => {
-    await renderPage({ 'GET /tasks': () => ({ status: 200, body: page([preSalesTask('s1', { company: null, deal: null })]) }) })
+    await renderPage({
+      'GET /tasks': () => ({ status: 200, body: page([preSalesTask('s1', { company: null, deal: null })]) }),
+    })
     const row = await screen.findByTestId('my-task-s1')
     expect(within(row).queryByRole('link')).toBeNull()
   })
@@ -330,5 +336,27 @@ describe('states', () => {
     })
     await screen.findByTestId('my-task-p1')
     expect(screen.getByTestId('my-tasks-pagination')).toBeTruthy()
+  })
+})
+
+describe('details visibility (specs/20261110-activities US-9)', () => {
+  it('a pre-sales task whose details are hidden shows the restricted line and no description', async () => {
+    await renderPage({
+      'GET /tasks': () => ({
+        status: 200,
+        body: page([
+          preSalesTask('s1', { detailsVisibility: 'author', detailsHidden: true }, { description: null, files: [] }),
+        ]),
+      }),
+    })
+    const row = await screen.findByTestId('my-task-s1')
+    expect(within(row).getByText('Details are restricted')).toBeTruthy()
+    expect(row.querySelector('[data-testid$="-description-text"]')).toBeNull()
+  })
+
+  it('a visible task shows no restricted line', async () => {
+    await renderPage({ 'GET /tasks': () => ({ status: 200, body: page([preSalesTask('s1')]) }) })
+    const row = await screen.findByTestId('my-task-s1')
+    expect(within(row).queryByText('Details are restricted')).toBeNull()
   })
 })

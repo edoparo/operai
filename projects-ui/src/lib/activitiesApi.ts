@@ -62,6 +62,10 @@ export type ProjectTask = {
   /** The task's title. */
   subject: string
   body: string | null
+  /** Pre-sales tasks only carry `author`/`sales_team`; project tasks are always `everyone`. */
+  detailsVisibility?: 'everyone' | 'sales_team' | 'author'
+  /** True when the caller may not see the details: description and files are withheld. */
+  detailsHidden?: boolean
   occurredAt: string
   project: { id: string; name: string | null } | null
   author: PersonRef

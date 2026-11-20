@@ -47,6 +47,16 @@ enum HostApp {
   projects
 }
 
+/// Who sees an activity's details (specs/20261110-activities US-9): its text, a task's description and files.
+enum DetailsVisibility {
+  /// Every reader of the host entity (the default, and every activity before US-9).
+  everyone
+  /// CRM users who manage deals of at least one entity (crm-api's `salesTeam` answer).
+  sales_team
+  /// The author and, for a task, its assignee.
+  author
+}
+
 model Activity {
   id                String       @id @default(cuid())
   kind              ActivityKind
@@ -81,6 +91,8 @@ model Activity {
   /// The Meetings meeting this activity mirrors (specs/20261104-meetings US-14, ADR 20261104-meeting-host-contract-resolve-and-notices): at most one
   /// activity per meeting (UNIQUE), and only a `meeting` activity can carry it (CHECK).
   meetingId         String?      @unique
+  /// US-9: crm only (CHECK activity_details_visibility_crm_only); chosen and changed by the author.
+  detailsVisibility DetailsVisibility @default(everyone)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

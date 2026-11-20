@@ -1,7 +1,7 @@
 ---
 spec: 20261110
 generated: 2026-11-10
-synced: 2026-11-17
+synced: 2026-11-20
 ---
 
 # Tasks: Activities — one place for CRM and project activities and tasks
@@ -128,4 +128,18 @@ service.
 
 - [x] T25: [FE] direct link to the deal on a task about one (AC-7.6, owner 2026-11-17): crm-ui `ActivityItem` renders the deal title as a router link to `/deals/$id`; projects-ui My tasks adds a "Deal:" line with a `/crm/deals/<id>` anchor on a pre-sales task — refs: AC-7.6 — deps: none
   - touch: `crm-ui/src/components/ActivityItem.tsx`, `crm-ui/src/strings/activities.ts`, `projects-ui/src/pages/MyTasksPageRow.tsx`, `projects-ui/src/strings/tasks.ts`, their tests
+  - done when: crm-ui and projects-ui lint + build + test pass
+
+## Amendment 2026-11-20 — details visibility (spec US-9)
+
+> Re-synced 2026-11-20 after spec US-9 (owner decisions 2026-11-20, ADR 20261120-activity-details-visibility-stored-by-activities-api-sales-team-answered-by-the-host). Built directly on `main`.
+
+- [x] T26: [BE] crm-api: resolve answers `salesTeam` (`dealScope(c).length > 0`) — refs: AC-9.1, AC-9.4 — deps: none
+  - touch: `crm-api/src/activity-host/resolve.routes.ts`, `crm-api/src/activity-host/resolve.test.ts`
+  - done when: `bun test src/activity-host` passes on `crm_test`
+- [x] T27: [BE] activities-api: `detailsVisibility` column + CHECK (migration `20261120120000_details_visibility`), registry `restrictsDetails`, client/session `salesTeam` (fail closed), `mayReadDetails`, view `detailsVisibility`/`detailsHidden` with the details withheld, create/update (author only, 422 on Projects), file URL 404 — refs: AC-9.1 to AC-9.5 — deps: T26 (contract)
+  - touch: `activities-api/prisma/**`, `activities-api/src/{hosts,activities,files,test-support}/**`, `activities-api/src/activities/detailsVisibility.test.ts`
+  - done when: the full suite passes on `activities_test` and typecheck is clean
+- [x] T28: [FE] crm-ui "Who sees the details" choice in the activity form, "Details are restricted" line and restricted indicator in `ActivityItem`; projects-ui My tasks restricted line — refs: AC-9.2, AC-9.5 — deps: none (contract)
+  - touch: `crm-ui/src/components/{ActivityFormDialog,ActivityItem}.tsx`, `crm-ui/src/lib/{types,activitiesApi}.ts`, `crm-ui/src/strings/activities.ts`, `projects-ui/src/pages/MyTasksPageRow.tsx`, `projects-ui/src/lib/activitiesApi.ts`, `projects-ui/src/strings/tasks.ts`, their tests
   - done when: crm-ui and projects-ui lint + build + test pass

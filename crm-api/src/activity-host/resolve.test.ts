@@ -21,6 +21,16 @@ const makeContact = (companyId: string | null, firstName = "Ada", lastName = "Ro
 const subOf = (header: string): string =>
   (JSON.parse(Buffer.from(header.split(".")[1] ?? "", "base64url").toString("utf-8")) as { sub: string }).sub;
 
+describe("salesTeam (specs/20261110-activities US-9)", () => {
+  it("is true for a caller who manages deals of at least one entity, false for a reader who does not", async () => {
+    for (const [as, expected] of [["salesCh", true], ["admin", true], ["managerNoMoney", true], ["consultant", false], ["outsider", false]] as const) {
+      const res = await resolve(as, []);
+      expect(res.status).toBe(200);
+      expect((res.json as { salesTeam: boolean }).salesTeam).toBe(expected);
+    }
+  });
+});
+
 describe("a caller who holds crm:access", () => {
   it("opens an existing company with label, href, writable and may (AC-8.1)", async () => {
     const company = await makeCompany({ name: "Acme SA" });
@@ -28,6 +38,7 @@ describe("a caller who holds crm:access", () => {
     expect(res.status).toBe(200);
     expect(res.json).toEqual({
       reader: true,
+      salesTeam: false,
       items: [
         {
           id: company.id,
@@ -44,7 +55,7 @@ describe("a caller who holds crm:access", () => {
 
   it("answers `missing` for an unknown company, with no label or href (AC-8.3)", async () => {
     const res = await resolve("consultant", ["nope"]);
-    expect(res.json).toEqual({ reader: true, items: [{ id: "nope", state: "missing" }], related: [] });
+    expect(res.json).toEqual({ reader: true, salesTeam: false, items: [{ id: "nope", state: "missing" }], related: [] });
   });
 
   it("answers a mixed batch in the order asked, once per distinct id", async () => {
@@ -112,7 +123,7 @@ describe("a caller who holds crm:access", () => {
     const deal = await makeDeal(company.id);
     const res = await resolve("consultant", [], { deal: [deal.id] });
     expect(res.status).toBe(200);
-    expect(res.json).toEqual({ reader: true, items: [], related: [] });
+    expect(res.json).toEqual({ reader: true, salesTeam: false, items: [], related: [] });
   });
 });
 
@@ -122,12 +133,12 @@ describe("a caller without crm:access", () => {
     const deal = await makeDeal(company.id, { title: "Secret deal" });
     const res = await resolve("outsider", [company.id, "nope"], { deal: [deal.id] });
     expect(res.status).toBe(200);
-    expect(res.json).toEqual({ reader: false, items: [], related: [] });
+    expect(res.json).toEqual({ reader: false, salesTeam: false, items: [], related: [] });
     expect(JSON.stringify(res.json)).not.toContain("Secret");
   });
 
   it("`ids: []` still answers `reader:false`", async () => {
-    expect((await resolve("outsider", [])).json).toEqual({ reader: false, items: [], related: [] });
+    expect((await resolve("outsider", [])).json).toEqual({ reader: false, salesTeam: false, items: [], related: [] });
   });
 
   it("stops being a reader the moment the grant goes: a new perm_epoch is a fresh live resolve", async () => {
@@ -143,7 +154,7 @@ describe("a caller without crm:access", () => {
         body: JSON.stringify({ entityType: "company", ids: [company.id] }),
       });
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ reader: false, items: [], related: [] });
+      expect(await res.json()).toEqual({ reader: false, salesTeam: false, items: [], related: [] });
     } finally {
       harness.setResolve(async (header) => {
         const persona = Object.values(PERSONAS).find((p) => p.sub === subOf(header))!;

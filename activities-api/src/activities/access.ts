@@ -51,6 +51,8 @@ export class HostSession {
   private readonly notReader = new Set<string>();
   /** Hosts that have answered "reader" at least once in this request. */
   private readonly answered = new Set<string>();
+  /** US-9: per host, whether EVERY answer in this request said the caller is in its sales team. */
+  private readonly salesTeam = new Map<HostApp, boolean>();
 
   constructor(
     private readonly authorization: string,
@@ -93,11 +95,17 @@ export class HostSession {
       throw notFoundProblem();
     }
     this.answered.add(host.app);
+    this.salesTeam.set(host.app, (this.salesTeam.get(host.app) ?? true) && result.salesTeam);
     for (const [id, entity] of result.entities) this.entities.set(entityKey(host, id), entity);
     for (const item of result.related) this.related.set(relatedKey(item.type, item.id), item);
     for (const [type, list] of Object.entries(newRelated) as Array<[RelatedType, string[]]>) {
       for (const id of list) this.askedRelated.add(relatedKey(type, id));
     }
+  }
+
+  /** US-9: the host said the caller is in its sales team (false when it has not answered, or said anything else). */
+  inSalesTeam(host: ActivityHost): boolean {
+    return this.salesTeam.get(host.app) ?? false;
   }
 
   entity(host: ActivityHost, id: string): HostEntity | undefined {

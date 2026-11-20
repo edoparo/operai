@@ -13,11 +13,13 @@ import { PersonRefSchema, toDateOnly, type HeaderSource } from "../lib/http";
 import { loadPeople } from "../lib/people";
 import type { RelatedType } from "../hosts/registry";
 import type { HostSession, OpenEntity } from "./access";
-import { mayFlags } from "./rules";
+import { mayFlags, mayReadDetails } from "./rules";
 import { FileSchema, storedFiles, toFileView } from "../files/files";
 
 export const ACTIVITY_TYPES = ["note", "call", "meeting", "email", "task"] as const;
 export const ACTIVITY_KINDS = ["pre_sales", "operational"] as const;
+/** US-9: who sees an activity's details. */
+export const DETAILS_VISIBILITIES = ["everyone", "sales_team", "author"] as const;
 
 const MayFlagsSchema = z.object({ edit: z.boolean(), delete: z.boolean(), complete: z.boolean() });
 
@@ -56,6 +58,10 @@ export const ActivitySchema = z.object({
     })
     .nullable(),
   may: MayFlagsSchema,
+  /** US-9: who sees the details (text, a task's description and files); always `everyone` on a project task. */
+  detailsVisibility: z.enum(DETAILS_VISIBILITIES),
+  /** US-9: true when this caller may not see them: `body` and `task.description` are then null and `task.files` empty. */
+  detailsHidden: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -118,13 +124,15 @@ export async function toViews(c: Caller, rows: readonly ActivityRow[], session: 
     const ref = { id: row.hostId, name: labelOf(entity) };
     const contact = row.contactId ? session.relatedOf("contact", row.contactId, row.hostId) : undefined;
     const deal = row.dealId ? session.relatedOf("deal", row.dealId, row.hostId) : undefined;
+    // US-9: the details are not sent at all to a caller who may not see them (AC-9.2).
+    const hidden = !mayReadDetails(row, userId, session.inSalesTeam(host));
     return {
       id: row.id,
       kind: row.kind,
       type: row.type,
       subject: row.subject,
       // AC-14.2: a meeting activity's body is the link and nothing else, whatever the row holds.
-      body: row.meetingId === null ? row.body : null,
+      body: row.meetingId === null && !hidden ? row.body : null,
       occurredAt: row.occurredAt.toISOString(),
       company: host.entityType === "company" ? ref : null,
       project: host.entityType === "project" ? ref : null,
@@ -146,11 +154,13 @@ export async function toViews(c: Caller, rows: readonly ActivityRow[], session: 
                 completed: blocker.completedAt !== null,
               })),
               blocked: row.blockedBy.some(({ blocker }) => blocker.completedAt === null),
-              description: (row.description as Record<string, unknown> | null) ?? null,
-              files: row.files.map((file) => toFileView(file, person)),
+              description: hidden ? null : ((row.description as Record<string, unknown> | null) ?? null),
+              files: hidden ? [] : row.files.map((file) => toFileView(file, person)),
             }
           : null,
       may: mayFlags(host, open, row, userId),
+      detailsVisibility: row.detailsVisibility,
+      detailsHidden: hidden,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

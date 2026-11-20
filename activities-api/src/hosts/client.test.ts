@@ -67,7 +67,7 @@ describe("the request", () => {
   });
 
   it("asks `ids: []` as one call, the question 'may I read at all?'", async () => {
-    expect(await resolve(crm(), ALICE, { ids: [] })).toEqual({ state: "ok", entities: new Map(), related: [] });
+    expect(await resolve(crm(), ALICE, { ids: [] })).toEqual({ state: "ok", entities: new Map(), related: [], salesTeam: false });
     expect(hosts.crm.resolves).toHaveLength(1);
     expect(hosts.crm.resolves[0]!.body.ids).toEqual([]);
 

@@ -58,6 +58,20 @@ const en = {
     blockedByHint: 'Open tasks of this company that must be done first. Up to 10.',
     blockedByEmpty: 'No other open task at this company.',
     blockedByMax: 'Choose at most 10 tasks.',
+    visibility: 'Who sees the details',
+    visibilityHint: 'The subject, dates, people and state are always visible to everyone who can see the company.',
+    visibilityEveryone: 'Everyone',
+    visibilitySalesTeam: 'Sales team',
+    visibilityAuthor: 'Only me',
+    visibilityAuthorTask: 'Only me and the assignee',
+  },
+  /** Details withheld from a caller who may not see them (specs/20261110-activities US-9). */
+  detailsRestricted: 'Details are restricted',
+  visibilityBadge: {
+    everyone: 'Everyone',
+    sales_team: 'Sales team only',
+    author: 'Only me',
+    author_task: 'Only me and the assignee',
   },
   /** A task's rich description with its images and attachments (ADR 20261113-task-description-files-in-activities-api-bucket). */
   taskFiles: {
@@ -90,12 +104,15 @@ const en = {
     check: { done: 'done', todo: 'to do' },
     errors: {
       imageType: (name: string) => `${name}: pictures can be PNG, JPEG, GIF or WebP.`,
-      attachmentType: (name: string) => `${name}: attachments can be PDF, Word, Excel, PowerPoint, text, CSV or pictures.`,
+      attachmentType: (name: string) =>
+        `${name}: attachments can be PDF, Word, Excel, PowerPoint, text, CSV or pictures.`,
       imageTooLarge: (name: string) => `${name} is larger than 10 MB.`,
       attachmentTooLarge: (name: string) => `${name} is larger than 20 MB.`,
       tooMany: 'A task has at most 20 files.',
-      notUploaded: (names: string) => `Saved, but these files could not be uploaded: ${names}. Edit the task to try again.`,
-      notRemoved: (names: string) => `Saved, but these files could not be removed: ${names}. Edit the task to try again.`,
+      notUploaded: (names: string) =>
+        `Saved, but these files could not be uploaded: ${names}. Edit the task to try again.`,
+      notRemoved: (names: string) =>
+        `Saved, but these files could not be removed: ${names}. Edit the task to try again.`,
       storageMissing: 'Files are not set up here yet: the text was saved without them.',
       openFailed: 'The file could not be opened. Try again in a moment.',
     },
@@ -177,6 +194,19 @@ const it: typeof en = {
     blockedByHint: "Attività aperte di quest'azienda da completare prima. Al massimo 10.",
     blockedByEmpty: "Nessun'altra attività aperta per quest'azienda.",
     blockedByMax: 'Scegli al massimo 10 attività.',
+    visibility: 'Chi vede i dettagli',
+    visibilityHint: "L'oggetto, le date, le persone e lo stato sono sempre visibili a chi può vedere l'azienda.",
+    visibilityEveryone: 'Tutti',
+    visibilitySalesTeam: 'Team vendite',
+    visibilityAuthor: 'Solo io',
+    visibilityAuthorTask: "Solo io e l'assegnatario",
+  },
+  detailsRestricted: 'I dettagli sono riservati',
+  visibilityBadge: {
+    everyone: 'Tutti',
+    sales_team: 'Solo team vendite',
+    author: 'Solo io',
+    author_task: "Solo io e l'assegnatario",
   },
   taskFiles: {
     description: 'Descrizione',
@@ -208,12 +238,15 @@ const it: typeof en = {
     check: { done: 'fatto', todo: 'da fare' },
     errors: {
       imageType: (name: string) => `${name}: le immagini possono essere PNG, JPEG, GIF o WebP.`,
-      attachmentType: (name: string) => `${name}: gli allegati possono essere PDF, Word, Excel, PowerPoint, testo, CSV o immagini.`,
+      attachmentType: (name: string) =>
+        `${name}: gli allegati possono essere PDF, Word, Excel, PowerPoint, testo, CSV o immagini.`,
       imageTooLarge: (name: string) => `${name} supera i 10 MB.`,
       attachmentTooLarge: (name: string) => `${name} supera i 20 MB.`,
       tooMany: 'Un’attività ha al massimo 20 file.',
-      notUploaded: (names: string) => `Salvata, ma questi file non sono stati caricati: ${names}. Modifica l’attività per riprovare.`,
-      notRemoved: (names: string) => `Salvata, ma questi file non sono stati rimossi: ${names}. Modifica l’attività per riprovare.`,
+      notUploaded: (names: string) =>
+        `Salvata, ma questi file non sono stati caricati: ${names}. Modifica l’attività per riprovare.`,
+      notRemoved: (names: string) =>
+        `Salvata, ma questi file non sono stati rimossi: ${names}. Modifica l’attività per riprovare.`,
       storageMissing: 'I file non sono ancora configurati qui: il testo è stato salvato senza.',
       openFailed: 'Non è stato possibile aprire il file. Riprova tra poco.',
     },

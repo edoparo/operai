@@ -67,6 +67,8 @@ export interface TestHost {
   setRelated(item: HostRelated): void;
   /** Who may read this host's activities. `"*"` (the default is everyone) or a JWT `sub`. */
   setReader(who: string, reader: boolean): void;
+  /** US-9 (crm only): the JWT `sub`s the host reports `salesTeam: true` for. Default nobody. */
+  setSalesTeam(sub: string, inTeam: boolean): void;
   mode: HostMode;
   readonly resolves: RecordedResolve[];
   reset(): void;
@@ -134,6 +136,7 @@ function createHost(app: "crm" | "projects") {
   const entities = new Map<string, ScriptedEntity>();
   const relatedItems: HostRelated[] = [];
   const readers = new Map<string, boolean>();
+  const salesTeam = new Set<string>();
   const resolves: RecordedResolve[] = [];
   const state = { mode: {} as HostMode };
 
@@ -162,7 +165,7 @@ function createHost(app: "crm" | "projects") {
     if (!isReader(sub)) {
       return Response.json(
         app === "crm"
-          ? { reader: false, items: [], related: [] }
+          ? { reader: false, salesTeam: false, items: [], related: [] }
           : { reader: false, items: distinct.map((id) => ({ id, state: "missing" })) },
       );
     }
@@ -186,7 +189,7 @@ function createHost(app: "crm" | "projects") {
     const related = relatedItems.filter(
       (r) => (askedByType[r.type] ?? []).includes(r.id) && distinct.includes(r.parentId) && entities.has(r.parentId),
     );
-    return Response.json({ reader: true, items, related });
+    return Response.json({ reader: true, salesTeam: sub !== null && salesTeam.has(sub), items, related });
   }
 
   const host: TestHost = {
@@ -194,6 +197,7 @@ function createHost(app: "crm" | "projects") {
     setEntity: (id, entity) => void entities.set(id, entity),
     setRelated: (item) => void relatedItems.push(item),
     setReader: (who, reader) => void readers.set(who, reader),
+    setSalesTeam: (sub, inTeam) => void (inTeam ? salesTeam.add(sub) : salesTeam.delete(sub)),
     get mode() {
       return state.mode;
     },
@@ -205,6 +209,7 @@ function createHost(app: "crm" | "projects") {
       entities.clear();
       relatedItems.length = 0;
       readers.clear();
+      salesTeam.clear();
       resolves.length = 0;
       state.mode = {};
     },

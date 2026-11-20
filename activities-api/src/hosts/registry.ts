@@ -37,6 +37,8 @@ export interface ActivityHost {
   /** crm: any CRM user; projects: the list the host sends (PM + team, AC-3.1). */
   readonly assignees: "app_users" | "host_list";
   readonly relatedTypes: readonly RelatedType[];
+  /** US-9: whether the author may restrict who sees the details (the CRM); else every activity is `everyone`. */
+  readonly restrictsDetails: boolean;
   readonly links: {
     /** Where a notice about a TASK of entity `hostId` points. */
     readonly task: (hostId: string) => string;
@@ -89,6 +91,8 @@ export type ResolveResult =
       readonly state: "ok";
       readonly entities: ReadonlyMap<string, HostEntity>;
       readonly related: readonly HostRelated[];
+      /** US-9: the host says the caller is in its sales team. Absent from the host = false (fail closed). */
+      readonly salesTeam: boolean;
     };
 
 // ─── The registry ───────────────────────────────────────────────────────────
@@ -106,6 +110,7 @@ const crmHost = (baseUrl: string): ActivityHost => ({
   completeBy: "reader",
   assignees: "app_users",
   relatedTypes: ["contact", "deal"],
+  restrictsDetails: true,
   links: {
     // As crm-api sends today: a task points at the task list.
     task: () => "/crm/tasks",
@@ -124,6 +129,7 @@ const projectsHost = (baseUrl: string): ActivityHost => ({
   completeBy: "assignee_or_manager",
   assignees: "host_list",
   relatedTypes: [],
+  restrictsDetails: false,
   links: {
     task: (hostId) => `/projects/${hostId}`,
     entity: (hostId) => `/projects/${hostId}`,

@@ -311,6 +311,8 @@ export type ActivityTask = {
   blocked?: boolean
 }
 
+export type DetailsVisibility = 'everyone' | 'sales_team' | 'author'
+
 export type Activity = {
   id: string
   type: ActivityType
@@ -324,6 +326,10 @@ export type Activity = {
   /** The wellD colleagues who took part (specs/20261101-crm US-8). Absent from an older server. */
   participants?: PersonRef[]
   task: ActivityTask | null
+  /** Who sees the details (specs/20261110-activities US-9). Absent from an older server: read as `everyone`. */
+  detailsVisibility?: DetailsVisibility
+  /** True when the caller may not see the details: body, description and files are withheld. */
+  detailsHidden?: boolean
   /**
    * The meeting this activity mirrors (specs/20261104-meetings US-14): set only on a `meeting`
    * activity that Meetings created. Its body is null — the link is the content.

@@ -35,7 +35,7 @@ import {
 import { requireAppUsers } from "../lib/identities";
 import { announce } from "../lib/notify";
 import type { NotifyActivity, NotifyTarget } from "../lib/notificationCopy";
-import { unprocessable, validationHook } from "../lib/problem";
+import { ProblemError, unprocessable, validationHook } from "../lib/problem";
 import type { ActivityHost, HostApp } from "../hosts/registry";
 import { HostSession, type OpenEntity } from "./access";
 import { authorizationOf, ifStillThere, loadFor, type Caller } from "./load";
@@ -44,7 +44,7 @@ import { changeRefused, completeRefused, createRefused, hostReadOnly, mayChange,
 import { staggered } from "./stagger";
 import { DescriptionSchema, imageIdsOf, isEmptyDoc, textToDoc, type Doc } from "../files/description";
 import { assertImagesOf, cleanUpAfterDescription, deleteActivitiesWithFiles } from "../files/files";
-import { ACTIVITY_TYPES, ActivitySchema, relatedIdsOf, toView, toViews, withRefs, type ActivityRow } from "./view";
+import { ACTIVITY_TYPES, ActivitySchema, DETAILS_VISIBILITIES, relatedIdsOf, toView, toViews, withRefs, type ActivityRow } from "./view";
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -56,6 +56,8 @@ const BlockedByIdsSchema = z.array(idText()).max(MAX_BLOCKERS);
 /** The wellD colleagues who took part (US-8, specs/20261110-activities US-5): the whole set, replacing any previous one. */
 export const MAX_PARTICIPANTS = 10;
 const ParticipantIdsSchema = z.array(UserIdSchema).max(MAX_PARTICIPANTS);
+/** US-9: who sees the details; only on a host that lets the author restrict them (the CRM). */
+const DetailsVisibilitySchema = z.enum(DETAILS_VISIBILITIES);
 
 /** A request names its entity by the field that belongs to the host: the registry row it maps to. */
 const TARGET_FIELDS = {
@@ -81,6 +83,7 @@ const CreateActivitySchema = z
     assigneeUserId: UserIdSchema.optional(),
     blockedByIds: BlockedByIdsSchema.optional(),
     participantIds: ParticipantIdsSchema.optional(),
+    detailsVisibility: DetailsVisibilitySchema.optional(),
   })
   .strict();
 
@@ -97,6 +100,8 @@ const UpdateActivitySchema = z
     // 017 AC-4.2: the contact and the deal can be changed or cleared, always among the company's own.
     contactId: EntityIdSchema.nullable().optional(),
     dealId: EntityIdSchema.nullable().optional(),
+    /** US-9: the author only. */
+    detailsVisibility: DetailsVisibilitySchema.optional(),
   })
   .strict();
 
@@ -131,6 +136,13 @@ function taskDescriptionOf(input: { body?: string | null | undefined; descriptio
 /** Prisma's way to write a JSON column's SQL NULL. */
 const jsonOrNull = (doc: Doc | null) => (doc === null ? Prisma.DbNull : (doc as Prisma.InputJsonValue));
 
+
+/** US-9: a host that does not let the author restrict the details (Projects) refuses the field outright. */
+function assertDetailsVisibilityApplies(host: ActivityHost, value: string | undefined): void {
+  if (value !== undefined && !host.restrictsDetails) {
+    throw unprocessable("Details visibility is not available here", { field: "detailsVisibility" }, "field_not_allowed");
+  }
+}
 
 /** A contact or deal only exists where the host has them: the CRM's company, never a project. */
 function assertRefsApply(host: ActivityHost, contactId: string | null | undefined, dealId: string | null | undefined): void {
@@ -373,6 +385,7 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
   if (!isTask && body.blockedByIds !== undefined) throw taskFieldsOnNonTask("blockedByIds");
   if (!isTask && body.description != null) throw taskFieldsOnNonTask("description");
   assertRefsApply(host, body.contactId, body.dealId);
+  assertDetailsVisibilityApplies(host, body.detailsVisibility);
   const description = isTask ? (taskDescriptionOf(body) ?? null) : null;
   // A new task has no files yet: its description cannot show an image.
   if (description) await assertImagesOf(null, imageIdsOf(description));
@@ -412,6 +425,7 @@ activitiesRouter.openapi(createActivityRoute, async (c) => {
         contactId: body.contactId ?? null,
         dealId: body.dealId ?? null,
         authorUserId: userId,
+        detailsVisibility: body.detailsVisibility ?? "everyone",
         dueDate: isTask ? (fromDateOnly(body.dueDate) ?? null) : null,
         assigneeUserId,
         blockedBy: { create: newBlockerRows(blockerIds, userId) },
@@ -435,6 +449,11 @@ activitiesRouter.openapi(updateRoute, async (c) => {
 
   if (!mayChange(host, entity, current, userId)) throw changeRefused(host);
   if (!entity.writable) throw hostReadOnly();
+  assertDetailsVisibilityApplies(host, body.detailsVisibility);
+  // US-9 AC-9.1: who sees the details is the author's choice alone, whatever the host's edit rule.
+  if (body.detailsVisibility !== undefined && body.detailsVisibility !== current.detailsVisibility && current.authorUserId !== userId) {
+    throw new ProblemError({ status: 403, code: "author_only", detail: "Only the author can change who sees the details" });
+  }
 
   if (current.type !== "task") {
     if (body.dueDate !== undefined) throw taskFieldsOnNonTask("dueDate");
@@ -493,6 +512,7 @@ activitiesRouter.openapi(updateRoute, async (c) => {
         ...(body.assigneeUserId !== undefined ? { assigneeUserId: body.assigneeUserId } : {}),
         ...(body.contactId !== undefined ? { contactId: body.contactId } : {}),
         ...(body.dealId !== undefined ? { dealId: body.dealId } : {}),
+        ...(body.detailsVisibility !== undefined ? { detailsVisibility: body.detailsVisibility } : {}),
       },
       include: withRefs,
     });

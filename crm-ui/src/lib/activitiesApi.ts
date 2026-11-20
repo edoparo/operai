@@ -11,7 +11,7 @@
 import { getActivitiesApiBaseUrl } from 'shell/session'
 import { query, requestJson } from './api'
 import type { RichTextDoc } from '@operai/ui/rich-text'
-import type { Activity, ActivityType, Page, PageQuery, PersonRef, TaskFile } from './types'
+import type { Activity, ActivityType, DetailsVisibility, Page, PageQuery, PersonRef, TaskFile } from './types'
 
 type Init = { signal?: AbortSignal }
 
@@ -41,6 +41,8 @@ export type ActivityInput = {
   blockedByIds?: string[]
   /** The whole set of colleagues who took part (specs/20261101-crm US-8). */
   participantIds?: string[]
+  /** Who sees the details; omitted = everyone. */
+  detailsVisibility?: DetailsVisibility
 }
 
 export type ActivityUpdate = {
@@ -55,6 +57,8 @@ export type ActivityUpdate = {
   /** One of the activity's company's contacts or deals, or null to clear it (AC-4.2). */
   contactId?: string | null
   dealId?: string | null
+  /** Author only; sent only when changed. */
+  detailsVisibility?: DetailsVisibility
 }
 
 /** `type: 'task', open: true`: a company's open tasks, the choices for "blocked by". */
@@ -85,8 +89,10 @@ export type TaskFileUpload = { fileId: string; upload: { url: string; fields: Re
 
 const filesPath = (activityId: string) => `/activities/${encodeURIComponent(activityId)}/files`
 
-export const startTaskFile = (activityId: string, input: { kind: TaskFile['kind']; fileName: string; contentType: string; sizeBytes: number }) =>
-  sendJson<TaskFileUpload>(filesPath(activityId), 'POST', input)
+export const startTaskFile = (
+  activityId: string,
+  input: { kind: TaskFile['kind']; fileName: string; contentType: string; sizeBytes: number },
+) => sendJson<TaskFileUpload>(filesPath(activityId), 'POST', input)
 export const confirmTaskFile = (activityId: string, fileId: string) =>
   sendJson<TaskFile>(`${filesPath(activityId)}/${encodeURIComponent(fileId)}/confirm`, 'POST')
 export const getTaskFileUrl = (activityId: string, fileId: string) =>

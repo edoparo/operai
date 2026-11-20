@@ -1,6 +1,20 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { CheckboxGroupField, DateInput, DateTimeInput, Field, FormDialog, focusFirstInvalid } from '@operai/ui'
-import { RichTextFilesField, imageFileIds, isLocalFileId, useDeferredFiles, withoutLocalImages } from '@operai/ui/rich-text'
+import {
+  CheckboxGroupField,
+  DateInput,
+  DateTimeInput,
+  Field,
+  FormDialog,
+  RadioGroupField,
+  focusFirstInvalid,
+} from '@operai/ui'
+import {
+  RichTextFilesField,
+  imageFileIds,
+  isLocalFileId,
+  useDeferredFiles,
+  withoutLocalImages,
+} from '@operai/ui/rich-text'
 import type { DeferredFile, RichTextDoc } from '@operai/ui/rich-text'
 import { ApiError } from '../lib/api'
 import { createActivity, listActivities, updateActivity } from '../lib/activitiesApi'
@@ -9,7 +23,7 @@ import { fromLocalDateTimeInput, toLocalDateTimeInput } from '../lib/dates'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { contactName, personName } from '../lib/people'
 import { ACTIVITY_TYPES } from '../lib/types'
-import type { Activity, ActivityType, CompanyRef } from '../lib/types'
+import type { Activity, ActivityType, CompanyRef, DetailsVisibility } from '../lib/types'
 import { first, hasErrors, maxLength, optional, required } from '../lib/validate'
 import type { Errors } from '../lib/validate'
 import {
@@ -118,6 +132,8 @@ export default function ActivityFormDialog({
   const [blockedByIds, setBlockedByIds] = useState<string[]>(
     () => activity?.task?.blockedBy?.map((blocker) => blocker.id) ?? [],
   )
+  const initialVisibility: DetailsVisibility = activity?.detailsVisibility ?? 'everyone'
+  const [visibility, setVisibility] = useState<DetailsVisibility>(initialVisibility)
   const [errors, setErrors] = useState<Errors<FieldName>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -178,9 +194,11 @@ export default function ActivityFormDialog({
       requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
       return
     }
+    // Hidden details were loaded as null: never send them back as if the author had cleared them.
+    const hidden = activity?.detailsHidden === true
     const text = {
       subject: subject.trim(),
-      ...(isTask ? { description: withoutLocalImages(description) } : { body: optional(body) }),
+      ...(hidden ? {} : isTask ? { description: withoutLocalImages(description) } : { body: optional(body) }),
       participantIds: participants.map((person) => person.id),
     }
     const timing = isTask
@@ -198,6 +216,7 @@ export default function ActivityFormDialog({
           ...timing,
           ...(preset?.contactId ? {} : { contactId: contactId || null }),
           ...(preset?.dealId ? {} : { dealId: dealId || null }),
+          ...(visibility !== initialVisibility ? { detailsVisibility: visibility } : {}),
         })
       : createActivity({
           type,
@@ -206,6 +225,7 @@ export default function ActivityFormDialog({
           ...timing,
           ...(contactId ? { contactId } : {}),
           ...(dealId ? { dealId } : {}),
+          ...(visibility !== 'everyone' ? { detailsVisibility: visibility } : {}),
         })
     // The record first: a refused field stops here, before any file is touched. Then the files, and the
     // description again only if it shows pictures that had no stored id until now.
@@ -216,21 +236,24 @@ export default function ActivityFormDialog({
       const final = placed ? await updateActivity(saved.id, { description: result.doc }).catch(() => saved) : saved
       return [final, filesWarning(result)]
     })
-    request.then(([saved, warning]) => onSaved(saved, warning), (failure: unknown) => {
-      setBusy(false)
-      const byCode = failure instanceof ApiError && failure.code ? CODE_FIELDS[failure.code] : undefined
-      if (byCode && failure instanceof ApiError) {
-        setErrors({ [byCode]: failure.detail ?? strings.common.validation.fixErrors })
-        return
-      }
-      const field = fieldErrorOf(failure)
-      if (field) {
-        const name = SERVER_FIELDS[field.field] ?? (field.field as FieldName)
-        setErrors({ [name]: field.message })
-        return
-      }
-      setError(errorMessage(failure))
-    })
+    request.then(
+      ([saved, warning]) => onSaved(saved, warning),
+      (failure: unknown) => {
+        setBusy(false)
+        const byCode = failure instanceof ApiError && failure.code ? CODE_FIELDS[failure.code] : undefined
+        if (byCode && failure instanceof ApiError) {
+          setErrors({ [byCode]: failure.detail ?? strings.common.validation.fixErrors })
+          return
+        }
+        const field = fieldErrorOf(failure)
+        if (field) {
+          const name = SERVER_FIELDS[field.field] ?? (field.field as FieldName)
+          setErrors({ [name]: field.message })
+          return
+        }
+        setError(errorMessage(failure))
+      },
+    )
   }
 
   return (
@@ -346,6 +369,26 @@ export default function ActivityFormDialog({
             )}
           </Field>
         )}
+        <RadioGroupField label={t.visibility} hint={t.visibilityHint} testId="crm-activity-form-visibility">
+          {(['everyone', 'sales_team', 'author'] as const).map((option) => (
+            <label key={option}>
+              <input
+                type="radio"
+                name="crm-activity-form-visibility"
+                value={option}
+                checked={visibility === option}
+                onChange={() => setVisibility(option)}
+              />
+              {option === 'everyone'
+                ? t.visibilityEveryone
+                : option === 'sales_team'
+                  ? t.visibilitySalesTeam
+                  : isTask
+                    ? t.visibilityAuthorTask
+                    : t.visibilityAuthor}
+            </label>
+          ))}
+        </RadioGroupField>
         <ParticipantsField
           value={participants}
           onChange={setParticipants}

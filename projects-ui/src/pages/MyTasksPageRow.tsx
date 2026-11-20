@@ -79,7 +79,11 @@ export default function MyTaskItem({
           <p className={listRowMetaClassName}>
             {my.dealLabel}{' '}
             {/* The CRM is a sibling tool outside this router's basepath: a plain anchor, its href built from the id. */}
-            <a className="link" href={`/crm/deals/${encodeURIComponent(task.deal.id)}`} data-testid={`my-task-${task.id}-deal`}>
+            <a
+              className="link"
+              href={`/crm/deals/${encodeURIComponent(task.deal.id)}`}
+              data-testid={`my-task-${task.id}-deal`}
+            >
               {task.deal.title ?? my.unknownDeal}
             </a>
           </p>
@@ -104,24 +108,30 @@ export default function MyTaskItem({
       body={
         <>
           {where}
-          <RichTextFilesView
-            doc={task.task.description ?? null}
-            attachments={(task.task.files ?? [])
-              .filter((file) => file.kind === 'attachment')
-              .map((file) => ({ id: file.id, name: file.fileName, sizeBytes: file.sizeBytes }))}
-            resolveImageUrl={taskFileUrlResolver(task.id)}
-            onDownload={(item) => {
-              void openTaskFile(task.id, item.id).then((opened) => {
-                if (!opened) onFailed(task.id, strings.tasks.files.errors.openFailed, false)
-              })
-            }}
-            copy={{
-              images: strings.tasks.files.images,
-              check: strings.tasks.files.check,
-              attachments: strings.tasks.files.attachments,
-            }}
-            testIdPrefix={`project-task-${task.id}-description`}
-          />
+          {task.detailsHidden ? (
+            <p className="text-sm text-soft" data-testid={`my-task-${task.id}-restricted`}>
+              {my.detailsRestricted}
+            </p>
+          ) : (
+            <RichTextFilesView
+              doc={task.task.description ?? null}
+              attachments={(task.task.files ?? [])
+                .filter((file) => file.kind === 'attachment')
+                .map((file) => ({ id: file.id, name: file.fileName, sizeBytes: file.sizeBytes }))}
+              resolveImageUrl={taskFileUrlResolver(task.id)}
+              onDownload={(item) => {
+                void openTaskFile(task.id, item.id).then((opened) => {
+                  if (!opened) onFailed(task.id, strings.tasks.files.errors.openFailed, false)
+                })
+              }}
+              copy={{
+                images: strings.tasks.files.images,
+                check: strings.tasks.files.check,
+                attachments: strings.tasks.files.attachments,
+              }}
+              testIdPrefix={`project-task-${task.id}-description`}
+            />
+          )}
         </>
       }
       meta={[

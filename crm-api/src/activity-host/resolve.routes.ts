@@ -15,6 +15,10 @@
  *                        not even whether it exists.
  *   `ids: []`         -> only `reader` is answered (no items, no related).
  *
+ * `salesTeam` (specs/20261110-activities US-9): whether the caller manages deals of at least one entity (`deal:manage`
+ * through `dealScope`, conditions applied, never `hasCapability`). activities-api shows "sales team" details only when
+ * it is true; it is false for a non-reader.
+ *
  * A related id that is not found, or whose company is not among the asked ones, is omitted
  * (activities-api turns that into `contact_not_in_company` / `deal_not_in_company`).
  */
@@ -23,7 +27,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { jwtMiddleware } from "../auth/jwt.middleware";
 import { authzMiddleware, type AuthzVariables } from "../auth/authz.middleware";
-import { CRM_ACCESS } from "../auth/guards";
+import { CRM_ACCESS, dealScope } from "../auth/guards";
 import { hasCapability } from "../authz/conditions";
 import { db } from "../lib/db";
 import { commonErrors } from "../lib/http";
@@ -89,7 +93,12 @@ const resolveRoute = createRoute({
       description: "reader, one item per distinct company id in the order asked, and the related rows found",
       content: {
         "application/json": {
-          schema: z.object({ reader: z.boolean(), items: z.array(ResolvedItem), related: z.array(RelatedItem) }),
+          schema: z.object({
+            reader: z.boolean(),
+            salesTeam: z.boolean(),
+            items: z.array(ResolvedItem),
+            related: z.array(RelatedItem),
+          }),
         },
       },
     },
@@ -106,9 +115,10 @@ activityHostResolveRouter.openapi(resolveRoute, async (c) => {
   const { permissions } = c.get("authz");
   const reader = hasCapability(permissions, CRM_ACCESS[0], CRM_ACCESS[1]);
   const ids = [...new Set(body.ids)];
+  const salesTeam = reader && dealScope(c).length > 0;
 
   // No grant, or nothing asked about: no lookup at all, so nothing can leak.
-  if (!reader || ids.length === 0) return c.json({ reader, items: [], related: [] }, 200);
+  if (!reader || ids.length === 0) return c.json({ reader, salesTeam, items: [], related: [] }, 200);
 
   const companies = await db.company.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
   const nameOf = new Map(companies.map((company) => [company.id, company.name]));
@@ -166,5 +176,5 @@ activityHostResolveRouter.openapi(resolveRoute, async (c) => {
     })),
   ];
 
-  return c.json({ reader, items, related }, 200);
+  return c.json({ reader, salesTeam, items, related }, 200);
 });

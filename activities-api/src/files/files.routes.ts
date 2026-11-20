@@ -34,7 +34,7 @@ import {
 } from "../lib/storage";
 import { notFoundProblem } from "../activities/access";
 import { loadFor, type Caller } from "../activities/load";
-import { changeRefused, hostReadOnly, mayChange } from "../activities/rules";
+import { changeRefused, hostReadOnly, mayChange, mayReadDetails } from "../activities/rules";
 import { imageIdsOf } from "./description";
 import { FILE_KINDS, FileSchema, PENDING_ABANDONED_MS, storedFiles, storageUnavailable, toFileView } from "./files";
 
@@ -181,8 +181,10 @@ filesRouter.openapi(confirmRoute, async (c) => {
 
 filesRouter.openapi(urlRoute, async (c) => {
   const { id, fileId } = c.req.valid("param");
-  const { row } = await loadFor(c, id);
+  const { row, session, host } = await loadFor(c, id);
   if (row.type !== "task") throw notFoundProblem();
+  // US-9 AC-9.2: a file of restricted details answers as one that does not exist.
+  if (!mayReadDetails(row, c.get("userId"), session.inSalesTeam(host))) throw notFoundProblem();
   const file = await fileOf(id, fileId, "stored");
   const url = await requireStorage().mintPresignedGet(file.objectKey, {
     contentType: file.contentType,
