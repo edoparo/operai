@@ -36,6 +36,7 @@ import { db } from "../lib/db";
 import { env } from "../lib/env";
 import { Prisma } from "../lib/generated/prisma/client";
 import { getAppCatalog } from "./catalog";
+import { ACCOUNTING_APP_ID } from "./catalogs/accounting";
 import { ADMIN_APP_ID } from "./catalogs/admin";
 import { CRM_APP_ID } from "./catalogs/crm";
 import { ESTIMAI_APP_ID } from "./catalogs/estimai";
@@ -58,6 +59,8 @@ import {
   CRM_TECHNICAL_ROLE_NAME,
   PROJECT_MANAGER_ROLE_NAME,
   seed,
+  seedAccountingCatalog,
+  seedAccountingGrants,
   seedAccountingRoleGrants,
   seedAdminCatalog,
   seedAdminRoleGrants,
@@ -221,7 +224,7 @@ describe("seedEstimaiGrants (specs/20261108-estimate-list-oversight — AC-1.8; 
 // ─── T2, specs/20260716-refund-service ───────────────────────────────────────────
 
 describe("seedRefundCatalog (T2, specs/20260716-refund-service — AC-1.1, AC-5.4, AC-7.5, AC-8.2)", () => {
-  test("registers refund's full catalog — app access + request create/read/review/set-approved-total/approve/reject, idempotent on re-run", async () => {
+  test("registers refund's full catalog — app access + request create/read/review/set-approved-total/approve/reject/reclassify, idempotent on re-run", async () => {
     await seedRefundCatalog();
     await seedRefundCatalog(); // re-run — full-replace upsert, must not duplicate
 
@@ -236,7 +239,7 @@ describe("seedRefundCatalog (T2, specs/20260716-refund-service — AC-1.1, AC-5.
     const requestResource = catalog.resources.find((r) => r.key === "request");
     expect(requestResource).toBeDefined();
     expect(requestResource?.actions.map((a) => a.key).sort()).toEqual(
-      ["approve", "create", "read", "reject", "review", "set-approved-total"].sort(),
+      ["approve", "create", "read", "reclassify", "reject", "review", "set-approved-total"].sort(),
     );
 
     const byKey = new Map(requestResource?.actions.map((a) => [a.key, a.supportedConditions]));
@@ -249,6 +252,9 @@ describe("seedRefundCatalog (T2, specs/20260716-refund-service — AC-1.1, AC-5.
     // unchanged (AC-4.3).
     expect(byKey.get("approve")).toEqual(["entity", "self-approval"]);
     expect(byKey.get("reject")).toEqual(["entity"]);
+    // specs/20261118-refund-accounting-export, T2 (AC-3.6, D5) as amended by SR-2 (security review S-02):
+    // `reclassify` declares what `approve` declares, so a restriction on one can be set on the other.
+    expect(byKey.get("reclassify")).toEqual(["entity", "self-approval"]);
   });
 
   test("GET /admin/catalog's backing read (getFullCatalog) includes refund's request resource", async () => {
@@ -261,7 +267,7 @@ describe("seedRefundCatalog (T2, specs/20260716-refund-service — AC-1.1, AC-5.
     expect(mine).toBeDefined();
     const requestResource = mine?.resources.find((r) => r.key === "request");
     expect(requestResource).toBeDefined();
-    expect(requestResource?.actions).toHaveLength(6);
+    expect(requestResource?.actions).toHaveLength(7);
   });
 
   test("GET /admin/catalog's backing read (getFullCatalog) includes refund's `rate` resource (T1, specs/20260720-mileage-rate)", async () => {
@@ -298,7 +304,7 @@ describe("seedRefundCatalog (T2, specs/20260716-refund-service — AC-1.1, AC-5.
 });
 
 describe("seedAccountingRoleGrants (T2, specs/20260716-refund-service — AC-5.4, AC-6.4, AC-7.5; ADR 20260716-entity-scoped-abac-refund-api)", () => {
-  test("accounting gets refund:access + entity-conditioned review/set-approved-total/approve/reject; employee gets none; idempotent on re-run", async () => {
+  test("accounting gets refund:access + entity-conditioned review/set-approved-total/approve/reject/reclassify; employee gets none; idempotent on re-run", async () => {
     await seedSystemRoles();
     await seedAccountingRoleGrants();
     await seedAccountingRoleGrants(); // re-run must not duplicate
@@ -316,8 +322,9 @@ describe("seedAccountingRoleGrants (T2, specs/20260716-refund-service — AC-5.4
       where: { roleId: accounting!.id, resource: { in: [REFUND_APP_ID, "request"] } },
     });
 
-    // Exactly 5 rules: refund:access (unconditional) + 4 entity-conditioned request actions.
-    expect(accountingRules).toHaveLength(5);
+    // Exactly 6 rules: refund:access (unconditional) + 5 entity-conditioned request actions
+    // (`reclassify` added by T2, specs/20261118-refund-accounting-export).
+    expect(accountingRules).toHaveLength(6);
 
     const access = accountingRules.find(
       (r) => r.resource === REFUND_APP_ID && r.action === "access",
@@ -325,7 +332,7 @@ describe("seedAccountingRoleGrants (T2, specs/20260716-refund-service — AC-5.4
     expect(access).toBeDefined();
     expect(access?.conditions).toBeNull();
 
-    for (const action of ["review", "set-approved-total", "approve", "reject"]) {
+    for (const action of ["review", "set-approved-total", "approve", "reject", "reclassify"]) {
       const rule = accountingRules.find((r) => r.resource === "request" && r.action === action);
       expect(rule).toBeDefined();
       // Exact match — in particular `approve`'s conditions carry ONLY the
@@ -385,7 +392,7 @@ describe("seedAccountingRoleGrants (T2, specs/20260716-refund-service — AC-5.4
 // ─── Post-close follow-up: `refund-admin` role ──────────────────────────────
 
 describe("seedRefundAdminRole (post-close follow-up, specs/20260716-refund-service)", () => {
-  test("creates a system `refund-admin` role with refund:access + all 6 request actions, every one UNCONDITIONED, idempotent on re-run", async () => {
+  test("creates a system `refund-admin` role with refund:access + all 7 request actions, every one UNCONDITIONED, idempotent on re-run", async () => {
     await seedRefundAdminRole();
     await seedRefundAdminRole(); // re-run must not duplicate
 
@@ -404,14 +411,15 @@ describe("seedRefundAdminRole (post-close follow-up, specs/20260716-refund-servi
       where: { roleId: role!.id, resource: { notIn: ["rate", "settings"] } },
     });
 
-    // Exactly 7 rules: refund:access + all 6 request actions.
-    expect(rules).toHaveLength(7);
+    // Exactly 8 rules: refund:access + all 7 request actions (`reclassify` added by
+    // T2, specs/20261118-refund-accounting-export).
+    expect(rules).toHaveLength(8);
 
     const access = rules.find((r) => r.resource === REFUND_APP_ID && r.action === "access");
     expect(access).toBeDefined();
     expect(access?.conditions).toBeNull();
 
-    const requestActions = ["create", "read", "review", "set-approved-total", "approve", "reject"];
+    const requestActions = ["create", "read", "review", "set-approved-total", "approve", "reject", "reclassify"];
     for (const action of requestActions) {
       const rule = rules.find((r) => r.resource === "request" && r.action === action);
       expect(rule).toBeDefined();
@@ -424,7 +432,7 @@ describe("seedRefundAdminRole (post-close follow-up, specs/20260716-refund-servi
     }
 
     expect(rules.map((r) => r.action).sort()).toEqual(
-      ["access", "create", "read", "review", "set-approved-total", "approve", "reject"].sort(),
+      ["access", "create", "read", "reclassify", "review", "set-approved-total", "approve", "reject"].sort(),
     );
   });
 
@@ -542,6 +550,149 @@ describe("seedSettingsAdminGrants (T1, specs/20260722-refund-settings — plan.m
     const rateRuleIds = new Set(rateRules.map((r) => r.id));
     for (const rule of settingsRules) {
       expect(rateRuleIds.has(rule.id)).toBe(false);
+    }
+  });
+});
+
+// ─── T2, specs/20261118-refund-accounting-export ─────────────────────────────────
+
+describe("`request:reclassify` grants (T2, specs/20261118-refund-accounting-export — AC-3.6; plan D5: granted like `approve`)", () => {
+  async function requestRuleFor(roleName: string, action: string) {
+    const role = await db.role.findUniqueOrThrow({ where: { name: roleName } });
+    return db.permissionRule.findFirst({ where: { roleId: role.id, resource: "request", action } });
+  }
+
+  test("`accounting` holds it entity-conditioned, exactly like `approve`", async () => {
+    await seedSystemRoles();
+    await seedAccountingRoleGrants();
+    const rule = await requestRuleFor(ACCOUNTING_ROLE_NAME, "reclassify");
+    expect(rule).not.toBeNull();
+    expect(rule?.conditions).toEqual({ attributes: [{ key: "entity", match: "user" }] });
+  });
+
+  test("`refund-admin` holds it UNCONDITIONED (global scope, like its other request actions)", async () => {
+    await seedRefundAdminRole();
+    const rule = await requestRuleFor(REFUND_ADMIN_ROLE_NAME, "reclassify");
+    expect(rule).not.toBeNull();
+    expect(rule?.conditions).toBeNull();
+  });
+
+  test("`admin` follows its existing pattern for `approve`: it holds `reclassify` exactly when it holds `approve`", async () => {
+    await seedSystemRoles();
+    await seedAdminRoleGrants();
+    await seedAccountingRoleGrants();
+    await seedRefundAdminRole();
+
+    const approve = await requestRuleFor(ADMIN_ROLE_NAME, "approve");
+    const reclassify = await requestRuleFor(ADMIN_ROLE_NAME, "reclassify");
+    expect(reclassify === null).toBe(approve === null);
+    expect(reclassify?.conditions ?? null).toEqual(approve?.conditions ?? null);
+  });
+
+  test("across every system role, `reclassify` is held exactly where `approve` is held, with the same conditions (parity)", async () => {
+    await seed();
+    // System roles only: other test files create custom roles in the same database.
+    const approveRules = await db.permissionRule.findMany({
+      where: { resource: "request", action: "approve", role: { isSystem: true } },
+    });
+    const reclassifyRules = await db.permissionRule.findMany({
+      where: { resource: "request", action: "reclassify", role: { isSystem: true } },
+    });
+    const fingerprint = (r: { roleId: string; conditions: unknown }) => `${r.roleId}|${JSON.stringify(r.conditions)}`;
+    expect(new Set(reclassifyRules.map(fingerprint))).toEqual(new Set(approveRules.map(fingerprint)));
+  });
+
+  test("is added, once, to an `accounting` / `refund-admin` role that already exists without it (the deploy case)", async () => {
+    await seedSystemRoles();
+    await seedAccountingRoleGrants();
+    await seedRefundAdminRole();
+    // Simulate the database as it was before this feature shipped.
+    await db.permissionRule.deleteMany({ where: { resource: "request", action: "reclassify" } });
+    expect(await requestRuleFor(ACCOUNTING_ROLE_NAME, "reclassify")).toBeNull();
+
+    await seedAccountingRoleGrants();
+    await seedRefundAdminRole();
+    await seedAccountingRoleGrants(); // re-run must not duplicate
+    await seedRefundAdminRole();
+
+    for (const roleName of [ACCOUNTING_ROLE_NAME, REFUND_ADMIN_ROLE_NAME]) {
+      const role = await db.role.findUniqueOrThrow({ where: { name: roleName } });
+      const rules = await db.permissionRule.findMany({
+        where: { roleId: role.id, resource: "request", action: "reclassify" },
+      });
+      expect(rules).toHaveLength(1);
+    }
+  });
+
+  test("`employee` never holds it", async () => {
+    await seed();
+    expect(await requestRuleFor(EMPLOYEE_ROLE_NAME, "reclassify")).toBeNull();
+  });
+
+  // SR-2 (security review S-02): "seeded like each role's approve", with whatever conditions that role's approve has.
+  const SELF_DENY_ENTITY = {
+    attributes: [
+      { key: "entity", match: "user" },
+      { key: "self-approval", match: "deny" },
+    ],
+  };
+  const SELF_DENY_ONLY = { attributes: [{ key: "self-approval", match: "deny" }] };
+
+  // The database is shared across this file: leave approve/reclassify of the two roles as the seed makes them.
+  afterEach(async () => {
+    await db.permissionRule.deleteMany({
+      where: { resource: "request", action: { in: ["approve", "reclassify"] }, role: { name: { in: [ACCOUNTING_ROLE_NAME, REFUND_ADMIN_ROLE_NAME] } } },
+    });
+    await seedAccountingRoleGrants();
+    await seedRefundAdminRole();
+  });
+
+  test("a missing `reclassify` is seeded with the SAME conditions as the role's existing `approve`, self-approval included (accounting and refund-admin)", async () => {
+    await seedSystemRoles();
+    await seedAccountingRoleGrants();
+    await seedRefundAdminRole();
+    // The deployment as an admin left it: approve restricted, reclassify not there yet.
+    await db.permissionRule.deleteMany({
+      where: { resource: "request", action: "reclassify", role: { name: { in: [ACCOUNTING_ROLE_NAME, REFUND_ADMIN_ROLE_NAME] } } },
+    });
+    await db.permissionRule.updateMany({
+      where: { resource: "request", action: "approve", role: { name: ACCOUNTING_ROLE_NAME } },
+      data: { conditions: SELF_DENY_ENTITY },
+    });
+    await db.permissionRule.updateMany({
+      where: { resource: "request", action: "approve", role: { name: REFUND_ADMIN_ROLE_NAME } },
+      data: { conditions: SELF_DENY_ONLY },
+    });
+
+    await seedAccountingRoleGrants();
+    await seedRefundAdminRole();
+    await seedAccountingRoleGrants(); // idempotent
+
+    expect((await requestRuleFor(ACCOUNTING_ROLE_NAME, "reclassify"))?.conditions).toEqual(SELF_DENY_ENTITY);
+    expect((await requestRuleFor(REFUND_ADMIN_ROLE_NAME, "reclassify"))?.conditions).toEqual(SELF_DENY_ONLY);
+    for (const roleName of [ACCOUNTING_ROLE_NAME, REFUND_ADMIN_ROLE_NAME]) {
+      const role = await db.role.findUniqueOrThrow({ where: { name: roleName } });
+      expect(await db.permissionRule.count({ where: { roleId: role.id, resource: "request", action: "reclassify" } })).toBe(1);
+    }
+  });
+
+  test("an existing `reclassify` is never rewritten by the seed (an admin's edit stays)", async () => {
+    await seedSystemRoles();
+    await seedAccountingRoleGrants();
+    await db.permissionRule.updateMany({
+      where: { resource: "request", action: "reclassify", role: { name: ACCOUNTING_ROLE_NAME } },
+      data: { conditions: SELF_DENY_ENTITY },
+    });
+    await seedAccountingRoleGrants();
+    expect((await requestRuleFor(ACCOUNTING_ROLE_NAME, "reclassify"))?.conditions).toEqual(SELF_DENY_ENTITY);
+  });
+
+  test("with no self-approval on approve (the seeded default), there is none on reclassify either", async () => {
+    await seed();
+    for (const roleName of [ACCOUNTING_ROLE_NAME, REFUND_ADMIN_ROLE_NAME]) {
+      const rule = await requestRuleFor(roleName, "reclassify");
+      const carries = (rule?.conditions as { attributes?: { key: string }[] } | null)?.attributes?.some((a) => a.key === "self-approval") ?? false;
+      expect(carries).toBe(false);
     }
   });
 });
@@ -860,7 +1011,7 @@ describe("seed() — runs every deploy-time step", () => {
     const refundCatalog = await getAppCatalog(REFUND_APP_ID);
     expect(refundCatalog.resources.some((r) => r.key === REFUND_APP_ID)).toBe(true);
     const requestResource = refundCatalog.resources.find((r) => r.key === "request");
-    expect(requestResource?.actions).toHaveLength(6);
+    expect(requestResource?.actions).toHaveLength(7);
 
     // seed() also attaches the accounting role's refund grants (T2).
     const accounting = await db.role.findUnique({ where: { name: ACCOUNTING_ROLE_NAME } });
@@ -874,13 +1025,14 @@ describe("seed() — runs every deploy-time step", () => {
     // unconditioned actions on top of its original 7 (refund:access + 6
     // request actions) — 9 total — and further extended by T1
     // (specs/20260722-refund-settings, ADR 20260722-settings-catalog-permission-config-not-rate) with the `settings` resource's
-    // two unconditioned actions — 11 total.
+    // two unconditioned actions — 11 total — and by T2 (specs/20261118-refund-accounting-export)
+    // with `request:reclassify` — 12 total.
     const refundAdmin = await db.role.findUnique({ where: { name: REFUND_ADMIN_ROLE_NAME } });
     expect(refundAdmin).not.toBeNull();
     const refundAdminRules = await db.permissionRule.findMany({
       where: { roleId: refundAdmin!.id },
     });
-    expect(refundAdminRules.length).toBe(11);
+    expect(refundAdminRules.length).toBe(12);
 
     // seed() also grants rate:read + rate:manage to `admin` (T1, specs/20260720-mileage-rate).
     const admin = await db.role.findUnique({ where: { name: ADMIN_ROLE_NAME } });
@@ -1491,5 +1643,148 @@ describe("seedLegalEntityGrants (specs/20261117-legal-entities — AC-4.1)", () 
     expect(entityGrantFor(permissions, "legal-entity", "manage", { entity: null }, "CH")).toEqual({
       unconditioned: true,
     });
+  });
+});
+
+// ─── specs/20261119-accounting ───────────────────────────────────────────────────────
+
+describe("seedAccountingCatalog (specs/20261119-accounting — T1, AC-3.1)", () => {
+  test("registers the accounting catalog — accounting:read and accounting:manage with the entity condition, no access, idempotent", async () => {
+    await seedAccountingCatalog();
+    await seedAccountingCatalog();
+    const catalog = await getAppCatalog(ACCOUNTING_APP_ID);
+    const byResource = new Map(
+      catalog.resources.map((r) => [r.key, r.actions.map((a) => [a.key, a.supportedConditions])]),
+    );
+    expect([...byResource.keys()]).toEqual(["accounting"]);
+    expect([...(byResource.get("accounting") ?? [])].sort()).toEqual([
+      ["manage", ["entity"]],
+      ["read", ["entity"]],
+    ]);
+  });
+
+  test("accounting is outside SUITE_APPS and outside ALL_APP_IDS: admin gets no per-app `access` for it", () => {
+    expect(SUITE_APPS.some((app) => app.appId === ACCOUNTING_APP_ID)).toBe(false);
+    expect(ALL_APP_IDS).not.toContain(ACCOUNTING_APP_ID);
+  });
+
+  test("seed() leaves the accounting catalog in place (no second registration prunes it)", async () => {
+    await seed();
+    const catalog = await getAppCatalog(ACCOUNTING_APP_ID);
+    expect(catalog.resources.map((r) => r.key)).toEqual(["accounting"]);
+  });
+});
+
+describe("seedAccountingGrants (specs/20261119-accounting — T1, AC-3.3)", () => {
+  const ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
+
+  /** Every `accounting` rule, with the name of the role that holds it. */
+  const accountingRules = async () => {
+    const rules = await db.permissionRule.findMany({
+      where: { resource: ACCOUNTING_APP_ID },
+      include: { role: { select: { name: true } } },
+    });
+    return rules
+      .map((r) => ({ role: r.role.name, grant: `${r.resource}:${r.action}`, conditions: r.conditions }))
+      .sort((a, b) => `${a.role} ${a.grant}`.localeCompare(`${b.role} ${b.grant}`));
+  };
+
+  async function clearGrants() {
+    await db.permissionRule.deleteMany({ where: { resource: ACCOUNTING_APP_ID } });
+  }
+  beforeEach(clearGrants);
+  afterAll(async () => {
+    await clearGrants();
+    await seedAccountingGrants();
+  });
+
+  test("admin holds both actions unconditioned and the accounting role both entity-conditioned", async () => {
+    await seedSystemRoles();
+    await seedAccountingGrants();
+    const rules = await accountingRules();
+    expect(rules.map((r) => `${r.role} ${r.grant}`)).toEqual([
+      `${ACCOUNTING_ROLE_NAME} accounting:manage`,
+      `${ACCOUNTING_ROLE_NAME} accounting:read`,
+      `${ADMIN_ROLE_NAME} accounting:manage`,
+      `${ADMIN_ROLE_NAME} accounting:read`,
+    ]);
+    for (const rule of rules) {
+      if (rule.role === ADMIN_ROLE_NAME) expect(rule.conditions).toBeNull();
+      else expect(rule.conditions).toEqual(ENTITY_CONDITION);
+    }
+  });
+
+  test("seed() twice: no duplicate rows, and no other system role holds either action", async () => {
+    await seed();
+    await seed();
+    const rules = await accountingRules();
+    expect(rules).toHaveLength(4);
+    expect([...new Set(rules.map((r) => r.role))].sort()).toEqual([ACCOUNTING_ROLE_NAME, ADMIN_ROLE_NAME].sort());
+    for (const role of SYSTEM_ROLE_NAMES.filter((n) => n !== ADMIN_ROLE_NAME && n !== ACCOUNTING_ROLE_NAME)) {
+      expect(rules.some((r) => r.role === role)).toBe(false);
+    }
+  });
+
+  test("there is no accounting:access rule for any role, admin included", async () => {
+    await seed();
+    expect((await accountingRules()).some((r) => r.grant === "accounting:access")).toBe(false);
+  });
+
+  test("a re-seed leaves a hand-edited accounting:manage rule unchanged (non-destructive)", async () => {
+    await seedSystemRoles();
+    await seedAccountingGrants();
+    const accountingRole = await db.role.findUniqueOrThrow({ where: { name: ACCOUNTING_ROLE_NAME } });
+    const adminRole = await db.role.findUniqueOrThrow({ where: { name: ADMIN_ROLE_NAME } });
+    // An administrator widened the accounting role's manage to every entity, and narrowed admin's to own entity.
+    await db.permissionRule.updateMany({
+      where: { roleId: accountingRole.id, resource: ACCOUNTING_APP_ID, action: "manage" },
+      data: { conditions: Prisma.DbNull },
+    });
+    await db.permissionRule.updateMany({
+      where: { roleId: adminRole.id, resource: ACCOUNTING_APP_ID, action: "manage" },
+      data: { conditions: ENTITY_CONDITION },
+    });
+    await seedAccountingGrants();
+    await seed();
+    const manage = (await accountingRules()).filter((r) => r.grant === "accounting:manage");
+    expect(manage).toHaveLength(2);
+    expect(manage.find((r) => r.role === ACCOUNTING_ROLE_NAME)?.conditions).toBeNull();
+    expect(manage.find((r) => r.role === ADMIN_ROLE_NAME)?.conditions).toEqual(ENTITY_CONDITION);
+  });
+
+  test("a removed rule is recreated, and only that one", async () => {
+    await seedSystemRoles();
+    await seedAccountingGrants();
+    await db.permissionRule.deleteMany({
+      where: { resource: ACCOUNTING_APP_ID, action: "read", role: { name: ACCOUNTING_ROLE_NAME } },
+    });
+    await seedAccountingGrants();
+    const rules = await accountingRules();
+    expect(rules).toHaveLength(4);
+    expect(rules.find((r) => r.role === ACCOUNTING_ROLE_NAME && r.grant === "accounting:read")?.conditions).toEqual(
+      ENTITY_CONDITION,
+    );
+  });
+
+  test("the grants resolve as seeded: admin covers every entity, the accounting role only its own", async () => {
+    await seedSystemRoles();
+    await seedAccountingGrants();
+    const toPermissions = async (roleName: string) =>
+      (await db.permissionRule.findMany({ where: { role: { name: roleName }, resource: ACCOUNTING_APP_ID } })).map(
+        (r) => ({ resource: r.resource, action: r.action, conditions: toRuleConditions(r.conditions) }),
+      );
+    const admin = await toPermissions(ADMIN_ROLE_NAME);
+    for (const action of ["read", "manage"]) {
+      expect(entityGrantFor(admin, ACCOUNTING_APP_ID, action, { entity: null }, "CH")).toEqual({ unconditioned: true });
+      expect(entityGrantFor(admin, ACCOUNTING_APP_ID, action, { entity: null }, "IT")).toEqual({ unconditioned: true });
+    }
+    const accounting = await toPermissions(ACCOUNTING_ROLE_NAME);
+    for (const action of ["read", "manage"]) {
+      expect(entityGrantFor(accounting, ACCOUNTING_APP_ID, action, { entity: "CH" }, "CH")).toEqual({
+        unconditioned: false,
+      });
+      expect(entityGrantFor(accounting, ACCOUNTING_APP_ID, action, { entity: "CH" }, "IT")).toBeNull();
+      expect(entityGrantFor(accounting, ACCOUNTING_APP_ID, action, { entity: null }, "CH")).toBeNull();
+    }
   });
 });

@@ -22,7 +22,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { expectNoAxeViolations } from '../test-support/axe'
 import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import type { Permission, PermissionsResult, ShellSessionState } from 'shell/session'
 import ReviewDetailPage from './ReviewDetailPage'
@@ -36,6 +37,11 @@ vi.mock('../lib/requestsApi', async (importOriginal) => {
 vi.mock('../lib/reviewApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../lib/reviewApi')>()
   return { ...original, setApprovedTotal: vi.fn(), approve: vi.fn(), reject: vi.fn(), rejectLine: vi.fn(), restoreLine: vi.fn() }
+})
+
+vi.mock('../lib/accountingApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../lib/accountingApi')>()
+  return { ...original, getRequestAccounting: vi.fn(), getAccountingOptions: vi.fn(), classifyLine: vi.fn() }
 })
 
 vi.mock('../lib/attachmentsApi', async (importOriginal) => {
@@ -63,7 +69,10 @@ vi.mock('shell/session', () => ({
 
 import * as requestsApi from '../lib/requestsApi'
 import * as reviewApi from '../lib/reviewApi'
+import * as accountingApi from '../lib/accountingApi'
+import type { AccountingLine, RequestAccounting } from '../lib/accountingApi'
 import { ApiError } from '../lib/refundApi'
+import { strings } from '../strings'
 
 /** Builds a full PermissionsResult from just the `permissions` a test cares about (mirrors RefundShell.test.tsx's `permissionsWith`). */
 const permissionsWith = (permissions: Permission[]): PermissionsResult => ({
@@ -711,4 +720,1300 @@ describe('ReviewDetailPage — line rejection (specs/20260716-refund-service ame
     expect(screen.queryByTestId('row-line-2-rejection')).toBeNull()
     expect(screen.queryByTestId('row-line-1-restore')).toBeNull()
   })
+})
+
+// ---------------------------------------------------------------------------
+// Classification (T28, specs/20261118-refund-accounting-export, design S7, F5, F6; AC-3.1, AC-3.3, AC-3.6, AC-3.7, AC-3.9, AC-3.10)
+// ---------------------------------------------------------------------------
+
+describe('ReviewDetailPage — line classification panels', () => {
+  const problem = (status: number, code?: string) => new ApiError({ type: 't', title: 'x', status, code })
+
+  const TRAIN = { number: '5901', name: 'Spese viaggi in treno', state: 'active' as const }
+  const HOTEL = { number: '5902', name: 'Spese alberghi', state: 'active' as const }
+  const NOVAT = { code: 'NOVAT', label: 'Senza IVA', ratePercent: '0', state: 'active' as const }
+  const OPTIONS = {
+    ledgerAccounts: [TRAIN, HOTEL].map(({ number, name }) => ({ number, name })),
+    vatCodes: [{ code: 'NOVAT', label: 'Senza IVA', ratePercent: '0', rateBasisPoints: 0 }],
+  }
+
+  const chLine = (id: string, overrides: Partial<RefundRequestDetail['lines'][number]> = {}) => ({
+    ...baseRequest.lines[0],
+    id,
+    entity: 'welld_ch' as const,
+    motivo: `Line ${id}`,
+    ...overrides,
+  })
+
+  const accLine = (lineId: string, overrides: Partial<AccountingLine> = {}): AccountingLine => ({
+    lineId,
+    entity: 'welld_ch',
+    date: '2026-07-01',
+    type: 'stationery',
+    currency: 'EUR',
+    amountCents: 1000,
+    receiptNumber: null,
+    employee: { name: 'Alice', email: 'alice@welld.ch' },
+    rejected: false,
+    inScope: true,
+    classification: { account: TRAIN, accountIsDefault: true, vatCode: NOVAT },
+    chf: { amountCents: 924, rateMicros: 924600, rate: '0.9246', rateMonth: '2026-07', rateStatus: 'in_effect' },
+    vatAmountCents: 0,
+    ...overrides,
+  })
+
+  const view = (
+    lines: AccountingLine[],
+    classificationState: RequestAccounting['classificationState'] = 'review',
+    status: RequestAccounting['status'] = 'submitted',
+    selfRestricted = false,
+  ): RequestAccounting => ({
+    requestId: 'req-1',
+    status,
+    batch: null,
+    accounting: 'available',
+    viewer: { canOpenAccountingRates: false },
+    classificationState,
+    selfRestricted,
+    lines,
+  })
+
+  const withCh = (overrides: Partial<RefundRequestDetail> = {}): RefundRequestDetail => ({
+    ...baseRequest,
+    lines: [chLine('c1')],
+    ...overrides,
+  })
+
+  const REVIEWER = [
+    { resource: 'request', action: 'set-approved-total' },
+    { resource: 'request', action: 'reclassify' },
+  ] as Permission[]
+
+  beforeEach(() => {
+    // `clearAllMocks` keeps queued `Once` answers: start each of these from nothing.
+    vi.mocked(requestsApi.get).mockReset()
+    vi.mocked(accountingApi.getRequestAccounting).mockReset()
+    vi.mocked(accountingApi.classifyLine).mockReset()
+    usePermissionsMock.mockReturnValue(permissionsWith(REVIEWER))
+    vi.mocked(accountingApi.getAccountingOptions).mockResolvedValue(OPTIONS)
+  })
+
+  /** The select, once the options have loaded (until then it is disabled and ignores a change). */
+  const readySelect = async (testId: string) => {
+    const select = (await screen.findByTestId(testId)) as HTMLSelectElement
+    await waitFor(() => expect(select.disabled).toBe(false))
+    return select
+  }
+
+  const panel = (lineId: string) => screen.queryByTestId(`classification-${lineId}`)
+
+  it('shows a panel with defaults and markers inside each WellD CH line, and none on a WellD Italia or rejected line (AC-3.1, AC-3.9)', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(
+      withCh({
+        lines: [
+          chLine('c1'),
+          { ...baseRequest.lines[0], id: 'it1' },
+          chLine('c2', {
+            rejection: { reason: 'no', rejectedBy: { email: 'a@b.c' }, rejectedAt: '2026-07-02T00:00:00.000Z' },
+            approvedTotalCents: 0,
+          }),
+        ],
+      }),
+    )
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+      view([
+        accLine('c1'),
+        accLine('it1', { entity: 'welld_it', classification: null }),
+        accLine('c2', { rejected: true, classification: null }),
+      ]),
+    )
+    renderReviewDetailPage()
+
+    const c1 = await screen.findByTestId('classification-c1')
+    expect(screen.getByTestId('expense-line-row-c1').contains(c1)).toBe(true)
+    expect((screen.getByTestId('classification-c1-account') as HTMLSelectElement).value).toBe('5901')
+    expect(c1.textContent).toContain('Default')
+    expect(panel('it1')).toBeNull()
+    expect(panel('c2')).toBeNull()
+    expect(screen.getByTestId('expense-line-row-it1').textContent).not.toMatch(/Classification|VAT code/)
+    expect(screen.getByRole('group', { name: 'Classification for 01.07.2026 · Line c1' })).not.toBeNull()
+  })
+
+  it('never calls the accounting endpoint for a request with no WellD CH line to classify (UX-13)', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+    renderReviewDetailPage()
+    await screen.findByTestId('review-detail-decidable')
+    await waitFor(() => expect(accountingApi.getRequestAccounting).not.toHaveBeenCalled())
+    expect(accountingApi.getAccountingOptions).not.toHaveBeenCalled()
+  })
+
+  it('shows a skeleton only inside CH lines and one polite loading line while the view loads', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), { ...baseRequest.lines[0], id: 'it1' }] }))
+    vi.mocked(accountingApi.getRequestAccounting).mockReturnValue(pendingPromise())
+    renderReviewDetailPage()
+
+    expect(await screen.findByTestId('classification-c1-loading')).not.toBeNull()
+    expect(screen.queryByTestId('classification-it1-loading')).toBeNull()
+    expect(screen.getAllByText('Loading classification…')).toHaveLength(1)
+    expect(screen.getByText('Loading classification…').getAttribute('aria-live')).toBe('polite')
+  })
+
+  it('a failed load is ONE banner with Retry above the lines, and the page keeps working', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+    vi.mocked(accountingApi.getRequestAccounting)
+      .mockRejectedValueOnce(problem(500))
+      .mockResolvedValue(view([accLine('c1'), accLine('c2')]))
+    renderReviewDetailPage()
+
+    const banner = await screen.findByText('Could not load the classification.')
+    expect(screen.getAllByText('Could not load the classification.')).toHaveLength(1)
+    expect(panel('c1')).toBeNull()
+    expect(screen.getByTestId('review-detail-approve')).not.toBeNull()
+    expect(banner.closest('[data-testid="review-detail-decidable"]')).not.toBeNull()
+
+    fireEvent.click(screen.getByTestId('error-banner-retry'))
+    await screen.findByTestId('classification-c1')
+    expect(panel('c2')).not.toBeNull()
+    expect(screen.queryByText('Could not load the classification.')).toBeNull()
+  })
+
+  it.each([403, 404])('a %i is an info note, no retry, and Approve is still there', async (status) => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+    vi.mocked(accountingApi.getRequestAccounting).mockRejectedValue(problem(status))
+    renderReviewDetailPage()
+
+    expect((await screen.findByTestId('classification-unavailable')).textContent).toBe(
+      'The classification is not available for this request.',
+    )
+    expect(screen.queryByTestId('error-banner-retry')).toBeNull()
+    expect(panel('c1')).toBeNull()
+    expect(screen.queryByTestId('classification-c1-loading')).toBeNull()
+    expect(screen.getByTestId('review-detail-approve')).not.toBeNull()
+  })
+
+  it('changing a select saves that one value and shows the server\u2019s answer, amounts included (AC-3.3)', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+    vi.mocked(accountingApi.classifyLine).mockResolvedValue(
+      accLine('c1', {
+        classification: { account: HOTEL, accountIsDefault: false, vatCode: NOVAT },
+        chf: { amountCents: 999, rateMicros: 924600, rate: '0.9246', rateMonth: '2026-07', rateStatus: 'in_effect' },
+      }),
+    )
+    renderReviewDetailPage()
+
+    const select = await readySelect('classification-c1-account')
+    fireEvent.change(select, { target: { value: '5902' } })
+
+    await waitFor(() => expect(accountingApi.classifyLine).toHaveBeenCalledWith('req-1', 'c1', { accountNumber: '5902' }))
+    await waitFor(() => expect(screen.getByTestId('classification-c1-chf').textContent).toBe('CHF 9.99'))
+    expect(screen.getByTestId('classification-c1').textContent).toContain('Set by hand')
+    expect((screen.getByTestId('classification-c1-account') as HTMLSelectElement).value).toBe('5902')
+    // The options were loaded once and not again.
+    expect(accountingApi.getAccountingOptions).toHaveBeenCalledTimes(1)
+    // A save merges the answer: it does not reload the view.
+    expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(1)
+  })
+
+  it('a line with no VAT code arrives with None selected and no VAT amount, even on a EUR line (AC-3.8, AC-3.13)', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+      view([accLine('c1', { classification: { account: TRAIN, accountIsDefault: true, vatCode: null }, vatAmountCents: null })]),
+    )
+    renderReviewDetailPage()
+
+    const vat = (await screen.findByTestId('classification-c1-vat-code')) as HTMLSelectElement
+    expect(vat.value).toBe('__none__')
+    expect(vat.selectedOptions[0].textContent).toBe('None')
+    expect(screen.getByTestId('classification-c1-vat-amount').textContent).toBe('No VAT code, so no VAT amount.')
+  })
+
+  it('choosing None sends vatCode: null, shows the line the server answers with, and then no VAT amount (AC-3.3, AC-3.8)', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+    vi.mocked(accountingApi.classifyLine).mockResolvedValue(
+      accLine('c1', { classification: { account: TRAIN, accountIsDefault: true, vatCode: null }, vatAmountCents: null }),
+    )
+    renderReviewDetailPage()
+
+    await readySelect('classification-c1-account')
+    expect(screen.getByTestId('classification-c1-vat-amount').textContent).toBe('CHF 0.00')
+    fireEvent.change(screen.getByTestId('classification-c1-vat-code'), { target: { value: '__none__' } })
+
+    await waitFor(() => expect(accountingApi.classifyLine).toHaveBeenCalledWith('req-1', 'c1', { vatCode: null }))
+    await waitFor(() =>
+      expect(screen.getByTestId('classification-c1-vat-amount').textContent).toBe('No VAT code, so no VAT amount.'),
+    )
+    expect((screen.getByTestId('classification-c1-vat-code') as HTMLSelectElement).value).toBe('__none__')
+    expect(screen.getByTestId('classification-c1-saved').textContent).toBe('VAT code cleared')
+    expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads the accounting view after an approved-total change, because the figures follow it', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+    vi.mocked(reviewApi.setApprovedTotal).mockResolvedValue({ ...chLine('c1'), approvedTotalCents: 750 })
+    renderReviewDetailPage()
+
+    await screen.findByTestId('classification-c1')
+    const input = screen.getByTestId('row-c1-approved-total')
+    fireEvent.change(input, { target: { value: '7.50' } })
+    fireEvent.blur(input)
+
+    await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+    // The panel stays on screen across the reload: no skeleton flash.
+    expect(panel('c1')).not.toBeNull()
+  })
+
+  it('reloads the accounting view after a line is rejected and after it is restored', async () => {
+    const rejection = { reason: 'no', rejectedBy: { email: 'a@b.c' }, rejectedAt: '2026-07-02T00:00:00.000Z' }
+    const both = withCh({ lines: [chLine('c1'), chLine('c2')] })
+    vi.mocked(requestsApi.get)
+      .mockResolvedValueOnce(both)
+      .mockResolvedValueOnce(withCh({ lines: [chLine('c1', { rejection, approvedTotalCents: 0 }), chLine('c2')] }))
+      .mockResolvedValue(both)
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), accLine('c2')]))
+    vi.mocked(reviewApi.rejectLine).mockResolvedValue({ ...chLine('c1'), rejection, approvedTotalCents: 0 })
+    vi.mocked(reviewApi.restoreLine).mockResolvedValue(chLine('c1'))
+    renderReviewDetailPage()
+
+    await screen.findByTestId('classification-c1')
+    fireEvent.click(screen.getByTestId('row-c1-reject'))
+    fireEvent.change(await screen.findByTestId('row-c1-reject-reason'), { target: { value: 'no' } })
+    fireEvent.click(screen.getByTestId('row-c1-reject-dialog-confirm'))
+
+    // Rejected: its panel is gone, the other line keeps its own, and the view was loaded again.
+    await waitFor(() => expect(panel('c1')).toBeNull())
+    expect(panel('c2')).not.toBeNull()
+    await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+
+    fireEvent.click(await screen.findByTestId('row-c1-restore'))
+    await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(3))
+    await screen.findByTestId('classification-c1')
+  })
+
+  it('a 409 classification_locked opens its own guardrail and reloads the request and the view (AC-3.7)', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh({ status: 'approved', decidedAt: '2026-07-05T00:00:00.000Z', decidedBy: { email: 'x@y.z' } }))
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')], 'post_approval', 'approved'))
+    vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(409, 'classification_locked'))
+    renderReviewDetailPage()
+
+    const select = await readySelect('classification-c1-account')
+    fireEvent.change(select, { target: { value: '5902' } })
+
+    const dialog = await screen.findByTestId('guardrail-dialog')
+    expect(dialog.textContent).toContain('This line is locked')
+    expect(dialog.textContent).toContain('Its batch has been paid, so the classification can no longer change.')
+    await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+    expect(requestsApi.get).toHaveBeenCalledTimes(2)
+    expect((screen.getByTestId('classification-c1-account') as HTMLSelectElement).value).toBe('5901')
+  })
+
+  it('any other 409 on a classification shows the existing "already decided" guardrail', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+    vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(409, 'not_classifiable_status'))
+    renderReviewDetailPage()
+
+    fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+    const dialog = await screen.findByTestId('guardrail-dialog')
+    expect(dialog.textContent).toContain(strings.pages.reviewDetail.guardrail.title)
+  })
+
+  it('a 422 inactive reloads the options once more', async () => {
+    vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+    vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+    vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(422, 'ledger_account_inactive'))
+    renderReviewDetailPage()
+
+    fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+    await screen.findByText('That account was deactivated. Choose another.')
+    await waitFor(() => expect(accountingApi.getAccountingOptions).toHaveBeenCalledTimes(2))
+  })
+
+  describe('a refused approval (T29, S8, UX-5, G1, G2; AC-3.4)', () => {
+    const missingRequest = withCh({ lines: [chLine('c1'), chLine('c2'), { ...baseRequest.lines[0], id: 'it1' }] })
+    const missingView = (overrides: Partial<Record<string, AccountingLine>> = {}) =>
+      view([
+        overrides.c1 ??
+          accLine('c1', {
+            classification: { account: null, accountIsDefault: false, vatCode: NOVAT },
+          }),
+        overrides.c2 ??
+          accLine('c2', {
+            classification: { account: null, accountIsDefault: false, vatCode: null },
+            vatAmountCents: null,
+          }),
+        accLine('it1', { entity: 'welld_it', classification: null }),
+      ])
+    const refusedWith = (lines: unknown[]) =>
+      new ApiError({ type: 't', title: 'Conflict', status: 409, code: 'classification_missing' }, { lines })
+    const refusal = refusedWith([
+      { lineId: 'c2', date: '2026-07-01', type: 'stationery', missing: ['account', 'vatCode'] },
+      { lineId: 'c1', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+    ])
+
+    const approve = async () => {
+      fireEvent.click(await screen.findByTestId('review-detail-approve'))
+      fireEvent.click(screen.getByTestId('approve-dialog-confirm'))
+    }
+
+    it('closes the dialog and shows one ErrorSummary link per missing ACCOUNT, in page order, with focus on the first select; a VAT code the refusal names is never listed (AC-3.4, AC-3.11)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(missingRequest)
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(missingView())
+      vi.mocked(reviewApi.approve).mockRejectedValue(refusal)
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await approve()
+
+      const summary = await screen.findByTestId('classification-missing-summary')
+      expect(screen.queryByTestId('approve-dialog-modal')).toBeNull()
+      expect(screen.queryByTestId('guardrail-dialog')).toBeNull()
+      expect(summary.getAttribute('role')).toBe('alert')
+      expect(screen.getByTestId('classification-missing-summary-title').textContent).toBe(
+        'Nothing was approved. 2 lines need an account.',
+      )
+      expect(screen.getByText('Choose an account for each line, then approve again.')).not.toBeNull()
+      expect(screen.getAllByTestId('classification-missing-summary-item').map((item) => item.textContent)).toEqual([
+        '01.07.2026 · Line c1: choose an account',
+        '01.07.2026 · Line c2: choose an account',
+      ])
+      expect(summary.textContent).not.toMatch(/VAT/)
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('classification-c1-account')))
+      // Every missing account carries its own error; a VAT select, with a code or with None, never does.
+      expect(screen.getByTestId('classification-c1-account').getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByTestId('classification-c2-account').getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByTestId('classification-c1-vat-code').getAttribute('aria-invalid')).toBeNull()
+      expect(screen.getByTestId('classification-c2-vat-code').getAttribute('aria-invalid')).toBeNull()
+      expect((screen.getByTestId('classification-c2-vat-code') as HTMLSelectElement).value).toBe('__none__')
+      // The request and the view were loaded again, and nothing navigated.
+      await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+      expect(window.location.pathname).toBe('/review/req-1')
+    })
+
+    it('a link moves focus to its select', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(missingRequest)
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(missingView())
+      vi.mocked(reviewApi.approve).mockRejectedValue(refusal)
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await approve()
+      await screen.findByTestId('classification-missing-summary')
+
+      fireEvent.click(screen.getAllByTestId('classification-missing-summary-item')[1])
+      expect(document.activeElement).toBe(screen.getByTestId('classification-c2-account'))
+    })
+
+    it('the summary and the errors clear account by account as they are chosen', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(missingRequest)
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(missingView())
+      vi.mocked(reviewApi.approve).mockRejectedValue(refusal)
+      vi.mocked(accountingApi.classifyLine).mockResolvedValue(accLine('c1'))
+      renderReviewDetailPage()
+      const select = await readySelect('classification-c1-account')
+      await approve()
+      await screen.findByTestId('classification-missing-summary')
+
+      fireEvent.change(select, { target: { value: '5901' } })
+      await waitFor(() =>
+        expect(screen.getByTestId('classification-missing-summary-title').textContent).toBe(
+          'Nothing was approved. 1 line needs an account.',
+        ),
+      )
+      expect(screen.getByTestId('classification-c1-account').getAttribute('aria-invalid')).toBeNull()
+      expect(screen.getAllByTestId('classification-missing-summary-item')).toHaveLength(1)
+    })
+
+    it('drops a line the page no longer has and says nothing about it', async () => {
+      const ghost = refusedWith([
+        { lineId: 'gone', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+        { lineId: 'c1', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+      ])
+      vi.mocked(requestsApi.get).mockResolvedValue(missingRequest)
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(missingView())
+      vi.mocked(reviewApi.approve).mockRejectedValue(ghost)
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await approve()
+
+      await screen.findByTestId('classification-missing-summary')
+      expect(screen.getAllByTestId('classification-missing-summary-item')).toHaveLength(1)
+    })
+
+    describe('lines outside the approver\u2019s entity scope (A-1, FU-S7)', () => {
+      const oosView = () =>
+        view([
+          accLine('c1', {
+            classification: { account: null, accountIsDefault: false, vatCode: NOVAT },
+          }),
+          accLine('c2', { inScope: false, classification: null, chf: null, vatAmountCents: null }),
+          accLine('c3', { inScope: false, classification: null, chf: null, vatAmountCents: null }),
+        ])
+      const oosRequest = withCh({ lines: [chLine('c1'), chLine('c2'), chLine('c3')] })
+
+      it('names only out-of-scope lines: the dialog closes, a summary row per line shows, counted, and focus lands on the summary', async () => {
+        const onlyOos = refusedWith([
+          { lineId: 'c2', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+          { lineId: 'c3', date: '2026-07-01', type: 'stationery', missing: ['account', 'vatCode'] },
+        ])
+        vi.mocked(requestsApi.get).mockResolvedValue(oosRequest)
+        vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(oosView())
+        vi.mocked(reviewApi.approve).mockRejectedValue(onlyOos)
+        renderReviewDetailPage()
+        await screen.findByTestId('classification-c2-out-of-scope')
+        await approve()
+
+        const summary = await screen.findByTestId('classification-missing-summary')
+        expect(screen.queryByTestId('approve-dialog-modal')).toBeNull()
+        expect(summary.getAttribute('role')).toBe('alert')
+        // SG-3: the approver cannot choose an account for these, so the title does not say "need an account".
+        expect(screen.getByTestId('classification-missing-summary-title').textContent).toBe(
+          'Nothing was approved. 2 lines need a colleague with WellD CH access.',
+        )
+        expect(summary.textContent).not.toMatch(/need an account/)
+        expect(screen.getByText('Ask a colleague with WellD CH access to choose their accounts, then approve again.')).not.toBeNull()
+        expect(screen.getAllByTestId('classification-missing-summary-item').map((item) => item.textContent)).toEqual([
+          '01.07.2026 · Line c2: needs a colleague with WellD CH access',
+          '01.07.2026 · Line c3: needs a colleague with WellD CH access',
+        ])
+        await waitFor(() => expect(screen.getByTestId('classification-missing-summary-focus').contains(document.activeElement)).toBe(true))
+        expect(document.activeElement).toBe(screen.getByTestId('classification-missing-summary-focus'))
+      })
+
+      it('a mixed refusal counts only the lines the approver can fix as needing an account, says how many others need a colleague, lists every row, and keeps focus on the first in-scope select (SG-3)', async () => {
+        const mixed = refusedWith([
+          { lineId: 'c1', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+          { lineId: 'c2', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+          { lineId: 'c3', date: '2026-07-01', type: 'stationery', missing: ['vatCode'] },
+        ])
+        vi.mocked(requestsApi.get).mockResolvedValue(oosRequest)
+        vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(oosView())
+        vi.mocked(reviewApi.approve).mockRejectedValue(mixed)
+        renderReviewDetailPage()
+        await readySelect('classification-c1-account')
+        await approve()
+
+        await screen.findByTestId('classification-missing-summary')
+        expect(screen.getByTestId('classification-missing-summary-title').textContent).toBe(
+          'Nothing was approved. 1 line needs an account.',
+        )
+        expect(
+          screen.getByText(
+            'Choose an account for each line, then approve again. 2 other lines need a colleague with WellD CH access.',
+          ),
+        ).not.toBeNull()
+        const items = screen.getAllByTestId('classification-missing-summary-item').map((item) => item.textContent)
+        expect(items).toEqual([
+          '01.07.2026 · Line c1: choose an account',
+          '01.07.2026 · Line c2: needs a colleague with WellD CH access',
+          '01.07.2026 · Line c3: needs a colleague with WellD CH access',
+        ])
+        await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('classification-c1-account')))
+      })
+
+      it('an out-of-scope row stays after the in-scope values are chosen, and its link focuses that line\u2019s note', async () => {
+        const mixed = refusedWith([
+          { lineId: 'c1', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+          { lineId: 'c2', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+        ])
+        vi.mocked(requestsApi.get).mockResolvedValue(oosRequest)
+        vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(oosView())
+        vi.mocked(reviewApi.approve).mockRejectedValue(mixed)
+        vi.mocked(accountingApi.classifyLine).mockResolvedValue(accLine('c1'))
+        renderReviewDetailPage()
+        const select = await readySelect('classification-c1-account')
+        await approve()
+        await screen.findByTestId('classification-missing-summary')
+
+        fireEvent.change(select, { target: { value: '5901' } })
+        await waitFor(() =>
+          expect(screen.getByTestId('classification-missing-summary-title').textContent).toBe(
+            'Nothing was approved. 1 line needs a colleague with WellD CH access.',
+          ),
+        )
+        fireEvent.click(screen.getByTestId('classification-missing-summary-item'))
+        const note = screen.getByTestId('classification-c2-out-of-scope')
+        expect(note.getAttribute('tabindex')).toBe('-1')
+        expect(document.activeElement).toBe(note)
+      })
+
+      it('drops a named line the view has no row for', async () => {
+        const ghost = refusedWith([{ lineId: 'gone', date: '2026-07-01', type: 'stationery', missing: ['account'] }])
+        vi.mocked(requestsApi.get).mockResolvedValue(oosRequest)
+        vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(oosView())
+        vi.mocked(reviewApi.approve).mockRejectedValue(ghost)
+        renderReviewDetailPage()
+        await readySelect('classification-c1-account')
+        await approve()
+        await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+        expect(screen.queryByTestId('classification-missing-summary')).toBeNull()
+      })
+    })
+
+    it('accounting_release_pending stays in the dialog with its own sentence, and Approve can be pressed again', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      vi.mocked(reviewApi.approve).mockRejectedValue(problem(409, 'accounting_release_pending'))
+      renderReviewDetailPage()
+      await approve()
+
+      const error = await screen.findByTestId('approve-dialog-error')
+      expect(error.textContent).toBe(
+        'Approvals are not available yet: the accounting setup has not been completed. Ask an administrator.',
+      )
+      expect(screen.queryByTestId('guardrail-dialog')).toBeNull()
+      expect(screen.queryByTestId('classification-missing-summary')).toBeNull()
+      expect((screen.getByTestId('approve-dialog-confirm') as HTMLButtonElement).disabled).toBe(false)
+      vi.mocked(reviewApi.approve).mockResolvedValue(baseRequest)
+      fireEvent.click(screen.getByTestId('approve-dialog-confirm'))
+      await waitFor(() => expect(reviewApi.approve).toHaveBeenCalledTimes(2))
+    })
+
+    it('all_lines_rejected is unchanged: its own sentence in the dialog', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      vi.mocked(reviewApi.approve).mockRejectedValue(problem(409, 'all_lines_rejected'))
+      renderReviewDetailPage()
+      await approve()
+
+      expect((await screen.findByTestId('approve-dialog-error')).textContent).toBe(
+        'Every line is rejected — reject the request instead.',
+      )
+      expect(screen.queryByTestId('guardrail-dialog')).toBeNull()
+    })
+
+    it.each([[undefined], ['request_not_submitted']])(
+      'any other 409 (code %s) still shows "already decided" and reloads',
+      async (code) => {
+        vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+        vi.mocked(reviewApi.approve).mockRejectedValue(problem(409, code))
+        renderReviewDetailPage()
+        await approve()
+
+        const dialog = await screen.findByTestId('guardrail-dialog')
+        expect(dialog.textContent).toContain(strings.pages.reviewDetail.guardrail.title)
+        expect(screen.queryByTestId('approve-dialog-modal')).toBeNull()
+        expect(screen.queryByTestId('classification-missing-summary')).toBeNull()
+        await waitFor(() => expect(requestsApi.get).toHaveBeenCalledTimes(2))
+      },
+    )
+
+    it('a refusal that names no usable line keeps the dialog and shows the server\u2019s sentence', async () => {
+      const empty = new ApiError({ type: 't', title: 'Conflict', status: 409, code: 'classification_missing', detail: 'Missing.' })
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      vi.mocked(reviewApi.approve).mockRejectedValue(empty)
+      renderReviewDetailPage()
+      await approve()
+
+      expect((await screen.findByTestId('approve-dialog-error')).textContent).toBe('Missing.')
+      expect(screen.queryByTestId('guardrail-dialog')).toBeNull()
+    })
+
+    it('a new approval attempt clears the previous summary', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(missingRequest)
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(missingView())
+      vi.mocked(reviewApi.approve).mockRejectedValueOnce(refusal).mockReturnValue(pendingPromise())
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await approve()
+      await screen.findByTestId('classification-missing-summary')
+
+      fireEvent.click(screen.getByTestId('review-detail-approve'))
+      fireEvent.click(screen.getByTestId('approve-dialog-confirm'))
+      await waitFor(() => expect(screen.queryByTestId('classification-missing-summary')).toBeNull())
+    })
+  })
+
+  describe('after approval and payment (F6)', () => {
+    const approved = (status: 'approved' | 'paid') =>
+      withCh({
+        status,
+        decidedAt: '2026-07-05T00:00:00.000Z',
+        decidedBy: { email: 'x@y.z' },
+        paidAt: status === 'paid' ? '2026-07-16T00:00:00.000Z' : null,
+        paidBy: status === 'paid' ? 'p@q.r' : null,
+        lines: [chLine('c1', { approvedTotalCents: 1000, receiptNumber: 'MC26/014' })],
+      })
+
+    it('an approved request is editable with request:reclassify and shows the receipt number (AC-3.6, AC-3.10)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(approved('approved'))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')], 'post_approval', 'approved'))
+      renderReviewDetailPage()
+
+      expect(await screen.findByTestId('classification-c1-account')).not.toBeNull()
+      expect(screen.getByTestId('expense-line-row-c1').textContent).toContain('MC26/014')
+      expect(screen.getByTestId('classification-c1').textContent).not.toContain(
+        'Amounts follow the approved total as it stands now.',
+      )
+    })
+
+    it('without request:reclassify the panel is read-only text and the options are never loaded', async () => {
+      usePermissionsMock.mockReturnValue(permissionsWith([{ resource: 'request', action: 'set-approved-total' }]))
+      vi.mocked(requestsApi.get).mockResolvedValue(approved('approved'))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')], 'post_approval', 'approved'))
+      renderReviewDetailPage()
+
+      await screen.findByTestId('classification-c1')
+      expect(screen.queryByRole('combobox')).toBeNull()
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe(
+        'You can view the classification but not change it.',
+      )
+      expect(accountingApi.getAccountingOptions).not.toHaveBeenCalled()
+    })
+
+    it('a paid request is locked, whatever the capability', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(approved('paid'))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')], 'locked', 'paid'))
+      renderReviewDetailPage()
+
+      await screen.findByTestId('classification-c1')
+      expect(screen.queryByRole('combobox')).toBeNull()
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe('Locked: its batch has been paid.')
+      expect(accountingApi.getAccountingOptions).not.toHaveBeenCalled()
+    })
+
+    it('a submitted request without set-approved-total cannot change it either', async () => {
+      usePermissionsMock.mockReturnValue(permissionsWith([]))
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+      renderReviewDetailPage()
+
+      await screen.findByTestId('classification-c1')
+      expect(screen.queryByRole('combobox')).toBeNull()
+    })
+
+    it('a rejected request shows no panels and never loads the accounting view', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ status: 'rejected', rejectionMotivation: 'No.' }))
+      renderReviewDetailPage()
+
+      await screen.findByTestId('review-detail-rejected')
+      expect(accountingApi.getRequestAccounting).not.toHaveBeenCalled()
+      expect(panel('c1')).toBeNull()
+    })
+  })
+
+  // Plan.md "Security review sync" SR-1 and SR-2: the server marks what the caller may not see or change.
+  describe('segregation of duties and entity scope', () => {
+    const SELF_NOTE = "You can't classify your own request. Someone else has to do it."
+    const OUT_NOTE = 'Not shown: this line is outside your entity scope. Ask a colleague with WellD CH access.'
+    const outOfScopeLine = (lineId: string) =>
+      accLine(lineId, { inScope: false, classification: null, chf: null, vatAmountCents: null })
+
+    it('selfRestricted: every panel is read-only with the note, whatever the capability, and the options are never loaded (AC-3.6)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+        view([accLine('c1'), accLine('c2')], 'review', 'submitted', true),
+      )
+      renderReviewDetailPage()
+
+      await screen.findByTestId('classification-c1')
+      expect(screen.queryByRole('combobox')).toBeNull()
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe(SELF_NOTE)
+      expect(screen.getByTestId('classification-c2-why').textContent).toBe(SELF_NOTE)
+      expect(screen.getByTestId('classification-c1-values').textContent).toContain('5901')
+      expect(accountingApi.getAccountingOptions).not.toHaveBeenCalled()
+    })
+
+    it('selfRestricted after approval is read-only too', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(
+        withCh({ status: 'approved', lines: [chLine('c1', { approvedTotalCents: 1000 })] }),
+      )
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+        view([accLine('c1')], 'post_approval', 'approved', true),
+      )
+      renderReviewDetailPage()
+
+      await screen.findByTestId('classification-c1')
+      expect(screen.queryByRole('combobox')).toBeNull()
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe(SELF_NOTE)
+    })
+
+    it('a line out of scope shows the note and no figure or control, while an in-scope line of the same request stays editable (AC-3.3)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), outOfScopeLine('c2')]))
+      renderReviewDetailPage()
+
+      await readySelect('classification-c1-account')
+      const row = screen.getByTestId('expense-line-row-c2')
+      expect(screen.getByTestId('classification-c2-out-of-scope').textContent).toBe(OUT_NOTE)
+      expect(row.contains(screen.getByTestId('classification-c2-out-of-scope'))).toBe(true)
+      expect(panel('c2')).toBeNull()
+      expect(row.querySelector('select')).toBeNull()
+      expect(screen.queryByTestId('classification-c2-chf')).toBeNull()
+      expect(screen.queryByTestId('classification-c2-vat-amount')).toBeNull()
+      expect(row.textContent).not.toMatch(/5901|NOVAT|CHF \d/)
+    })
+
+    it('a 403 self_approval_forbidden on a save reverts, turns all panels read-only with the note, and keeps them so after the view reloads', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      // The reloaded view still says selfRestricted: false (a stale cache, or a backend a step behind).
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), accLine('c2')]))
+      vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(403, 'self_approval_forbidden'))
+      renderReviewDetailPage()
+
+      const select = await readySelect('classification-c1-account')
+      fireEvent.change(select, { target: { value: '5902' } })
+
+      await waitFor(() => expect(screen.getByTestId('classification-c1-why').textContent).toBe(SELF_NOTE))
+      expect(screen.getByTestId('classification-c2-why').textContent).toBe(SELF_NOTE)
+      expect(screen.queryByRole('combobox')).toBeNull()
+      expect(screen.queryByRole('alert')).toBeNull()
+      await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe(SELF_NOTE)
+      expect(screen.getByTestId('classification-c1-values').textContent).not.toContain('5902')
+    })
+
+    it('a 404 on a save says the line is outside the entity scope and loads the view again', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting)
+        .mockResolvedValueOnce(view([accLine('c1'), accLine('c2')]))
+        .mockResolvedValue(view([outOfScopeLine('c1'), accLine('c2')]))
+      vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(404, 'not_found'))
+      renderReviewDetailPage()
+
+      fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+
+      await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+      expect(await screen.findByTestId('classification-c1-out-of-scope')).not.toBeNull()
+      expect(panel('c1')).toBeNull()
+    })
+
+    it('a 403 accounting_out_of_scope on the options leaves the panels read-only, with no error banner', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+      vi.mocked(accountingApi.getAccountingOptions).mockRejectedValue(problem(403, 'accounting_out_of_scope'))
+      renderReviewDetailPage()
+
+      await screen.findByTestId('classification-c1')
+      await waitFor(() => expect(accountingApi.getAccountingOptions).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(screen.queryByRole('combobox')).toBeNull())
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe(
+        'You can view the classification but not change it.',
+      )
+      expect(screen.queryByText('Could not load the classification.')).toBeNull()
+    })
+  })
+
+  // T44: automated axe checks (test-support/axe.ts) on the review page in every classification state, whole document.
+  describe('Accounting cannot be read, rate pending and the rates link (T36, specs/20261119-accounting; AC-4.1 to AC-4.3, AC-5.2, AC-5.6, AC-6.1, AC-6.5, AC-6.10, AC-7.3)', () => {
+    /** The view as refund-api answers it while Accounting is down: every value is `unverified`. */
+    const unavailableView = (lines: AccountingLine[] = [accLine('c1')]): RequestAccounting => ({
+      ...view(
+        lines.map((line) => ({
+          ...line,
+          classification: line.classification && {
+            ...line.classification,
+            account: line.classification.account && { ...line.classification.account, state: 'unverified' as const },
+            vatCode: line.classification.vatCode && { ...line.classification.vatCode, state: 'unverified' as const },
+          },
+          chf: line.chf && { ...line.chf, amountCents: null, rateStatus: 'unavailable' as const },
+          vatAmountCents: null,
+        })),
+      ),
+      accounting: 'unavailable',
+    })
+    const retryBanner = () => screen.getByTestId('classification-accounting-unavailable')
+    const result = () => screen.getByTestId('classification-retry-result')
+
+    it('shows ONE polite warning banner above the lines, no select anywhere, and every line as recorded (RS4, UX-19)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(unavailableView([accLine('c1'), accLine('c2')]))
+      renderReviewDetailPage()
+
+      const banner = await screen.findByTestId('classification-accounting-unavailable')
+      expect(banner.getAttribute('role')).toBe('status')
+      expect(banner.textContent).toContain('Accounting cannot be read now')
+      expect(banner.textContent).toContain(
+        'Each line is shown as recorded. Classification cannot be changed until Accounting can be read.',
+      )
+      expect(within(banner).queryByRole('button', { name: /Dismiss/ })).toBeNull()
+      expect(screen.getAllByTestId('classification-accounting-unavailable')).toHaveLength(1)
+      // Above the lines.
+      expect(
+        banner.compareDocumentPosition(screen.getByRole('heading', { name: /Expense lines/ })) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(screen.queryAllByRole('combobox')).toHaveLength(0)
+      expect(screen.getByTestId('classification-c1-values').textContent).toContain('5901 — Spese viaggi in treno')
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe(
+        'Accounting cannot be read now, so this classification cannot be changed.',
+      )
+      expect(screen.getByTestId('classification-c2-why')).not.toBeNull()
+      // The options are never asked for: there is nothing to choose from.
+      expect(accountingApi.getAccountingOptions).not.toHaveBeenCalled()
+      expect(screen.getByTestId('review-detail-approve')).not.toBeNull()
+    })
+
+    it('an options answer of 503 turns the page into the same state: banner, no selects (AC-6.9)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+      vi.mocked(accountingApi.getAccountingOptions).mockRejectedValue(problem(503, 'accounting_unavailable'))
+      renderReviewDetailPage()
+
+      await screen.findByTestId('classification-accounting-unavailable')
+      expect(screen.queryByTestId('error-banner')).toBeNull()
+      expect(screen.queryAllByRole('combobox')).toHaveLength(0)
+      expect(screen.getByTestId('classification-c1-why').textContent).toBe(
+        'Accounting cannot be read now, so this classification cannot be changed.',
+      )
+    })
+
+    it('Retry that recovers removes the banner, puts focus on the Lines heading, announces it, and the selects return (UX-23)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting)
+        .mockResolvedValueOnce(unavailableView())
+        .mockResolvedValue(view([accLine('c1')]))
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-accounting-unavailable')
+      const retry = screen.getByTestId('classification-accounting-retry')
+      retry.focus()
+      fireEvent.click(retry)
+
+      await waitFor(() => expect(screen.queryByTestId('classification-accounting-unavailable')).toBeNull())
+      await readySelect('classification-c1-account')
+      const heading = screen.getByTestId('review-detail-lines-heading')
+      await waitFor(() => expect(document.activeElement).toBe(heading))
+      expect(result().textContent).toBe('Accounting can be read again.')
+      expect(result().getAttribute('aria-live')).toBe('polite')
+    })
+
+    it('Retry that still fails says so, keeps the banner and its Retry, and does not move focus away', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockImplementation(() => Promise.resolve(unavailableView()))
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-accounting-unavailable')
+      const retry = screen.getByTestId('classification-accounting-retry')
+      retry.focus()
+      fireEvent.click(retry)
+
+      await waitFor(() => expect(result().textContent).toBe('Accounting still cannot be read.'))
+      expect(retryBanner()).not.toBeNull()
+      expect(document.activeElement).toBe(screen.getByTestId('classification-accounting-retry'))
+    })
+
+    it('says nothing about Accounting on first load', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      expect(result().textContent).toBe('')
+      expect(screen.queryByTestId('classification-accounting-unavailable')).toBeNull()
+    })
+
+    it('a save refused with 503 puts the value back, says nothing changed, and reads the view again (RS4)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting)
+        .mockResolvedValueOnce(view([accLine('c1')]))
+        .mockResolvedValue(unavailableView())
+      vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(503, 'accounting_unavailable'))
+      renderReviewDetailPage()
+      fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+
+      await waitFor(() => expect(accountingApi.getRequestAccounting).toHaveBeenCalledTimes(2))
+      await screen.findByTestId('classification-accounting-unavailable')
+      // The line was never changed: it reads as recorded, with the original account.
+      expect(screen.getByTestId('classification-c1-values').textContent).toContain('5901 — Spese viaggi in treno')
+      expect(screen.getByTestId('classification-c1-values').textContent).not.toContain('5902')
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('classification-c1-why')))
+    })
+
+    it('a 422 not found on a save reverts the select and says so under it', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+      vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(422, 'ledger_account_not_found'))
+      renderReviewDetailPage()
+      const select = await readySelect('classification-c1-account')
+      fireEvent.change(select, { target: { value: '5902' } })
+      await screen.findByText('That account is no longer in Accounting. Choose another.')
+      expect(select.value).toBe('5901')
+      await waitFor(() => expect(accountingApi.getAccountingOptions).toHaveBeenCalledTimes(2))
+    })
+
+    it('approve answered 503 stays in the dialog as an alert: nothing was approved, Approve is still available (RS5, UX-21, AC-6.1)', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      vi.mocked(reviewApi.approve).mockRejectedValue(problem(503, 'accounting_unavailable'))
+      renderReviewDetailPage()
+      fireEvent.click(await screen.findByTestId('review-detail-approve'))
+      fireEvent.click(await screen.findByTestId('approve-dialog-confirm'))
+
+      const error = await screen.findByTestId('approve-dialog-error')
+      expect(error.textContent).toBe(
+        "Accounting's reference data cannot be read right now. Nothing was approved. Try again in a few minutes.",
+      )
+      expect(error.getAttribute('role')).toBe('alert')
+      expect(screen.queryByTestId('guardrail-dialog')).toBeNull()
+      expect(screen.queryByTestId('classification-missing-summary')).toBeNull()
+      expect((screen.getByTestId('approve-dialog-confirm') as HTMLButtonElement).disabled).toBe(false)
+      expect(screen.getByTestId('review-detail-decidable')).not.toBeNull()
+      vi.mocked(reviewApi.approve).mockResolvedValue(baseRequest)
+      fireEvent.click(screen.getByTestId('approve-dialog-confirm'))
+      await waitFor(() => expect(reviewApi.approve).toHaveBeenCalledTimes(2))
+    })
+
+    it('a 503 with another code (the authorization service) is not mistaken for Accounting', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      vi.mocked(reviewApi.approve).mockRejectedValue(problem(503, 'authz_unavailable'))
+      renderReviewDetailPage()
+      fireEvent.click(await screen.findByTestId('review-detail-approve'))
+      fireEvent.click(await screen.findByTestId('approve-dialog-confirm'))
+      const error = await screen.findByTestId('approve-dialog-error')
+      expect(error.textContent).not.toContain('Accounting')
+    })
+
+    it('a deactivated type default is missing, and a refused approval names it and focuses its select (AC-6.3)', async () => {
+      const goneDefault = accLine('c1', {
+        classification: {
+          account: { ...TRAIN, state: 'deactivated' },
+          accountIsDefault: true,
+          vatCode: NOVAT,
+        },
+      })
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([goneDefault]))
+      vi.mocked(reviewApi.approve).mockRejectedValue(
+        new ApiError(
+          { type: 't', title: 'Conflict', status: 409, code: 'classification_missing' },
+          { lines: [{ lineId: 'c1', date: '2026-07-01', type: 'stationery', missing: ['account'] }] },
+        ),
+      )
+      renderReviewDetailPage()
+      const select = await readySelect('classification-c1-account')
+      expect(select.value).toBe('')
+      expect(
+        document.getElementById(select.getAttribute('aria-describedby') ?? '')?.textContent,
+      ).toBe('The default account for this type is deactivated in Accounting. Choose one.')
+
+      fireEvent.click(screen.getByTestId('review-detail-approve'))
+      fireEvent.click(await screen.findByTestId('approve-dialog-confirm'))
+      const summary = await screen.findByTestId('classification-missing-summary')
+      expect(summary.textContent).toContain('choose an account')
+      await waitFor(() => expect(document.activeElement).toBe(select))
+    })
+
+    it('the exchange-rates link follows the view’s viewer flag, not a settings grant (AC-7.3)', async () => {
+      const missingRate = accLine('c1', {
+        chf: { amountCents: null, rateMicros: null, rate: null, rateMonth: '2026-07', rateStatus: 'missing' },
+        vatAmountCents: null,
+      })
+      usePermissionsMock.mockReturnValue(permissionsWith([...REVIEWER, { resource: 'settings', action: 'read' } as Permission]))
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([missingRate]))
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c1-rate-missing')
+      expect(screen.queryByRole('link', { name: 'Open exchange rates' })).toBeNull()
+      expect(screen.getByText('Ask an accounting manager to enter or fetch it.')).not.toBeNull()
+      cleanup()
+
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue({
+        ...view([missingRate]),
+        viewer: { canOpenAccountingRates: true },
+      })
+      usePermissionsMock.mockReturnValue(permissionsWith(REVIEWER))
+      renderReviewDetailPage()
+      const link = await screen.findByRole('link', { name: 'Open exchange rates' })
+      expect(link.getAttribute('href')).toBe('/accounting/exchange-rates?entity=welld_ch&month=2026-07')
+    })
+
+    it('an approved line with no copied rate shows "Rate pending", read-only after the batch is paid too', async () => {
+      const pendingLine = accLine('c1', {
+        chf: { amountCents: null, rateMicros: null, rate: null, rateMonth: '2026-07', rateStatus: 'pending' },
+        vatAmountCents: null,
+      })
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ status: 'approved' }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([pendingLine], 'post_approval', 'approved'))
+      renderReviewDetailPage()
+      expect(within(await screen.findByTestId('classification-c1-rate-pending')).getByText('Rate pending')).not.toBeNull()
+      expect(screen.getByTestId('classification-c1-vat-amount').textContent).toBe('—')
+    })
+
+    it('a request with no WellD CH line to classify never mentions Accounting being unreadable', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      renderReviewDetailPage()
+      await screen.findByTestId('review-detail-decidable')
+      expect(screen.queryByTestId('classification-accounting-unavailable')).toBeNull()
+    })
+
+    it('has no violations: the unavailable page, the retry results, a 503 in the approve dialog, a rate pending line', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockImplementation(() =>
+        Promise.resolve(unavailableView([accLine('c1'), accLine('c2')])),
+      )
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-accounting-unavailable')
+      await expectNoAxeViolations()
+      fireEvent.click(screen.getByTestId('classification-accounting-retry'))
+      await waitFor(() => expect(result().textContent).toBe('Accounting still cannot be read.'))
+      await expectNoAxeViolations()
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), accLine('c2')]))
+      fireEvent.click(screen.getByTestId('classification-accounting-retry'))
+      await waitFor(() => expect(result().textContent).toBe('Accounting can be read again.'))
+      await readySelect('classification-c1-account')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      vi.mocked(reviewApi.approve).mockRejectedValue(problem(503, 'accounting_unavailable'))
+      renderReviewDetailPage()
+      fireEvent.click(await screen.findByTestId('review-detail-approve'))
+      fireEvent.click(await screen.findByTestId('approve-dialog-confirm'))
+      await screen.findByTestId('approve-dialog-error')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue({
+        ...view([
+          accLine('c1', {
+            chf: { amountCents: null, rateMicros: null, rate: null, rateMonth: '2026-07', rateStatus: 'pending' },
+            vatAmountCents: null,
+          }),
+          accLine('c2', {
+            classification: {
+              account: { ...TRAIN, state: 'deactivated' },
+              accountIsDefault: true,
+              vatCode: { ...NOVAT, state: 'not_found' },
+            },
+          }),
+        ]),
+        viewer: { canOpenAccountingRates: true },
+      })
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c1-rate-pending')
+      await expectNoAxeViolations()
+    })
+  })
+
+  describe('accessibility (axe)', () => {
+    const missingBoth = {
+      classification: { account: null, accountIsDefault: false, vatCode: null },
+      vatAmountCents: null,
+    }
+    const refusedWith = (lines: unknown[]) =>
+      new ApiError({ type: 't', title: 'Conflict', status: 409, code: 'classification_missing' }, { lines })
+    const approve = async () => {
+      fireEvent.click(await screen.findByTestId('review-detail-approve'))
+      fireEvent.click(screen.getByTestId('approve-dialog-confirm'))
+    }
+
+    it('has no violations: the classification loading, failed, and unavailable states', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), { ...baseRequest.lines[0], id: 'it1' }] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockReturnValue(pendingPromise())
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c1-loading')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(accountingApi.getRequestAccounting).mockRejectedValue(problem(500))
+      renderReviewDetailPage()
+      await screen.findByText('Could not load the classification.')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(accountingApi.getRequestAccounting).mockRejectedValue(problem(403))
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-unavailable')
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: editable panels in WellD CH lines next to a WellD Italia line and a rejected line', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(
+        withCh({
+          lines: [
+            chLine('c1'),
+            { ...baseRequest.lines[0], id: 'it1' },
+            chLine('c2', {
+              rejection: { reason: 'no', rejectedBy: { email: 'a@b.c' }, rejectedAt: '2026-07-02T00:00:00.000Z' },
+              approvedTotalCents: 0,
+            }),
+          ],
+        }),
+      )
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+        view([accLine('c1'), accLine('it1', { entity: 'welld_it', classification: null }), accLine('c2', { rejected: true, classification: null })]),
+      )
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: a missing rate, a foreign line set by hand, and a line with a missing value', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2'), chLine('c3')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+        view([
+          accLine('c1', { chf: { amountCents: null, rateMicros: null, rate: null, rateMonth: '2026-07', rateStatus: 'missing' }, vatAmountCents: null }),
+          accLine('c2', { classification: { account: HOTEL, accountIsDefault: false, vatCode: NOVAT } }),
+          accLine('c3', missingBoth),
+        ]),
+      )
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: a save in progress and each way a save is refused', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), accLine('c2')]))
+      vi.mocked(accountingApi.classifyLine).mockReturnValue(pendingPromise())
+      renderReviewDetailPage()
+      fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+      await waitFor(() => expect(screen.getByTestId('classification-c1-account').getAttribute('aria-busy')).toBe('true'))
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(500))
+      renderReviewDetailPage()
+      fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+      await screen.findByText('Could not change the classification. Try again.')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(403, 'self_approval_forbidden'))
+      renderReviewDetailPage()
+      fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+      await waitFor(() => expect(screen.getByTestId('classification-c1-why')).not.toBeNull())
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: lines with no VAT code (None selected, no VAT amount), and one just cleared', async () => {
+      const noVat = { classification: { account: TRAIN, accountIsDefault: true, vatCode: null }, vatAmountCents: null }
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1', noVat), accLine('c2')]))
+      vi.mocked(accountingApi.classifyLine).mockResolvedValue(accLine('c2', noVat))
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await expectNoAxeViolations()
+      fireEvent.change(screen.getByTestId('classification-c2-vat-code'), { target: { value: '__none__' } })
+      await waitFor(() => expect(screen.getByTestId('classification-c2-saved').textContent).toBe('VAT code cleared'))
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: read-only, self-restricted, and out-of-scope lines', async () => {
+      const outOfScope = (lineId: string) =>
+        accLine(lineId, { inScope: false, classification: null, chf: null, vatAmountCents: null })
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ lines: [chLine('c1'), chLine('c2')] }))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), outOfScope('c2')]))
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c2-out-of-scope')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+        view([accLine('c1'), accLine('c2')], 'review', 'submitted', true),
+      )
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c1-why')
+      await expectNoAxeViolations()
+      cleanup()
+
+      usePermissionsMock.mockReturnValue(permissionsWith([]))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), accLine('c2')]))
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c1-why')
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: an approved request with receipt numbers, a paid (locked) one, and a rejected one', async () => {
+      const decided = (status: 'approved' | 'paid') =>
+        withCh({
+          status,
+          decidedAt: '2026-07-05T00:00:00.000Z',
+          decidedBy: { email: 'x@y.z' },
+          paidAt: status === 'paid' ? '2026-07-16T00:00:00.000Z' : null,
+          paidBy: status === 'paid' ? 'p@q.r' : null,
+          lines: [
+            chLine('c1', { approvedTotalCents: 1000, receiptNumber: 'MC26/014' }),
+            chLine('c2', { approvedTotalCents: 500, receiptNumber: 'MC26/015' }),
+          ],
+        })
+      const lines = [accLine('c1', { receiptNumber: 'MC26/014' }), accLine('c2', { receiptNumber: 'MC26/015' })]
+      vi.mocked(requestsApi.get).mockResolvedValue(decided('approved'))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view(lines, 'post_approval', 'approved'))
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await expect.poll(() => screen.getByTestId('expense-line-row-c1').textContent).toContain('MC26/014')
+      await expectNoAxeViolations(document.body)
+      cleanup()
+
+      vi.mocked(requestsApi.get).mockResolvedValue(decided('paid'))
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view(lines, 'locked', 'paid'))
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c1-why')
+      await expectNoAxeViolations(document.body)
+      cleanup()
+
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh({ status: 'rejected', rejectionMotivation: 'No.' }))
+      renderReviewDetailPage()
+      await screen.findByTestId('review-detail-rejected')
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: the refused approval, as a summary of values, of out-of-scope lines only, and mixed', async () => {
+      const request = withCh({ lines: [chLine('c1'), chLine('c2'), chLine('c3')] })
+      const oosLine = (id: string) => accLine(id, { inScope: false, classification: null, chf: null, vatAmountCents: null })
+
+      vi.mocked(requestsApi.get).mockResolvedValue(request)
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(
+        view([accLine('c1', missingBoth), accLine('c2', missingBoth), accLine('c3')]),
+      )
+      vi.mocked(reviewApi.approve).mockRejectedValue(
+        refusedWith([
+          { lineId: 'c1', date: '2026-07-01', type: 'stationery', missing: ['account', 'vatCode'] },
+          { lineId: 'c2', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+        ]),
+      )
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await approve()
+      await screen.findByTestId('classification-missing-summary')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1'), oosLine('c2'), oosLine('c3')]))
+      vi.mocked(reviewApi.approve).mockRejectedValue(
+        refusedWith([
+          { lineId: 'c2', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+          { lineId: 'c3', date: '2026-07-01', type: 'stationery', missing: ['account', 'vatCode'] },
+        ]),
+      )
+      renderReviewDetailPage()
+      await screen.findByTestId('classification-c2-out-of-scope')
+      await approve()
+      await screen.findByTestId('classification-missing-summary')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1', missingBoth), oosLine('c2'), oosLine('c3')]))
+      vi.mocked(reviewApi.approve).mockRejectedValue(
+        refusedWith([
+          { lineId: 'c1', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+          { lineId: 'c2', date: '2026-07-01', type: 'stationery', missing: ['account'] },
+        ]),
+      )
+      renderReviewDetailPage()
+      await readySelect('classification-c1-account')
+      await approve()
+      await screen.findByTestId('classification-missing-summary')
+      await expectNoAxeViolations()
+    })
+
+    it('has no violations: the Approve dialog, with the release-pending sentence, and the classification-locked guardrail', async () => {
+      vi.mocked(requestsApi.get).mockResolvedValue(baseRequest)
+      vi.mocked(reviewApi.approve).mockRejectedValue(problem(409, 'accounting_release_pending'))
+      renderReviewDetailPage()
+      fireEvent.click(await screen.findByTestId('review-detail-approve'))
+      await screen.findByTestId('approve-dialog-confirm')
+      await expectNoAxeViolations()
+      fireEvent.click(screen.getByTestId('approve-dialog-confirm'))
+      await screen.findByTestId('approve-dialog-error')
+      await expectNoAxeViolations()
+      cleanup()
+
+      vi.mocked(requestsApi.get).mockResolvedValue(withCh())
+      vi.mocked(accountingApi.getRequestAccounting).mockResolvedValue(view([accLine('c1')]))
+      vi.mocked(accountingApi.classifyLine).mockRejectedValue(problem(409, 'classification_locked'))
+      renderReviewDetailPage()
+      fireEvent.change(await readySelect('classification-c1-account'), { target: { value: '5902' } })
+      await screen.findByTestId('guardrail-dialog')
+      await expectNoAxeViolations()
+    })
+  })
+
 })

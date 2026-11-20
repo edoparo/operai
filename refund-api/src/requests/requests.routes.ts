@@ -28,6 +28,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { Effect } from "effect";
 import { bodyLimit } from "hono/body-limit";
+import { normaliseOwnerName } from "../lib/ownerName";
 import { authzMiddleware, type AuthzVariables } from "../auth/authz.middleware";
 import { jwtMiddleware } from "../auth/jwt.middleware";
 import { hasCapability } from "../authz/conditions";
@@ -157,7 +158,9 @@ requestsRouter.openapi(createRequestRoute, async (c) => {
     );
   }
 
-  const exit = await Effect.runPromiseExit(createDraftRequest(sub, email, null));
+  // The display name is snapshotted from the token's `name` claim (jwt.middleware), as approve/reject do for the
+  // decider: documents and the accounting export lead with the person, the email only when the account has no name.
+  const exit = await Effect.runPromiseExit(createDraftRequest(sub, email, normaliseOwnerName(c.get("userName"))));
   if (exit._tag === "Failure") {
     throw new Error("Unexpected database failure creating refund request");
   }

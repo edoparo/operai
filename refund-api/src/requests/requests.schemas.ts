@@ -4,7 +4,7 @@
  *
  * Domain enums mirror `prisma/schema.prisma` verbatim (T5) — kept here as the
  * single source of truth for the HTTP boundary so every router imports the
- * same value/type instead of re-declaring the twelve expense types etc.
+ * same value/type instead of re-declaring the fourteen expense types etc.
  */
 
 import { z } from "zod";
@@ -20,6 +20,8 @@ export const EXPENSE_TYPE_VALUES = [
   "travel_parking",
   "travel_train",
   "travel_other_public_transport",
+  "travel_flight",
+  "travel_taxi",
   "company_manuals",
   "stationery",
   "representation_meals",
@@ -150,6 +152,10 @@ export const RefundLineResponseSchema = z.object({
   rejection: LineRejectionSchema.nullable(),
   attachments: z.array(AttachmentResponseSchema),
   mileage: MileageInfoSchema.nullable(),
+  // specs/20261118-refund-accounting-export (T15, AC-4.9): the line's receipt number, `null` until the request
+  // is approved and for a rejected line. The ONLY accounting field this response carries: no account, VAT code or
+  // CHF amount is ever added here (AC-3.10), they live behind `GET /review/requests/{id}/accounting`.
+  receiptNumber: z.string().nullable(),
 });
 export type RefundLineResponse = z.infer<typeof RefundLineResponseSchema>;
 

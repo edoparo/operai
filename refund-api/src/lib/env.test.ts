@@ -31,6 +31,7 @@ const REQUIRED_ENV_WITHOUT_ACCOUNTING_DISTRIBUTION_EMAIL: Record<string, string>
   REFUND_S3_ACCESS_KEY_ID: "test-key",
   REFUND_S3_SECRET_ACCESS_KEY: "test-secret",
   NOTIFY_INTERNAL_URL: "http://localhost:8081",
+  ACCOUNTING_INTERNAL_URL: "http://localhost:8089",
   SERVICE_CLIENT_ID: "refund-api",
   SERVICE_CLIENT_SECRET: "test-service-client-secret-at-least-32-characters",
   REFUND_APP_BASE_URL: "http://localhost:5173",
@@ -129,4 +130,76 @@ describe("env.ts (AC-4.1, specs/20260722-refund-settings)", () => {
       expect(exitCode).toBe(0);
     });
   }
+
+  // T23 (specs/20261119-accounting) — the exchange-rate switch is gone: the rates are Accounting's. A deployment that still sets
+  // it (a stale Railway variable, an old dotenv file) must start all the same, and nothing of refund-api holds it.
+  // The name is assembled so a grep for the retired variable stays empty across src/ (as for the retired token above).
+  const RETIRED_FX_SWITCH = ["REFUND", "FX", "SOURCE"].join("_");
+  for (const value of ["bazg", "off", "http://evil.example", "ecb", ""]) {
+    it(`starts with the retired exchange-rate switch set to ${JSON.stringify(value)}, and does not name it`, async () => {
+      const { exitCode, stderr } = await boot({ [RETIRED_FX_SWITCH]: value });
+      expect(exitCode).toBe(0);
+      expect(stderr).not.toContain(RETIRED_FX_SWITCH);
+    });
+  }
+
+  it("holds no exchange-rate setting in the parsed config", async () => {
+    const { env } = await import("./env");
+    expect(Object.keys(env).filter((key) => /FX|EXCHANGE|RATE/i.test(key))).toEqual([]);
+  });
+
+  // T17 (specs/20261119-accounting) — refund-api reads Accounting at ACCOUNTING_INTERNAL_URL: required, http(s) only.
+  describe("ACCOUNTING_INTERNAL_URL", () => {
+    async function readUrl(overrides: Record<string, string | undefined>) {
+      const env: Record<string, string> = {
+        ...REQUIRED_ENV_WITHOUT_ACCOUNTING_DISTRIBUTION_EMAIL,
+        PATH: process.env["PATH"] ?? "",
+      };
+      for (const [k, v] of Object.entries(overrides)) {
+        if (v === undefined) delete env[k];
+        else env[k] = v;
+      }
+      const proc = Bun.spawn({
+        cmd: [
+          "bun",
+          "--no-env-file",
+          "-e",
+          "import('./src/lib/env.ts').then((m) => { console.log('URL=' + m.env.ACCOUNTING_INTERNAL_URL); process.exit(0); })",
+        ],
+        cwd: import.meta.dir + "/../..",
+        env,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const exitCode = await proc.exited;
+      return {
+        exitCode,
+        stdout: await new Response(proc.stdout).text(),
+        stderr: await new Response(proc.stderr).text(),
+      };
+    }
+
+    it("is read as given, without a trailing slash", async () => {
+      const plain = await readUrl({});
+      expect(plain.exitCode).toBe(0);
+      expect(plain.stdout).toContain("URL=http://localhost:8089\n");
+      const slashed = await readUrl({ ACCOUNTING_INTERNAL_URL: "http://accounting-api.railway.internal:8089/" });
+      expect(slashed.exitCode).toBe(0);
+      expect(slashed.stdout).toContain("URL=http://accounting-api.railway.internal:8089\n");
+    });
+
+    it("exits naming ACCOUNTING_INTERNAL_URL when it is missing", async () => {
+      const { exitCode, stderr } = await readUrl({ ACCOUNTING_INTERNAL_URL: undefined });
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain("ACCOUNTING_INTERNAL_URL");
+    });
+
+    for (const value of ["", "accounting-api:8089", "not a url", "ftp://accounting.example", "file:///etc/passwd", "javascript:alert(1)"]) {
+      it(`exits naming ACCOUNTING_INTERNAL_URL for ${JSON.stringify(value)}`, async () => {
+        const { exitCode, stderr } = await readUrl({ ACCOUNTING_INTERNAL_URL: value });
+        expect(exitCode).toBe(1);
+        expect(stderr).toContain("ACCOUNTING_INTERNAL_URL");
+      });
+    }
+  });
 });

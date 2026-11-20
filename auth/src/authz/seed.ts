@@ -48,9 +48,10 @@
  *      this same role, via the resolver's widest-wins union).
  *   6. {@link seedRefundAdminRole} (post-close follow-up, specs/20260716-refund-
  *      service) — a distinct, explicit `refund-admin` system role bundling
- *      EVERY refund capability at once (`refund:access` + all six `request`
- *      actions), the entity-scoped four (`review`/`set-approved-total`/
- *      `approve`/`reject`) each granted UNCONDITIONED — i.e. global scope via
+ *      EVERY refund capability at once (`refund:access` + all seven `request`
+ *      actions; `reclassify` added by T2, specs/20261118-refund-accounting-export),
+ *      the entity-scoped five (`review`/`set-approved-total`/
+ *      `approve`/`reject`/`reclassify`) each granted UNCONDITIONED — i.e. global scope via
  *      the resolver's pre-existing widest-wins union, the SAME mechanism
  *      Gate-2 decision D3 already established, just pre-composed into a role
  *      instead of left to a per-admin manual grant. This mirrors, but is
@@ -112,6 +113,15 @@
  *      `purchase-order:bexio`). `projects` is registered once, here, never
  *      through `SUITE_APPS`.
  *
+ *  13. {@link seedAccountingCatalog} + {@link seedAccountingGrants}
+ *      (specs/20261119-accounting — AC-3.1, AC-3.3) — register the Accounting
+ *      catalog (`catalogs/accounting.ts`: `accounting:read` and `accounting:manage`,
+ *      entity-conditionable, NO `access` action) and attach its grants (`admin`
+ *      both unconditioned, the `accounting` role both entity-conditioned; no
+ *      other role). `accounting` is registered once, here, never through
+ *      `SUITE_APPS`, and is NOT in `ALL_APP_IDS` (that list feeds the per-app
+ *      `access` grant this catalog does not have).
+ *
  * A further, per-user concern — assigning the baseline `employee` role (and
  * `admin` for the configured bootstrap email) to every newly created user —
  * is NOT part of this deploy-time seed: it happens once per user, in
@@ -128,6 +138,7 @@ import { type AppCatalogInput, upsertAppCatalog } from "./catalog";
 import { ESTIMAI_CATALOG } from "./catalogs/estimai";
 import { CRM_APP_ID, CRM_CATALOG } from "./catalogs/crm";
 import { INVENTORY_APP_ID, INVENTORY_CATALOG } from "./catalogs/inventory";
+import { ACCOUNTING_APP_ID, ACCOUNTING_CATALOG } from "./catalogs/accounting";
 import { ADMIN_APP_ID, ADMIN_CATALOG } from "./catalogs/admin";
 import { LETTERHEADS_APP_ID, LETTERHEADS_CATALOG } from "./catalogs/letterheads";
 import { MEETINGS_APP_ID, MEETINGS_CATALOG } from "./catalogs/meetings";
@@ -285,6 +296,17 @@ export async function seedAdminCatalog(): Promise<void> {
 }
 
 /**
+ * Registers the Accounting module's catalog (specs/20261119-accounting — T1, AC-3.1): the
+ * `accounting` resource with `read` and `manage`, both entity-conditionable, and NO `access`
+ * action (the tool is reached through the derived `apps` entry, see `catalogs/accounting.ts`).
+ * Idempotent (full-replace upsert per `appId`). `accounting` is registered ONLY here, never via
+ * `SUITE_APPS`, and is deliberately absent from {@link ALL_APP_IDS}.
+ */
+export async function seedAccountingCatalog(): Promise<void> {
+  await upsertAppCatalog(ACCOUNTING_CATALOG);
+}
+
+/**
  * Every catalog a suite app declares itself (everything registered by a
  * `seed<App>Catalog` above; the access-only {@link SUITE_APPS} are separate).
  * `catalogs/uniqueResourceKeys.test.ts` checks no two of them share a resource
@@ -299,6 +321,7 @@ export const DECLARED_CATALOGS: readonly AppCatalogInput[] = [
   PROJECTS_CATALOG,
   LETTERHEADS_CATALOG,
   ADMIN_CATALOG,
+  ACCOUNTING_CATALOG,
 ];
 
 /**
@@ -327,14 +350,22 @@ export const ALL_APP_IDS: readonly string[] = [
 const REFUND_ENTITY_CONDITION = { attributes: [{ key: "entity", match: "user" }] };
 
 /** The `request` resource actions the `accounting` role is granted, entity-scoped (ADR 20260716-entity-scoped-abac-refund-api). */
-const ACCOUNTING_REQUEST_ACTIONS = ["review", "set-approved-total", "approve", "reject"] as const;
+const ACCOUNTING_REQUEST_ACTIONS = [
+  "review",
+  "set-approved-total",
+  "approve",
+  "reject",
+  // specs/20261118-refund-accounting-export (T2, D5): re-booking an approved line, granted like `approve`.
+  "reclassify",
+] as const;
 
 /**
  * Seeds the `accounting` role's refund grants (T2, specs/20260716-refund-service
  * — AC-5.4, AC-6.4, AC-7.5; plan.md "Role → permission mapping"; ADR 20260716-entity-scoped-abac-refund-api).
  * Grants `refund:access` (unconditional — same shape as every other app-
  * access grant) plus `request:review`/`set-approved-total`/`approve`/
- * `reject`, each carrying the entity condition {@link REFUND_ENTITY_CONDITION}
+ * `reject`/`reclassify` (the last one from specs/20261118-refund-accounting-export,
+ * T2, D5: granted like `approve`), each carrying the entity condition {@link REFUND_ENTITY_CONDITION}
  * — an `accounting` user is scoped to their own `user.entity`. Deliberately
  * does NOT touch:
  *   - `employee` — refund access is fully admin-assigned (Gate-2 decision
@@ -369,19 +400,40 @@ export async function seedAccountingRoleGrants(): Promise<void> {
       where: { roleId: accountingRole.id, resource: "request", action },
     });
     if (!existing) {
+      // `reclassify` follows the role's `approve` (SR-2): same conditions object, `self-approval` included if an
+      // admin put it there. Every other action, and a role with no `approve` rule, gets the entity condition.
+      const conditions =
+        action === "reclassify"
+          ? await conditionsOfApprove(accountingRole.id, REFUND_ENTITY_CONDITION as Prisma.InputJsonValue)
+          : (REFUND_ENTITY_CONDITION as Prisma.InputJsonValue);
       await db.permissionRule.create({
         data: {
           roleId: accountingRole.id,
           resource: "request",
           action,
-          conditions: REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
+          ...(conditions === null ? {} : { conditions }),
         },
       });
     }
   }
 }
 
-/** The `request` resource actions the `refund-admin` role is granted — ALL six, every one UNCONDITIONED (global). */
+/**
+ * The conditions of a role's own `request:approve` rule (SR-2: "seeded like each role's approve"): `null` for an
+ * unconditioned rule, the stored object otherwise, `fallback` when the role has no `approve` rule at all. A missing
+ * `reclassify` is created with this, so the segregation-of-duties knob of `approve` carries over; an existing
+ * `reclassify` is never rewritten (an admin's edit stays).
+ */
+async function conditionsOfApprove(
+  roleId: string,
+  fallback: Prisma.InputJsonValue | null,
+): Promise<Prisma.InputJsonValue | null> {
+  const approve = await db.permissionRule.findFirst({ where: { roleId, resource: "request", action: "approve" } });
+  if (!approve) return fallback;
+  return approve.conditions === null ? null : (approve.conditions as Prisma.InputJsonValue);
+}
+
+/** The `request` resource actions the `refund-admin` role is granted — ALL seven, every one UNCONDITIONED (global). */
 const REFUND_ADMIN_REQUEST_ACTIONS = [
   "create",
   "read",
@@ -389,13 +441,15 @@ const REFUND_ADMIN_REQUEST_ACTIONS = [
   "set-approved-total",
   "approve",
   "reject",
+  // specs/20261118-refund-accounting-export (T2, D5)
+  "reclassify",
 ] as const;
 
 /**
  * Seeds the `refund-admin` role (post-close follow-up, specs/20260716-refund-
  * service — "assign everything at once"): one role that grants EVERY refund
  * capability, unconditioned, to whoever an admin assigns it to. Grants
- * `refund:access` plus all six `request` actions — `create`/`read` the same
+ * `refund:access` plus all seven `request` actions — `create`/`read` the same
  * way every grant of theirs already is (the catalog declares no supported
  * condition for `create`, and `read`'s ownership check is enforced in code
  * regardless of any condition value, so omitting `conditions` here changes
@@ -422,6 +476,11 @@ const REFUND_ADMIN_REQUEST_ACTIONS = [
  * `request:read` is still granted (matching the catalog's full action set,
  * so admin-ui's rule composer shows this role holding it) but is NOT what
  * makes cross-user reads work — see the paragraph above.
+ *
+ * `admin` is deliberately given NO `request` action by any seed step (only
+ * `refund:access`, `rate:*` and `settings:*`): `reclassify` follows `approve`'s
+ * pattern exactly, so an admin who must re-book a line holds `refund-admin`
+ * (specs/20261118-refund-accounting-export, D5).
  *
  * Deliberately does NOT create an `accounting-global` role (Gate-2 decision
  * D3, reaffirmed by {@link seedAccountingRoleGrants}'s doc comment) —
@@ -457,8 +516,11 @@ export async function seedRefundAdminRole(): Promise<void> {
       // Omit `conditions` → defaults to null (an unconditional grant) for
       // EVERY action, including the four ADR 20260716-entity-scoped-abac-refund-api entity-scoped ones — see
       // this function's doc comment for why that's required, not incidental.
+      // The one exception is `reclassify`, which follows the role's `approve` (SR-2): an unconditioned `approve`
+      // gives the same null as before, and a hand-set `self-approval` on `approve` carries over.
+      const conditions = action === "reclassify" ? await conditionsOfApprove(refundAdminRole.id, null) : null;
       await db.permissionRule.create({
-        data: { roleId: refundAdminRole.id, resource: "request", action },
+        data: { roleId: refundAdminRole.id, resource: "request", action, ...(conditions === null ? {} : { conditions }) },
       });
     }
   }
@@ -938,6 +1000,46 @@ export async function seedLegalEntityGrants(): Promise<void> {
   await ensureGrant(adminRole.id, "legal-entity", "manage");
 }
 
+/**
+ * Seeds the Accounting role grants (specs/20261119-accounting — T1, AC-3.3):
+ *   - `admin` holds `accounting:read` and `accounting:manage`, UNCONDITIONED (every entity);
+ *   - the `accounting` role holds both, conditioned on the entity ({@link REFUND_ENTITY_CONDITION}),
+ *     as its Refund grants are.
+ * No other system role holds either: an administrator grants them in the Admin tool. There is no
+ * `accounting:access` to grant (see `catalogs/accounting.ts`).
+ *
+ * Idempotent and non-destructive, through {@link ensureGrant}: a rule that exists is never
+ * rewritten, so a hand-edited `accounting:manage` condition survives every re-seed. Both roles are
+ * upserted defensively so the seed is safe in any order.
+ */
+export async function seedAccountingGrants(): Promise<void> {
+  const adminRole = await db.role.upsert({
+    where: { name: ADMIN_ROLE_NAME },
+    update: {},
+    create: { name: ADMIN_ROLE_NAME, isSystem: true },
+  });
+  await ensureGrant(adminRole.id, ACCOUNTING_APP_ID, "read");
+  await ensureGrant(adminRole.id, ACCOUNTING_APP_ID, "manage");
+
+  const accountingRole = await db.role.upsert({
+    where: { name: ACCOUNTING_ROLE_NAME },
+    update: {},
+    create: { name: ACCOUNTING_ROLE_NAME, isSystem: true },
+  });
+  await ensureGrant(
+    accountingRole.id,
+    ACCOUNTING_APP_ID,
+    "read",
+    REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
+  );
+  await ensureGrant(
+    accountingRole.id,
+    ACCOUNTING_APP_ID,
+    "manage",
+    REFUND_ENTITY_CONDITION as Prisma.InputJsonValue,
+  );
+}
+
 /** Runs every deploy-time seed step (all idempotent). */
 export async function seed(): Promise<void> {
   await seedSystemRoles();
@@ -950,6 +1052,7 @@ export async function seed(): Promise<void> {
   await seedProjectsCatalog();
   await seedLetterheadsCatalog();
   await seedAdminCatalog();
+  await seedAccountingCatalog();
   await seedAdminRoleGrants();
   await seedAccountingRoleGrants();
   await seedRefundAdminRole();
@@ -962,6 +1065,7 @@ export async function seed(): Promise<void> {
   await seedProjectsGrants();
   await seedLetterheadsGrants();
   await seedLegalEntityGrants();
+  await seedAccountingGrants();
   await ensureBootstrapAdmin();
 }
 
@@ -1044,6 +1148,7 @@ if (import.meta.main) {
           "+ CRM catalog + CRM grants + projects catalog + projects grants " +
           "+ letterheads catalog + letterheads grants " +
           "+ admin catalog + legal-entity grants " +
+          "+ accounting catalog + accounting grants " +
           "+ bootstrap admin",
       );
       process.exit(0);

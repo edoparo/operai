@@ -1,0 +1,650 @@
+/**
+ * The release script as an OPERATOR runs it: `bun run scripts/accounting-release.ts [--dry-run] --offsets <csv>`
+ * (QE pass T35, specs/20261118-refund-accounting-export; AC-7.1, AC-7.2, AC-7.3, plan D2, D6, R5; reworked by T22,
+ * specs/20261119-accounting: AC-7.4, AC-7.5, AC-6.8; and by T63 for the 2026 baseline: `--offsets` is REQUIRED, exit 3 without it,
+ * and a file with only the header line is the explicit empty list: SO-13 of 20261118, AC-4.11, AC-4.12, AC-7.4).
+ *
+ * `cli(...)` adds the header-only list unless the test passes `--offsets` itself, so the older journeys run as an operator with no
+ * hand-issued numbers would; `cliBare(...)` runs exactly the arguments given (the missing-list cases).
+ *
+ * `accounting-release.test.ts` drives `runAccountingRelease()` in process, with a fake `AccountingPort`. What no in-process test
+ * runs is the entry point itself (argument parsing, the report on stdout, the exit code, "nothing was changed" on failure), and
+ * that is the one thing the owner types in production (infra/README.md runbook). A bad flag or a crash that still exits 0 would
+ * leave approvals blocked (409 `accounting_release_pending`) or, worse, report a success that did not happen; and Accounting that
+ * cannot be read must end the run with EXIT 2 and nothing written (AC-7.4).
+ *
+ * The child runs the REAL client: `NODE_ENV=development` (the service-token provider is disabled under `test`), `AUTH_BASE_URL`
+ * and `ACCOUNTING_INTERNAL_URL` pointing at a small server of this test that plays `auth POST /system/service-token` and
+ * accounting-api's two `/system/v1` reads, on the wire the contract describes. So the whole path is the production one: the token
+ * mint, the Bearer, the schema, the chunked rate reads and the exit code.
+ *
+ * Real Postgres (the `refund` database of DATABASE_URL), the script run as a child process with the same environment.
+ */
+
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { db } from "../src/lib/db";
+import { isAccountingReleased } from "../src/accounting/release";
+import { EMPTY_BASELINE_CSV } from "../src/test-support/accountingRelease";
+import { truncateRefundTables } from "../src/test-support/dbCleanup";
+
+const SCRIPT = join(import.meta.dir, "accounting-release.ts");
+const tmp = mkdtempSync(join(tmpdir(), "accounting-release-cli-"));
+/** The explicit empty list: the header line and no row (no employee has a hand-issued 2026 number). */
+const EMPTY_LIST = join(tmp, "empty-baseline.csv");
+writeFileSync(EMPTY_LIST, EMPTY_BASELINE_CSV);
+
+// ─── Auth and Accounting, as the wire has them ───────────────────────────────
+
+const TOKEN = "cli-test-service-jwt";
+const ACCOUNTS: readonly [string, string][] = [
+  ["5901", "Spese viaggi in treno"],
+  ["5902", "Spese viaggi in aereo"],
+  ["5903", "Spese viaggi taxi"],
+  ["5904", "Spese viaggi altri mezzi pubblici"],
+  ["5905", "Spese rimborsi chilometrici (viaggi)"],
+  ["5906", "Spese autostrade (viaggi)"],
+  ["5907", "Spese parcheggio (viaggi)"],
+  ["6101", "Spese materiale ufficio"],
+  ["6102", "Spese telefoniche, fax, internet"],
+  ["6104", "Spese postali"],
+  ["6501", "Libri e manuali"],
+  ["6701", "Spese pranzi e cene con clienti"],
+];
+const VAT: readonly [string, string, number][] = [
+  ["IPM81", "IVA 8.1%", 810],
+  ["IPM77", "IVA 7.7%", 770],
+  ["IP00", "IVA 0%", 0],
+];
+
+const world = { down: false, empty: false, rates: new Map<string, number>(), requests: [] as string[], mints: 0, contacts: new Map<string, string>(), contactStatus: 200 };
+
+let server: ReturnType<typeof Bun.serve>;
+let baseUrl = "";
+
+beforeAll(() => {
+  server = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch(request) {
+      const url = new URL(request.url);
+      world.requests.push(`${request.method} ${url.pathname}${url.search}`);
+      if (url.pathname === "/system/service-token" && request.method === "POST") {
+        world.mints++;
+        return Response.json({ token: TOKEN, expiresInSeconds: 300 });
+      }
+      if (world.down) return new Response("unavailable", { status: 503 });
+      if (request.headers.get("authorization") !== `Bearer ${TOKEN}`) return new Response("no", { status: 401 });
+      if (url.pathname === "/system/users/contact" && request.method === "POST") {
+        // auth's POST /system/users/contact: scope users.contact; 404 for an unknown or deleted user (T84).
+        if (world.contactStatus !== 200) return new Response("", { status: world.contactStatus });
+        return request.json().then((raw) => {
+          const body = raw as { userId: string };
+          const name = world.contacts.get(body.userId);
+          return name === undefined ? new Response("{}", { status: 404 }) : Response.json({ id: body.userId, email: "x@welld.ch", name });
+        });
+      }
+      if (url.pathname === "/system/v1/entities/welld_ch/reference-data") {
+        return Response.json({
+          entity: "welld_ch",
+          ownCurrency: "CHF",
+          ledgerAccounts: world.empty ? [] : ACCOUNTS.map(([number, name]) => ({ number, name, active: true })),
+          vatCodes: world.empty ? [] : VAT.map(([code, label, rateBasisPoints]) => ({ code, label, rateBasisPoints, active: true })),
+        });
+      }
+      if (url.pathname === "/system/v1/entities/welld_ch/rates") {
+        const pairs = (url.searchParams.get("pairs") ?? "").split(",").filter(Boolean);
+        // As accounting-api (RATE_MONTH_FLOOR): one month before 2000-01 refuses the WHOLE request, 400 invalid_pairs.
+        if (pairs.some((pair) => (pair.split(":")[1] ?? "") < "2000-01")) {
+          return Response.json({ type: "about:blank", title: "Bad Request", status: 400, code: "invalid_pairs" }, { status: 400 });
+        }
+        return Response.json({
+          entity: "welld_ch",
+          rates: pairs.map((pair) => {
+            const [currency, month] = pair.split(":") as ["EUR" | "USD" | "GBP", string];
+            const rateMicros = world.rates.get(pair);
+            return rateMicros !== undefined
+              ? { currency, month, status: "in_effect", rateMicros, origin: "fetched", attempted: false }
+              : { currency, month, status: "missing", attempted: false, reason: "not_published" };
+          }),
+        });
+      }
+      return new Response("not found", { status: 404 });
+    },
+  });
+  baseUrl = `http://127.0.0.1:${server.port}`;
+});
+
+beforeEach(async () => {
+  await truncateRefundTables({ released: false });
+  world.down = false;
+  world.empty = false;
+  world.rates.clear();
+  world.requests.length = 0;
+  world.mints = 0;
+  world.contacts.clear();
+  world.contactStatus = 200;
+});
+afterAll(async () => {
+  server.stop(true);
+  await truncateRefundTables({ released: false });
+  rmSync(tmp, { recursive: true, force: true });
+});
+
+async function cli(...args: string[]) {
+  return cliWith({}, ...args);
+}
+
+async function cliWith(env: Record<string, string>, ...args: string[]) {
+  return cliBare(env, ...(args.includes("--offsets") ? args : [...args, "--offsets", EMPTY_LIST]));
+}
+
+async function cliBare(env: Record<string, string>, ...args: string[]) {
+  const child = Bun.spawn([process.execPath, SCRIPT, ...args], {
+    env: { ...process.env, NODE_ENV: "development", AUTH_BASE_URL: baseUrl, ACCOUNTING_INTERNAL_URL: baseUrl, ...env },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+  return { stdout, stderr, exitCode };
+}
+
+/** An approved request of Matteo Codogno with one WellD CH line per spec, plus an approved WellD Italia line. */
+async function legacyRequest(dates: string[], currency: "CHF" | "EUR" = "CHF") {
+  const request = await db.refundRequest.create({
+    data: { ownerUserId: "u-matteo", ownerEmail: "matteo.codogno@welld.ch", ownerName: "Matteo Codogno", status: "approved", submittedAt: new Date("2026-03-01") },
+  });
+  const ids: string[] = [];
+  for (const date of dates) {
+    const l = await db.refundLine.create({
+      data: { requestId: request.id, date: new Date(date), type: "travel_train", motivo: "m", entity: "welld_ch", currency, requestedAmountCents: 1000, approvedTotalCents: 1000 },
+    });
+    ids.push(l.id);
+  }
+  const it = await db.refundLine.create({
+    data: { requestId: request.id, date: new Date("2026-03-01"), type: "travel_train", motivo: "it", entity: "welld_it", currency: "CHF", requestedAmountCents: 500, approvedTotalCents: 500 },
+  });
+  return { ids, itId: it.id };
+}
+
+const released = () => db.$transaction((tx) => isAccountingReleased(tx));
+const numbers = async (ids: string[]) =>
+  (await db.refundLine.findMany({ where: { id: { in: ids } }, orderBy: { date: "asc" } })).map((l) => l.receiptNumber);
+
+describe("accounting:release, run as the operator runs it", () => {
+  it("an unknown argument exits 1 with the usage and changes nothing", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const res = await cli("--dryrun");
+    expect(res.exitCode).toBe(1);
+    expect(res.stderr).toContain("accounting:release failed, nothing was changed");
+    expect(res.stderr).toContain("unknown argument --dryrun");
+    expect(res.stdout).not.toContain("Accounting release completed");
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
+    expect(world.requests).toEqual([]); // the arguments are checked before anything is asked of Accounting
+  });
+
+  it("(SO-17) --defaults with a file of the old world (a VAT code, or the foreign-currency VAT code) exits 1 and changes nothing, before Accounting is asked", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    for (const [name, body] of [
+      ["entry-vat.json", { typeDefaults: { postal: { ledgerAccount: "6104", vatCode: "IPM81" } } }],
+      ["designation.json", { typeDefaults: { postal: { ledgerAccount: "6104" } }, foreignCurrencyVatCode: "IP00" }],
+    ] as const) {
+      const file = join(tmp, name);
+      writeFileSync(file, JSON.stringify(body));
+      const res = await cli("--defaults", file);
+      expect(res.exitCode).toBe(1);
+      expect(res.stderr).toContain("accounting:release failed, nothing was changed");
+      expect(res.stderr).toMatch(/vatCode|foreignCurrencyVatCode/);
+      expect(res.stdout).not.toContain("Accounting release completed");
+    }
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
+    expect(world.requests).toEqual([]);
+  });
+
+  it("--offsets with no value exits 1 and changes nothing", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const res = await cli("--offsets");
+    expect(res.exitCode).toBe(1);
+    expect(res.stderr).toContain("--offsets needs a value");
+    expect(await released()).toBe(false);
+  });
+
+  it("--dry-run prints what would happen, every line, and writes nothing: no marker, no seed, no number", async () => {
+    const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
+    const res = await cli("--dry-run");
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("DRY RUN: nothing was written");
+    expect(res.stdout).toContain("Numbered legacy WellD CH lines (2)");
+    // D-1 (qe-report.md): the report must not claim the marker was written by a dry run.
+    expect(res.stdout).not.toContain("Release marker written: yes");
+    expect(res.stdout).toMatch(/Release marker written: no \(dry run: the real run would write it\)/);
+    expect(res.stdout).not.toContain("Accounting release completed");
+    expect(res.stdout).toMatch(/MC26\/001 {2}2026-03-02/);
+    expect(res.stdout).toMatch(/MC26\/002 {2}2026-03-10/);
+    expect(res.stdout).toContain("WellD Italia lines of approved or paid requests left without a number: 1");
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null, null]);
+    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
+    expect(await db.receiptCounter.count()).toBe(0);
+    // It did read Accounting: the report is what the real run would do.
+    expect(world.requests.some((r) => r.includes("/reference-data"))).toBe(true);
+  });
+
+  it("the real run releases: marker, seed, classification and numbers by date, the Italian line untouched; a second run changes nothing", async () => {
+    const { ids, itId } = await legacyRequest(["2026-03-10", "2026-03-02"]);
+    const first = await cli();
+    expect(first.exitCode).toBe(0);
+    expect(first.stdout).toContain("Accounting release completed.");
+    expect(first.stdout).toContain("Release marker written: yes");
+    expect(await released()).toBe(true);
+    expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]); // by expense date: 03-02 first
+    const classified = await db.refundLine.findMany({ where: { id: { in: ids } } });
+    expect(classified.every((l) => l.accountNumber === "5901" && l.vatCodeCopy === null)).toBe(true); // an account, never a VAT code
+    const it = await db.refundLine.findUniqueOrThrow({ where: { id: itId } });
+    expect([it.receiptNumber, it.accountNumber, it.vatCodeCopy]).toEqual([null, null, null]); // AC-7.3
+
+    const audit = await db.refundAuditEntry.count();
+    const second = await cli();
+    expect(second.exitCode).toBe(0);
+    expect(second.stdout).toContain("The release marker was already set");
+    expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]);
+    expect(await db.refundAuditEntry.count()).toBe(audit);
+    expect(await db.receiptCounter.count()).toBe(1);
+  });
+
+  it("(AC-7.4) Accounting that answers 503 ends the run with EXIT 2 and the message, and NOTHING is written; a rerun once it is back works", async () => {
+    const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
+    world.down = true;
+    const res = await cli();
+    expect(res.exitCode).toBe(2);
+    expect(res.stderr).toContain("Accounting cannot be read: nothing was numbered or classified; run again later");
+    expect(res.stdout).not.toContain("Accounting release completed");
+    expect(res.stderr).not.toContain("nothing was changed"); // that is the exit-1 wording of any other failure
+    // The message names no address, host or token.
+    expect(res.stderr).not.toMatch(/127\.0\.0\.1|http:|cli-test-service-jwt|localhost/);
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null, null]);
+    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
+    expect(await db.receiptCounter.count()).toBe(0);
+    expect(await db.refundAuditEntry.count()).toBe(0);
+    expect(await db.refundSetting.count()).toBe(0);
+
+    // A dry run is a read of Accounting too: it stops the same way.
+    const dry = await cli("--dry-run");
+    expect(dry.exitCode).toBe(2);
+
+    world.down = false;
+    const again = await cli();
+    expect(again.exitCode).toBe(0);
+    expect(await released()).toBe(true);
+    expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]);
+  });
+
+  it("(AC-7.4) Accounting that cannot even be connected to (nothing listens) is exit 2 as well, with nothing written", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const res = await cliWith({ ACCOUNTING_INTERNAL_URL: "http://127.0.0.1:1" }, "--dry-run");
+    expect(res.exitCode).toBe(2);
+    expect(res.stderr).toContain("Accounting cannot be read: nothing was numbered or classified; run again later");
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+  });
+
+  it("(AC-7.4) auth that cannot mint the service token is 'Accounting cannot be read' too: exit 2, nothing written", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const res = await cliWith({ AUTH_BASE_URL: "http://127.0.0.1:1" });
+    expect(res.exitCode).toBe(2);
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+  });
+
+  it("(T84) a legacy request with no name is named from auth before numbering: the receipt prefix comes from the NAME, the report counts it; a deleted user stays unnamed", async () => {
+    const named = await db.refundRequest.create({
+      data: { ownerUserId: "u-named", ownerEmail: "zz.unrelated@welld.ch", ownerName: null, status: "approved", submittedAt: new Date("2026-03-01") },
+    });
+    const gone = await db.refundRequest.create({
+      data: { ownerUserId: "u-gone", ownerEmail: "anna.rossi@welld.ch", ownerName: null, status: "approved", submittedAt: new Date("2026-03-01") },
+    });
+    for (const r of [named, gone]) {
+      await db.refundLine.create({
+        data: { requestId: r.id, date: new Date("2026-03-02"), type: "travel_train", motivo: "m", entity: "welld_ch", currency: "CHF", requestedAmountCents: 1000, approvedTotalCents: 1000 },
+      });
+    }
+    world.contacts.set("u-named", "Marco Cattaneo");
+    const res = await cli();
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("employees named: 1 (1 request)");
+    expect(res.stdout).toContain("employees left unnamed: 1");
+    expect(res.stdout).not.toMatch(/Marco|Cattaneo/);
+    expect((await db.refundRequest.findUniqueOrThrow({ where: { id: named.id } })).ownerName).toBe("Marco Cattaneo");
+    expect((await db.refundRequest.findUniqueOrThrow({ where: { id: gone.id } })).ownerName).toBeNull();
+    const receipts = (await db.refundLine.findMany({ orderBy: { requestId: "asc" } })).map((l) => [l.requestId, l.receiptNumber]);
+    expect(Object.fromEntries(receipts)).toEqual({ [named.id]: "MC26/001", [gone.id]: "AR26/001" });
+    expect(world.requests.filter((r) => r.includes("users/contact"))).toHaveLength(2); // one call per distinct employee
+  });
+
+  it("(T84) auth that cannot be read for the names (5xx, 401, nothing listening) is EXIT 4 with the message and NOTHING written, a dry run too; once it is back the rerun works", async () => {
+    const r = await db.refundRequest.create({
+      data: { ownerUserId: "u-named", ownerEmail: "zz.unrelated@welld.ch", ownerName: null, status: "approved", submittedAt: new Date("2026-03-01") },
+    });
+    const l = await db.refundLine.create({
+      data: { requestId: r.id, date: new Date("2026-03-02"), type: "travel_train", motivo: "m", entity: "welld_ch", currency: "CHF", requestedAmountCents: 1000, approvedTotalCents: 1000 },
+    });
+    world.contacts.set("u-named", "Marco Cattaneo");
+    for (const status of [503, 401]) {
+      world.contactStatus = status;
+      for (const args of [[], ["--dry-run"]]) {
+        const res = await cli(...args);
+        expect(res.exitCode).toBe(4);
+        expect(res.stderr).toContain("Auth cannot be read for the employees' names: nothing was named, numbered or classified; run again later");
+        expect(res.stderr).toContain("users.contact");
+        expect(res.stderr).not.toMatch(/127\.0\.0\.1|http:|cli-test-service-jwt|Marco/);
+        expect(res.stdout).not.toContain("Accounting release completed");
+        expect(await released()).toBe(false);
+        expect((await db.refundRequest.findUniqueOrThrow({ where: { id: r.id } })).ownerName).toBeNull();
+        expect((await db.refundLine.findUniqueOrThrow({ where: { id: l.id } })).receiptNumber).toBeNull();
+        expect(await db.refundSetting.count()).toBe(0);
+      }
+    }
+    world.contactStatus = 200;
+    const again = await cli();
+    expect(again.exitCode).toBe(0);
+    expect((await db.refundLine.findUniqueOrThrow({ where: { id: l.id } })).receiptNumber).toBe("MC26/001");
+  });
+
+  it("(AC-7.4, AC-5.1) a legacy EUR line gets the copy of the rate in effect; a month with none is rate pending, and the report counts it; the rates are asked as `system:refund-api`", async () => {
+    const { ids } = await legacyRequest(["2026-03-02", "2026-04-02"], "EUR");
+    world.rates.set("EUR:2026-03", 924_600);
+    const res = await cli();
+    expect(res.exitCode).toBe(0);
+    const lines = await db.refundLine.findMany({ where: { id: { in: ids } }, orderBy: { date: "asc" } });
+    expect(lines.map((l) => [l.fxRateMicros, l.fxRateMonth?.toISOString().slice(0, 7) ?? null])).toEqual([[924_600, "2026-03"], [null, null]]);
+    expect(res.stdout).toContain("Rate pending: 1 line (no rate");
+    expect(world.mints).toBe(1);
+    expect(world.requests.filter((r) => r.includes("/rates"))).toEqual(["GET /system/v1/entities/welld_ch/rates?pairs=EUR:2026-03,EUR:2026-04"]);
+  });
+
+  it("(F-02) a legacy EUR line dated before Accounting's 2000-01 floor does not fail the whole rates read: exit 0, the pair is not asked, the line is numbered and rate pending", async () => {
+    const { ids } = await legacyRequest(["1999-05-05", "2026-03-02"], "EUR");
+    world.rates.set("EUR:2026-03", 924_600);
+    const res = await cli();
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("Accounting release completed.");
+    expect(await released()).toBe(true);
+    expect(world.requests.filter((r) => r.includes("/rates"))).toEqual(["GET /system/v1/entities/welld_ch/rates?pairs=EUR:2026-03"]);
+    const lines = await db.refundLine.findMany({ where: { id: { in: ids } }, orderBy: { date: "asc" } });
+    expect(lines.map((l) => [l.receiptNumber !== null, l.fxRateMicros])).toEqual([[true, null], [true, 924_600]]);
+    expect(res.stdout).toContain("Rate pending: 1 line (no rate");
+  });
+
+  it("(F-02) only dates before the floor: no rates call at all, exit 0", async () => {
+    const { ids } = await legacyRequest(["1999-05-05"], "EUR");
+    const res = await cli();
+    expect(res.exitCode).toBe(0);
+    expect(world.requests.filter((r) => r.includes("/rates"))).toEqual([]);
+    expect((await numbers(ids))[0]).not.toBeNull();
+  });
+
+  it("(F-03) a failure the script did not write itself prints the kind only: no driver text, host, credential or source path", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const res = await cliWith({ DATABASE_URL: "postgresql://leak_user:leak_pw@127.0.0.1:1/refund" }, "--dry-run");
+    expect(res.exitCode).toBe(1);
+    const mine = res.stderr.slice(res.stderr.lastIndexOf("accounting:release failed"));
+    expect(mine.trim().split("\n")).toHaveLength(1);
+    expect(mine).toContain("accounting:release failed, nothing was changed: ");
+    expect(mine).not.toMatch(/leak_pw|leak_user|127\.0\.0\.1|reach database|findMany|accounting-release\.ts|\/Users\//);
+    expect(mine).toMatch(/PrismaClient\w*Error|Error/);
+  });
+
+  it("(T57, F-03) with an unreachable database NOTHING but the script's own line reaches stdout or stderr: no host, credential, path or invocation text, in either development or production mode", async () => {
+    await legacyRequest(["2026-03-02"]);
+    for (const nodeEnv of ["development", "production", "test"]) {
+      for (const args of [["--dry-run"], []]) {
+        const res = await cliWith({ DATABASE_URL: "postgresql://leak_user:leak_pw@127.0.0.1:1/refund", NODE_ENV: nodeEnv }, ...args);
+        const all = `${res.stdout}\n${res.stderr}`;
+        expect(res.exitCode).toBe(1);
+        expect(all).not.toMatch(/leak_pw|leak_user|127\.0\.0\.1|invocation|\/Users\/|\.ts\b|prisma:|node_modules|ECONNREFUSED|reach database|findMany/i);
+        // The only output is the script's own one line.
+        expect(res.stdout).toBe("");
+        expect(res.stderr.trim().split("\n")).toHaveLength(1);
+        expect(res.stderr).toContain("accounting:release failed, nothing was changed: ");
+      }
+    }
+  });
+
+  it("(AC-7.5) Accounting with no WellD CH entries: exit 0, every legacy line numbered and listed without an account, with the warning", async () => {
+    const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
+    world.empty = true;
+    const res = await cli();
+    expect(res.exitCode).toBe(0);
+    expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]);
+    expect(res.stdout).toContain("Left without an account (2)");
+    expect(res.stdout).toContain("Accounting holds no active WellD CH ledger accounts");
+    expect(await released()).toBe(true);
+    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
+  });
+
+  it("--offsets <csv> continues numbering after the paper-era number, and the file is read from the path given", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const csv = join(tmp, "offsets.csv");
+    writeFileSync(csv, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
+    const res = await cli("--offsets", csv);
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("MC · u-matteo 2026: numbering continues after 81"); // SR-4: no email without --show-emails
+    expect(await numbers(ids)).toEqual(["MC26/082"]);
+  });
+
+  it("(SR-4, S-04) no `@` anywhere in the report without --show-emails: dry run and real run, offsets and unclassified lines included", async () => {
+    await legacyRequest(["2026-03-02", "2026-03-10"]);
+    const csv = join(tmp, "mask-offsets.csv");
+    writeFileSync(csv, "matteo.codogno@welld.ch,2026,81\n");
+    const dry = await cli("--dry-run", "--offsets", csv);
+    expect(dry.exitCode).toBe(0);
+    expect(dry.stdout).toContain("Every line");
+    expect(dry.stdout).not.toContain("@");
+    expect(dry.stdout).toContain("MC · u-matteo");
+    expect(dry.stderr).not.toContain("@");
+    const real = await cli("--offsets", csv);
+    expect(real.exitCode).toBe(0);
+    expect(real.stdout).not.toContain("@");
+  });
+
+  it("(SR-4) --show-emails prints the full address, in the report only when asked", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const res = await cli("--dry-run", "--show-emails");
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("matteo.codogno@welld.ch");
+  });
+
+  it("(SR-4) a refused offset names the employee masked, as m***@welld.ch, in the error", async () => {
+    await legacyRequest(["2026-03-02"]);
+    expect((await cli()).exitCode).toBe(0);
+    const csv = join(tmp, "masked-error.csv");
+    writeFileSync(csv, "matteo.codogno@welld.ch,2026,81\n");
+    const res = await cli("--offsets", csv);
+    expect(res.exitCode).toBe(1);
+    expect(res.stderr).toContain("m***@welld.ch");
+    expect(res.stderr).not.toContain("matteo.codogno");
+    const withEmails = await cli("--offsets", csv, "--show-emails");
+    expect(withEmails.stderr).toContain("matteo.codogno@welld.ch");
+  });
+
+  it("(SR-3, S-03) an --offsets path inside a git worktree prints a warning (stderr), a path outside does not; the run goes on", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const repo = join(tmp, "some-checkout");
+    mkdirSync(join(repo, ".git"), { recursive: true });
+    mkdirSync(join(repo, "nested"), { recursive: true });
+    const inside = join(repo, "nested", "offsets.csv");
+    writeFileSync(inside, "matteo.codogno@welld.ch,2026,81\n");
+    const warned = await cli("--dry-run", "--offsets", inside);
+    expect(warned.exitCode).toBe(0);
+    expect(warned.stderr).toContain("WARNING");
+    expect(warned.stderr).toContain("inside a git worktree");
+    expect(warned.stderr).not.toContain("@");
+
+    const outside = join(tmp, "outside-offsets.csv");
+    writeFileSync(outside, "matteo.codogno@welld.ch,2026,81\n");
+    const quiet = await cli("--dry-run", "--offsets", outside);
+    expect(quiet.exitCode).toBe(0);
+    expect(quiet.stderr).not.toContain("WARNING");
+  });
+
+  it("(AC-7.4, SO-13) NO --offsets: EXIT 3 with the reason, and NOTHING is written (no default, no baseline row, no number, no counter, no audit, no marker)", async () => {
+    const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
+    const res = await cliBare({});
+    expect(res.exitCode).toBe(3);
+    expect(res.stderr).toContain("accounting:release stopped: the list of last hand-issued 2026 numbers is missing: nothing was numbered (AC-7.4)");
+    expect(res.stderr).toContain("--offsets <csv>");
+    expect(res.stdout).not.toContain("Accounting release completed");
+    expect(res.stderr).not.toContain("nothing was changed"); // that is the exit-1 wording
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null, null]);
+    for (const count of [
+      await db.expenseTypeAccountingDefault.count(),
+      await db.receiptCounter.count(),
+      await db.receiptNumberBaseline.count(),
+      await db.refundAuditEntry.count(),
+      await db.refundSetting.count(),
+    ]) {
+      expect(count).toBe(0);
+    }
+    // Accounting was read first (so that an unreadable one is still exit 2), and only read.
+    expect(world.requests.every((r) => r.startsWith("GET /system/v1/") || r === "POST /system/service-token")).toBe(true);
+
+    // A rerun with the list is safe, and numbers from the paper register.
+    const list = join(tmp, "after-missing.csv");
+    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
+    const again = await cliBare({}, "--offsets", list);
+    expect(again.exitCode).toBe(0);
+    expect(await numbers(ids)).toEqual(["MC26/082", "MC26/083"]);
+  });
+
+  it("(AC-7.4) --dry-run with no list reads Accounting, writes nothing, shows no number, prints BLOCKED: list missing, and ends with exit 3", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const res = await cliBare({}, "--dry-run");
+    expect(res.exitCode).toBe(3);
+    expect(res.stdout).toContain("DRY RUN: nothing was written");
+    expect(res.stdout).toContain("BLOCKED: list missing.");
+    expect(res.stdout).toContain("Legacy WellD CH lines the real run would number once the list is given: 1");
+    expect(res.stdout).not.toMatch(/MC26\/0/);
+    expect(res.stdout).not.toContain("@");
+    expect(world.requests.some((r) => r.includes("/reference-data"))).toBe(true);
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
+  });
+
+  it("(AC-7.4) Accounting unreadable AND no list is still exit 2: Accounting is read first", async () => {
+    await legacyRequest(["2026-03-02"]);
+    world.down = true;
+    const res = await cliBare({});
+    expect(res.exitCode).toBe(2);
+    expect(res.stderr).toContain("Accounting cannot be read");
+    expect(res.stderr).not.toContain("hand-issued");
+    const dry = await cliBare({}, "--dry-run");
+    expect(dry.exitCode).toBe(2);
+  });
+
+  it("(AC-7.4, AC-4.12) a file with only the header line is the explicit empty list: exit 0, numbered from 001, no baseline row", async () => {
+    const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
+    const res = await cliBare({}, "--offsets", EMPTY_LIST);
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("an empty list: no employee has a hand-issued 2026 number, numbering starts at 001");
+    expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]);
+    expect(await db.receiptNumberBaseline.count()).toBe(0);
+    expect(await released()).toBe(true);
+  });
+
+  it("an EMPTY or comment-only file is refused (exit 1, nothing written): a truncated list must not read as 'no employee has a number'", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    for (const [name, body] of [
+      ["zero.csv", ""],
+      ["blank.csv", "\n\n"],
+      ["comment.csv", "# all of them are new\n"],
+    ] as const) {
+      const file = join(tmp, name);
+      writeFileSync(file, body);
+      const res = await cliBare({}, "--offsets", file);
+      expect(res.exitCode).toBe(1);
+      expect(res.stderr).toContain("accounting:release failed, nothing was changed");
+      expect(res.stderr).toContain("no header line and no row");
+    }
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+  });
+
+  it("(AC-4.12) a row for a year but 2026 is refused, with nothing written", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const list = join(tmp, "wrong-year.csv");
+    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2027,5\n");
+    const res = await cliBare({}, "--offsets", list);
+    expect(res.exitCode).toBe(1);
+    expect(res.stderr).toContain("only 2026 continues the paper register");
+    expect(res.stderr).not.toContain("matteo.codogno");
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+  });
+
+  it("(AC-4.11) the report names each row by the initials Refund will use, and an employee not yet in Refund masked; no full address without --show-emails", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const list = join(tmp, "two-rows.csv");
+    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\nanna.rossi@welld.ch,2026,12\n");
+    const res = await cliBare({}, "--offsets", list);
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("MC · u-matteo 2026: numbering continues after 81 (applied)");
+    expect(res.stdout).toContain("not yet in Refund (a***@welld.ch) 2026: numbering continues after 12 (applied)");
+    expect(res.stdout).not.toContain("matteo.codogno");
+    expect(res.stdout).not.toContain("anna.rossi");
+    expect(await numbers(ids)).toEqual(["MC26/082"]);
+    expect((await db.receiptNumberBaseline.findMany({ orderBy: { emailKey: "asc" } })).map((r) => [r.emailKey, r.lastIssuedSeq])).toEqual([
+      ["anna.rossi@welld.ch", 12],
+      ["matteo.codogno@welld.ch", 81],
+    ]);
+    const shown = await cliBare({}, "--offsets", list, "--show-emails");
+    expect(shown.stdout).toContain("anna.rossi@welld.ch");
+  });
+
+  it("a rerun with the same list is a no-op: already-applied, the same numbers, no second baseline row, no second audit row", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const list = join(tmp, "rerun.csv");
+    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\nanna.rossi@welld.ch,2026,12\n");
+    expect((await cliBare({}, "--offsets", list)).exitCode).toBe(0);
+    const audit = await db.refundAuditEntry.count();
+    const again = await cliBare({}, "--offsets", list);
+    expect(again.exitCode).toBe(0);
+    expect(again.stdout).toContain("(already-applied)");
+    expect(again.stdout).not.toContain("(applied)");
+    expect(await numbers(ids)).toEqual(["MC26/082"]);
+    expect(await db.receiptNumberBaseline.count()).toBe(2);
+    expect(await db.refundAuditEntry.count()).toBe(audit);
+  });
+
+  it("an offset for an employee and year that already hold numbers is refused: exit 1, and the whole release is rolled back", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    expect((await cli()).exitCode).toBe(0); // numbers MC26/001
+    const csv = join(tmp, "late-offsets.csv");
+    writeFileSync(csv, "matteo.codogno@welld.ch,2026,81\n");
+    const res = await cli("--offsets", csv);
+    expect(res.exitCode).toBe(1);
+    expect(res.stderr).toContain("nothing was changed");
+    expect(await numbers(ids)).toEqual(["MC26/001"]);
+    expect((await db.receiptCounter.findFirstOrThrow()).lastSeq).toBe(1);
+  });
+
+  it("a malformed offsets file is refused before anything is written", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const csv = join(tmp, "bad.csv");
+    writeFileSync(csv, "not-an-email,2026,81\n");
+    const res = await cli("--offsets", csv);
+    expect(res.exitCode).toBe(1);
+    expect(res.stderr).toContain("nothing was changed");
+    expect(res.stderr).not.toContain("not-an-email"); // the bad cell is echoed masked (SR-4)
+    expect(res.stderr).toContain('"n***"');
+    expect(await released()).toBe(false);
+  });
+});

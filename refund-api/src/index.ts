@@ -19,6 +19,9 @@ import { batchDecideRouter } from "./batches/decide.routes";
 import { ratesRouter } from "./rates/routes";
 import { rateEffectiveRouter } from "./rates/effective.routes";
 import { settingsRouter } from "./settings/routes";
+import { defaultsRouter } from "./accounting/defaults.routes";
+import { classificationRouter } from "./accounting/classification.routes";
+import { exportRouter } from "./accounting/export.routes";
 import { requestLogger } from "./lib/logger";
 import { setupOpenAPI } from "./openapi/registry";
 
@@ -32,6 +35,9 @@ app.use(
     origin: env.ALLOWED_ORIGINS,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    // The accounting export's download headers (specs/20261118-refund-accounting-export, G9): a browser on the UI's
+    // origin can only read these when the server exposes them. The UI builds its own filename and does not depend on them.
+    exposeHeaders: ["Content-Disposition", "X-Export-Row-Count", "X-Export-Excluded-Line-Count"],
     credentials: true,
   }),
 );
@@ -93,6 +99,20 @@ app.route("/", rateEffectiveRouter);
 // settingsRouter: refund-settings management (GET/PUT /settings/:key), gated
 // by the new settings:read/settings:manage capability — specs/20260722-refund-settings (T3).
 app.route("/", settingsRouter);
+// defaultsRouter: the default account / VAT code per expense type and the foreign-currency
+// VAT code, specs/20261118-refund-accounting-export (T7), on copies of Accounting's entries since T18 of 20261119.
+app.route("/", defaultsRouter);
+// NOT MOUNTED any more (specs/20261119-accounting T23, AC-3.7, AC-4.6): the ledger accounts, the VAT codes and the monthly exchange
+// rates are Accounting's (accounting-api, `/v1/entities/{entity}/...`). `/accounting/ledger-accounts*`, `/accounting/vat-codes*` and
+// `/exchange-rates*` answer 404 here for everyone, a `settings:manage` holder included (`removed-routes.test.ts`). Refund reads
+// Accounting, as itself, through `accounting/accountingClient.ts`.
+// classificationRouter: a request's accounting view and the active classification options, gated by
+// request:review + entity scope — specs/20261118-refund-accounting-export (T13; T14 adds the PUT).
+app.route("/", classificationRouter);
+// exportRouter: the accounting export of a batch, summary + XLSX file (`/accounting-export/file`; `/csv` is retired and answers 404), gated by request:review + a review scope covering
+// welld_ch — specs/20261118-refund-accounting-export (T18). Its paths (/batches/{id}/accounting-export…) collide with
+// no batch route, so the registration order does not matter.
+app.route("/", exportRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 

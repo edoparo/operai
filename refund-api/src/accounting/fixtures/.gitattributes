@@ -1,0 +1,2 @@
+# The golden workbook is binary and compared byte for byte: never let git normalise it.
+*.xlsx binary

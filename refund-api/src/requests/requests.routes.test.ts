@@ -173,6 +173,42 @@ describe("POST /requests", () => {
     expect(row.status).toBe("draft");
   });
 
+  it("snapshots the token's name claim as the owner's name, and stores none when the claim is absent", async () => {
+    harness.setResolve(async () => EMPLOYEE_PERMS);
+    const named = await harness.signToken({ sub: "emp-named", email: "named@x.com", name: "Ada Lovelace" });
+    const res = await requestsRouter.request("/requests", { method: "POST", headers: authHeaders(named) });
+    expect(res.status).toBe(201);
+    const { id } = (await res.json()) as { id: string };
+    expect((await db.refundRequest.findUniqueOrThrow({ where: { id } })).ownerName).toBe("Ada Lovelace");
+
+    const unnamed = await harness.signToken({ sub: "emp-unnamed", email: "unnamed@x.com" });
+    const res2 = await requestsRouter.request("/requests", { method: "POST", headers: authHeaders(unnamed) });
+    const { id: id2 } = (await res2.json()) as { id: string };
+    expect((await db.refundRequest.findUniqueOrThrow({ where: { id: id2 } })).ownerName).toBeNull();
+  });
+
+  it("normalises the name claim before it is stored: format characters removed, capped at 200 code points; only format characters means no name (1f44c2e5)", async () => {
+    harness.setResolve(async () => EMPLOYEE_PERMS);
+    const create = async (sub: string, name: string) => {
+      const token = await harness.signToken({ sub, email: `${sub}@x.com`, name });
+      const res = await requestsRouter.request("/requests", { method: "POST", headers: authHeaders(token) });
+      expect(res.status).toBe(201);
+      const { id } = (await res.json()) as { id: string };
+      return (await db.refundRequest.findUniqueOrThrow({ where: { id } })).ownerName;
+    };
+    // U+202E (right-to-left override) and U+200B (zero-width space) are removed; the rest is kept.
+    expect(await create("emp-bidi", "Ada \u202ELovelace\u200B")).toBe("Ada Lovelace");
+    // Longer than 200: capped at 200 code points (astral characters count once), no trailing space.
+    const capped = await create("emp-long", `\u202E${"Ab ".repeat(100)}\u{1F600}`);
+    expect(capped).not.toBeNull();
+    expect(capped).toBe(`${"Ab ".repeat(66)}Ab`); // exactly the first 200 code points
+    expect(Array.from(capped as string).length).toBe(200);
+    expect(capped).not.toMatch(/\u202E/u);
+    expect(capped).toBe(capped!.trimEnd());
+    // Nothing but format characters: no name at all (the email is the fallback), not an empty string.
+    expect(await create("emp-format-only", "\u202E\u200B\u2060\uFEFF")).toBeNull();
+  });
+
   it("missing request:create capability → 403", async () => {
     harness.setResolve(async () => NO_GRANTS);
     const token = await harness.signToken({ sub: "emp-2", email: "emp2@x.com" });
@@ -949,6 +985,116 @@ describe("DELETE /requests/:id (draft-only — AC-1.4/2.3)", () => {
       data: { motivo: "Edited after withdraw" },
     });
     expect(editRes.count).toBe(1);
+  });
+});
+
+// ─── Receipt numbers on the line (T15, specs/20261118-refund-accounting-export, AC-3.10, AC-4.6, AC-4.9) ───
+
+describe("GET /requests/:id — receiptNumber, and nothing else of the accounting data (AC-3.10)", () => {
+  /** The exact key set of a line in this response: a new key is a deliberate change of this list. */
+  const LINE_KEYS = [
+    "approvedTotalCents",
+    "attachments",
+    "currency",
+    "date",
+    "entity",
+    "id",
+    "km",
+    "mileage",
+    "motivo",
+    "receiptNumber",
+    "rejection",
+    "requestedAmountCents",
+    "type",
+  ];
+
+  /** A request in `status` with a classified, numbered line, a classified line with no number, and a rejected line. */
+  async function fixtureRequest(status: "draft" | "submitted" | "approved" | "rejected" | "paid", numbered: boolean) {
+    const request = await db.refundRequest.create({
+      data: { ownerUserId: "emp-1", ownerEmail: "emp1@x.com", ownerName: "Matteo Codogno", status },
+    });
+    // what a booked line holds (T24): the copies by natural key, and a rate copy, so there is a CHF figure that could leak
+    const stored = {
+      accountNumber: "6101",
+      accountName: "Ufficio",
+      ledgerAccountIsDefault: true,
+      vatCodeCopy: "IMP81",
+      vatRateBasisPoints: 810,
+      vatCodeIsDefault: true,
+      fxRateMicros: 924_600,
+      fxRateMonth: new Date("2026-03-01T00:00:00.000Z"),
+      fxRateCopiedAt: new Date(),
+    };
+    const base = {
+      requestId: request.id,
+      date: new Date("2026-03-02T00:00:00.000Z"),
+      type: "office_material" as const,
+      motivo: "Test",
+      entity: "welld_ch" as const,
+      currency: "EUR" as const,
+      requestedAmountCents: 1040,
+      approvedTotalCents: 1040,
+    };
+    const first = await db.refundLine.create({
+      data: {
+        ...base,
+        ...stored,
+        ...(numbered ? { receiptNumber: "MC26/001", receiptOwnerUserId: "emp-1", receiptYear: 2026, receiptSeq: 1, numberedAt: new Date() } : {}),
+      },
+    });
+    const second = await db.refundLine.create({ data: { ...base, ...stored } });
+    const rejected = await db.refundLine.create({
+      data: { ...base, approvedTotalCents: 0, rejectionReason: "no", rejectedAt: new Date(), rejectedByUserId: "a", rejectedByEmail: "a@x" },
+    });
+    return { request, first, second, rejected };
+  }
+
+  async function readAs(perms: ResolveResponse, sub: string, requestId: string) {
+    harness.setResolve(async () => perms);
+    const token = await harness.signToken({ sub, email: `${sub}@x.com` });
+    const res = await requestsRouter.request(`/requests/${requestId}`, { headers: authHeaders(token) });
+    return { status: res.status, body: (await res.json()) as { lines: Record<string, unknown>[] } };
+  }
+
+  for (const status of ["draft", "submitted", "approved", "rejected", "paid"] as const) {
+    it(`(AC-3.10) the owner's line JSON has exactly the known keys, none of them accounting, when the request is ${status}`, async () => {
+      const f = await fixtureRequest(status, status === "approved" || status === "paid");
+      const { status: http, body } = await readAs(EMPLOYEE_PERMS, "emp-1", f.request.id);
+      expect(http).toBe(200);
+      expect(body.lines).toHaveLength(3);
+      for (const line of body.lines) {
+        expect(Object.keys(line).sort()).toEqual(LINE_KEYS);
+        expect(Object.keys(line).filter((k) => /ledger|vat|chf|account|rate/i.test(k) && k !== "mileage")).toEqual([]);
+      }
+      expect(JSON.stringify(body)).not.toMatch(/IMP81|ledgerAccount|vatCode|chf/i);
+    });
+  }
+
+  it("(AC-3.10) an owner who ALSO holds request:review still gets no accounting key on their own request", async () => {
+    const f = await fixtureRequest("submitted", false);
+    const both: ResolveResponse = { ...EMPLOYEE_PERMS, permissions: [...EMPLOYEE_PERMS.permissions, ...accountingPerms(null).permissions.filter((p) => p.action === "review")] };
+    const { body } = await readAs(both, "emp-1", f.request.id);
+    for (const line of body.lines) expect(Object.keys(line).sort()).toEqual(LINE_KEYS);
+  });
+
+  it("(AC-3.10) an in-scope accounting reader gets the same line shape from this route (the accounting data is one separate endpoint)", async () => {
+    const f = await fixtureRequest("submitted", false);
+    const { body } = await readAs(accountingPerms("welld_ch"), "acct-1", f.request.id);
+    for (const line of body.lines) expect(Object.keys(line).sort()).toEqual(LINE_KEYS);
+  });
+
+  it("(AC-4.9) receiptNumber is null before the request is approved, set once numbered, and null on a rejected line", async () => {
+    const before = await fixtureRequest("submitted", false);
+    const pre = await readAs(EMPLOYEE_PERMS, "emp-1", before.request.id);
+    expect(pre.body.lines.map((l) => l["receiptNumber"])).toEqual([null, null, null]);
+
+    await truncateRefundTables();
+    const after = await fixtureRequest("approved", true);
+    const post = await readAs(EMPLOYEE_PERMS, "emp-1", after.request.id);
+    const byId = new Map(post.body.lines.map((l) => [l["id"], l["receiptNumber"]]));
+    expect(byId.get(after.first.id)).toBe("MC26/001");
+    expect(byId.get(after.second.id)).toBeNull(); // a numbered request's unnumbered line is simply null
+    expect(byId.get(after.rejected.id)).toBeNull();
   });
 });
 

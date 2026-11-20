@@ -18,6 +18,7 @@
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { Call } from '../fixtures/letterheads'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const AUTH_DIR = path.resolve(__dirname, '../../../auth')
@@ -53,8 +54,10 @@ export function grantRefundAccounting(email: string, entity: 'welld_it' | 'welld
   runFixtureScript(['grant-refund-accounting', email.toLowerCase(), entity])
 }
 
-const REFUND_API_URL =
+/** The refund-api origin the e2e talks to. */
+export const REFUND_API_URL = (
   process.env['E2E_REFUND_API_URL'] ?? process.env['VITE_REFUND_API_URL'] ?? 'http://localhost:8082'
+).replace(/\/$/, '')
 
 /**
  * Pays out every approved-but-unbatched request already in the database, so a
@@ -82,4 +85,129 @@ export async function drainApprovedBacklog(token: string): Promise<number> {
   const paid = await fetch(`${REFUND_API_URL}/batches/${id}/mark-paid`, { method: 'POST', headers })
   if (!paid.ok) throw new Error(`[refundFixtures] POST /batches/${id}/mark-paid -> ${paid.status}`)
   return requestCount
+}
+
+// ─── Accounting export fixtures (specs/20261118-refund-accounting-export, T31/T32; specs/20261119-accounting, T40, T73) ─────
+//
+// The accounting journeys need a known set of defaults, whatever accounting's seed
+// (`accounting-api/scripts/data/seed.welld-ch.json`, loaded by `seed:welld-ch`) and Refund's defaults file
+// (`refund-api/scripts/data/accounting-defaults.welld-ch.json`, read by `accounting:release --defaults`) end up holding. The
+// ledger accounts, VAT codes and rates the journeys use are Accounting's: a journey creates them with
+// helpers/accountingFixtures.ts (`createLedgerAccount`, `createVatCode`, `setRate`) and then names an ACCOUNT to refund-api by
+// its natural key, the account NUMBER.
+//
+// Since the 2026-11-19 sign-off (20261118 SO-2, SO-16) a default is an ACCOUNT and nothing else: there is no VAT default and no
+// foreign-currency VAT code to designate (the route is gone and answers 404), and a line gets a VAT code only when accounting
+// chooses one. Refund keeps the fourteen defaults, written through its own admin route as a real admin, the way the Settings
+// screen writes them (nothing is inserted behind the API), and every default the journey changes is put back by `restore()`.
+//
+// Nothing here runs without the e2e stack (refund-api, accounting-api, auth with ENABLE_TEST_AUTH): see playwright.config.ts.
+
+const AUTH_API_URL = (
+  process.env['E2E_AUTH_URL'] ?? process.env['VITE_AUTH_URL'] ?? 'http://localhost:3001'
+).replace(/\/$/, '')
+
+/**
+ * A bearer token minted AFTER the grants were written. `seedUserSession` returns the token it fetched before
+ * `grantRefundAccounting` / `grantRole` bumped the user's `perm_epoch`, so a token used for admin-only writes is fetched again here.
+ */
+export async function freshToken(cookieHeader: string): Promise<string> {
+  const res = await fetch(`${AUTH_API_URL}/auth/token`, { headers: { Cookie: cookieHeader } })
+  if (!res.ok) throw new Error(`[refundFixtures] GET /auth/token -> ${res.status}`)
+  const { token } = (await res.json()) as { token?: string }
+  if (!token) throw new Error('[refundFixtures] /auth/token returned no token')
+  return token
+}
+
+async function refundApi<T>(token: string, method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${REFUND_API_URL}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (!res.ok) {
+    // the problem body names a code and a sentence, never a secret
+    throw new Error(`[refundFixtures] ${method} ${path} -> ${res.status}: ${(await res.text()).slice(0, 300)}`)
+  }
+  return (await res.json()) as T
+}
+
+/**
+ * A call to refund-api as `token` (or with none) that never throws on a status: a journey that proves a REFUSAL (404 for a removed
+ * route, 422 for a refused body) asserts the status and the problem `code` itself. A body that is not JSON comes back as `{ raw }`.
+ */
+export async function refundCall<T = Record<string, unknown>>(
+  token: string | null,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<Call<T>> {
+  const res = await fetch(`${REFUND_API_URL}${path}`, {
+    method,
+    headers: {
+      ...(token === null ? {} : { Authorization: `Bearer ${token}` }),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  const text = await res.text()
+  let parsed: unknown = {}
+  try {
+    parsed = text ? JSON.parse(text) : {}
+  } catch {
+    parsed = { raw: text }
+  }
+  return { status: res.status, body: parsed as T }
+}
+
+/**
+ * Sets the default ACCOUNT of an expense type by Accounting's natural key, the account NUMBER. `null` clears the default of the type
+ * (an approval of a WellD CH line of that type is then refused until accounting chooses an account on the line, AC-3.4). The
+ * account must be active in Accounting, else refund-api answers 422. The body carries `accountNumber` and nothing else: a body
+ * with `vatCode` is a 422 (a default has no VAT half any more).
+ */
+export async function setExpenseTypeDefault(token: string, type: string, accountNumber: string | null): Promise<void> {
+  await refundApi(token, 'PUT', `/accounting/expense-type-defaults/${type}`, { accountNumber })
+}
+
+/** One row of `GET /accounting/expense-type-defaults`: always the fourteen types, in enum order, each with its account or none. */
+export interface TypeDefaultRow {
+  type: string
+  account: { number: string; name: string; state: string } | null
+  updatedAt: string | null
+  updatedByEmail: string | null
+  /** Oldest first: each entry is an account as it was copied (or none), who set it and when. */
+  history: { account: { number: string; name: string } | null; at: string; byEmail: string }[]
+}
+
+export interface DefaultsResponse {
+  entity: string
+  accounting: 'available' | 'unavailable'
+  types: TypeDefaultRow[]
+}
+
+export function getExpenseTypeDefaults(token: string): Promise<DefaultsResponse> {
+  return refundApi<DefaultsResponse>(token, 'GET', '/accounting/expense-type-defaults')
+}
+
+/**
+ * Remembers the default account of `types` as it is now, and returns a function that puts them back. A journey changes defaults on a
+ * database that other journeys, and a person, share; the history rows it appended stay (they are append-only), but what is in
+ * effect afterwards is what was before.
+ *
+ * `restore` never throws: an account that was deactivated meanwhile answers 422 and is left as it is, with a line on stderr
+ * that names the type and nothing else.
+ */
+export async function snapshotAccountingDefaults(token: string, types: readonly string[]): Promise<() => Promise<void>> {
+  const before = await getExpenseTypeDefaults(token)
+  return async () => {
+    for (const type of types) {
+      const row = before.types.find((candidate) => candidate.type === type)
+      try {
+        await setExpenseTypeDefault(token, type, row?.account?.number ?? null)
+      } catch (error) {
+        console.error(`[refundFixtures] default of ${type} not restored: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+  }
 }

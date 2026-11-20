@@ -83,6 +83,7 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
       "crm-api/src/auth/systemAuth.middleware.ts",
       "estimai-api/src/auth/systemAuth.middleware.ts",
       "activities-api/src/auth/systemAuth.middleware.ts",
+      "accounting-api/src/auth/systemAuth.middleware.ts",
     ],
     why: "the service-JWT guard of every /system route (ADR 20261006-scoped-service-jwt-fourth-notify-caller/0049); a fix to one copy must reach every copy",
   },
@@ -90,13 +91,30 @@ export const SHARED_COPIES: readonly SharedGroup[] = [
   // (crm-api is the template).
   {
     name: "problem",
-    files: ["crm-api/src/lib/problem.ts", "meetings-api/src/lib/problem.ts", "activities-api/src/lib/problem.ts"],
+    files: [
+      "crm-api/src/lib/problem.ts",
+      "meetings-api/src/lib/problem.ts",
+      "activities-api/src/lib/problem.ts",
+      "accounting-api/src/lib/problem.ts",
+    ],
     why: "RFC 7807 Problem JSON helpers; the error shape is a suite contract",
   },
   {
     name: "logger",
-    files: ["crm-api/src/lib/logger.ts", "meetings-api/src/lib/logger.ts", "activities-api/src/lib/logger.ts"],
+    files: [
+      "crm-api/src/lib/logger.ts",
+      "meetings-api/src/lib/logger.ts",
+      "activities-api/src/lib/logger.ts",
+      "accounting-api/src/lib/logger.ts",
+    ],
     why: "the request logger; it must keep logging no business data (data residency)",
+  },
+  // The wire of accounting-api's two /system/v1 answers (specs/20261119-accounting T7, D23): the producer validates what it
+  // sends and the consumer parses what it receives with the same code, so the two sides cannot each read the wire their own way.
+  {
+    name: "accountingWire",
+    files: ["accounting-api/src/system/accountingWire.ts", "refund-api/src/accounting/accountingWire.ts"],
+    why: "the producer/consumer wire schema of accounting-api's /system/v1 answers (ADR 20261119-accounting-reference-data-belongs-to-accounting-api-…, D23); change both files in one commit",
   },
   {
     name: "manDays",

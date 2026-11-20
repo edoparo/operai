@@ -12,6 +12,7 @@
     "meetings-api",
     "projects-api",
     "activities-api",
+    "accounting-api",
     "letterhead-api",
     "shell",
     "estimai-ui",
@@ -21,6 +22,7 @@
     "meetings-ui",
     "projects-ui",
     "letterheads-ui",
+    "accounting-ui",
     "notify-ui",
     "admin-ui",
     "operai-ui"

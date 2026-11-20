@@ -1,0 +1,182 @@
+# 20261118 — The accounting export is generated on request and never stored, every download is logged append-only with its content hash and format version before the file leaves, and the CSV dialect lives in one module
+
+**Date:** 2026-11-18  
+**Status:** Accepted — approved plan of specs/20261118-refund-accounting-export (approved 2026-11-18 under the owner's pre-authorisation of an unattended run; review on the owner's return); decisions D3 and D8 of the plan. Plan ADR candidate 5. **The dialect values (separator, decimal mark, encoding, headers) are a provisional default** awaiting accounting's answer (spec open question 3); the structure of the decision does not depend on them.  
+**Deciders:** Matteo Codogno (product owner), by pre-authorisation of the unattended run; the architect proposed it in the plan  
+**Project:** operai  
+**Relates to:** ADR 20260719-refund-batch-pdf-generation-pdf-lib (pure, deterministic rendering), ADR 20260716-immutable-financial-audit-trail-refund (append-only logs), ADR 20260716-entity-scoped-abac-refund-api (scope), ADR 20261118-chf-and-vat-amounts-are-derived-on-read-from-integer-micros-and-basis-points-rounded-once-half-up-and-never-stored (why the file can change between two downloads).
+
+---
+
+## Context
+
+A compiled or paid batch must leave Refund as a CSV that accounting imports into WellD CH's books (AC-6.1 to AC-6.12): one row per approved, non-rejected WellD CH line, with employee, receipt number, CHF amount, account, VAT code and VAT amount. WellD Italia lines are left out and counted. The file contains personal and financial data (names, reasons, amounts) and is the basis of bookkeeping entries, yet the amounts in it are derived on read, so the same batch can export different content after a rate correction (AC-6.8). The reason text and names are typed by employees and will be opened in a spreadsheet. The target system's CSV dialect is not known (open question 3). The batch PDF already exists as a pure, deterministic output (ADR 20260719-refund-batch-pdf-generation-pdf-lib), but a CSV for books is a different artefact: it leaves the system and is acted on elsewhere.
+
+## Decision
+
+We will generate the CSV **on request** from current data, never store it, write an append-only `refund_batch_export` row (actor, batch, row count, excluded count, SHA-256 of the bytes, format version) **before** the body is returned, refuse the download when anything blocks, and keep every dialect choice in one module.
+
+1. **Generated, not stored.** `GET /batches/{id}/accounting-export/csv` recomputes the rows, so the file always agrees with the current classification and rates. The file is small, so there is no object-storage copy to go stale or to leak.
+2. **Logged before delivery, as proof of what left.** The log row is written first; if that write fails the answer is 500 and no file is sent. A download writes a row; the summary route (`GET …/accounting-export`) writes none (AC-6.10). The row stores the hash, so two downloads of one batch with different content are visible (R9).
+3. **Deterministic bytes.** Rows are sorted by employee name (code-point order, not locale), then `ownerUserId`, `receiptYear`, `receiptSeq` and line id; there is no timestamp or random value in the file; the filename is `refund-accounting-<cutoff date>-<batchId>.csv` and carries no personal data. Same data gives the same bytes and the same hash (AC-6.8).
+4. **All-or-nothing.** If any blocker exists (a missing rate, an unclassified line, an unnumbered line), the route answers 409 `accounting_export_blocked` whose body is the whole summary (the same schema as the summary's 200: counts, blockers with line id, date and type, `fetchAttempted`; plan G10/G11); there is no partial file. The summary and the 409 carry `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`, like the CSV (security review S-06, plan SR-5). A `discarded` batch answers 409 `batch_discarded` (AC-6.9). A batch with no WellD CH line yields a file with the header row only (AC-6.7).
+5. **One module for the dialect.** `exportFormat.ts` holds separator (`;`), decimal mark (`.`), encoding (UTF-8 with BOM), line ending (CRLF), date format (ISO), header labels (English) and `FORMAT_VERSION = 1`. Changing the dialect is a constants edit plus a version bump, shown in the log and checked by a golden-file test (R4).
+6. **Text is data, not formulas.** Every text cell beginning with `=`, `+`, `-`, `@`, TAB or CR is prefixed with `'`; quoting follows RFC 4180 (a field with `;`, `"`, CR or LF, or a leading or trailing space, is quoted and `"` doubled). The guard sits in `export.ts` over every text column, not per field.
+7. **Narrower scope than batch reads.** Besides `request:review`, the caller's scope must cover `welld_ch` (global, or entity = `welld_ch`), else 403 `accounting_export_out_of_scope` (D8, AC-6.11). Batch reads stay unscoped; the export is WellD CH's books.
+8. **A missing rate gets one bounded attempt** to fetch before the blockers are computed (ADR 20261118-monthly-exchange-rates-are-fetched-on-demand-from-the-federal-source-recorded-once-and-corrected-only-by-an-admin-never-by-a-scheduler-and-the-outbound-fetch-is-hardened); a failure is a blocker, never a 5xx.
+
+## Failure shape
+
+**Data leaves the system and is acted upon elsewhere, and either nobody can later say exactly what left, or the receiver treats part of the data as instructions.** The first: a discrepancy in the books weeks later cannot be traced because the file was not kept, its content depended on state that has since moved, and the record of the download is missing or was written after delivery. The second: a name or a free-text reason that begins with `=` becomes a formula in the spreadsheet that opens it, so data typed by one person runs as code for another. Both are properties of the boundary, not of the file format.
+
+Where else this shape can appear, including the mirror-image positions:
+
+- **Export and import.** The mirror of "our data becomes their instruction" is "their file becomes our instruction". A future import of a CSV must treat every cell as data, and must know that this export prefixes some text with `'`. The guard is part of the format, so it is part of the format version.
+- **Log before and after.** An audit row written after the response can be lost with the process, leaving a delivered file with no record. The rule is: record, then deliver; a failed record means no delivery. The same order holds for any outbound send, print or hand-off that matters later.
+- **Other outbound artefacts.** Any new report, PDF or feed built from the same rows (a payroll file, a VAT return) carries personal and financial data across the same boundary and needs the same three answers: who may pull it (scope, not just capability), what proves what was delivered, and whether any text cell can be read as an instruction by its consumer.
+- **Whole and part.** A file with some rows silently left out because they could not be computed looks complete. Exclusions must be counted and shown (the Italia lines), and blockers must stop the file.
+- **Stored and generated.** Storing the delivered file solves "what left" but creates a second copy of personal data with its own retention and a risk of serving a stale one; generating it needs the hash instead. The choice must be made explicitly for every export.
+- **Format drift.** A dialect change that is not versioned changes what "the same export" means. Header labels, separators and the date format are part of the contract with the receiver.
+- **Capability and scope.** A capability that lets one person act on every entity's batches must be narrowed when the output belongs to one entity; check both the verb and the object.
+
+## Options considered
+
+### Option A — Generate on request, log hash and version before delivery, one dialect module (chosen)
+
+Described above.
+
+**Pros:**
+- Always consistent with corrections; no copy of personal data at rest
+- The log proves what was delivered, by hash, even when the file is not kept
+- A dialect change is one deliberate diff, and the golden-file test shows it
+- The injection guard cannot be forgotten for a new column, because it applies to every text cell
+
+**Cons:**
+- A downloaded file cannot be retrieved from the system later; re-generation can differ after a correction (the log shows it)
+- The log row is written even when the download fails on the network after delivery began (accepted: it proves the system produced it, not that the client received it)
+- A leading `'` in a name or reason is visible in the spreadsheet cell
+
+### Option B — Store the generated CSV in the bucket at first download (rejected)
+
+**Pros:**
+- A fixed artefact per batch that can be re-served
+
+**Cons:**
+- A second copy of personal data to retain and protect; it goes stale when a rate or classification is corrected, and then either lies or needs invalidation rules
+
+### Option C — Log after the response, or log only on success of delivery (rejected)
+
+**Pros:**
+- No failure path in the request
+
+**Cons:**
+- A delivered file may have no record; the rule must be "record, then deliver"
+
+### Option D — A partial file with the blocked lines marked (rejected)
+
+**Pros:**
+- Accounting gets something
+
+**Cons:**
+- A file that looks complete but is not, imported into books; the blockers are a short list the user can resolve
+
+### Option E — Per-field injection guards, or none because the file is internal (rejected)
+
+**Pros:**
+- No visible `'`
+
+**Cons:**
+- Every future column would need remembering, and names and reasons are typed by employees and opened in a spreadsheet by accounting
+
+### Option F — Dialect constants spread over the code (rejected)
+
+**Pros:**
+- Nothing to build
+
+**Cons:**
+- Open question 3 will change them; one place makes that a small, versioned change
+
+## Evidence
+
+- Pattern: ADR 20260719-refund-batch-pdf-generation-pdf-lib (a pure renderer fed all its inputs); append-only log with immutability trigger as in ADR 20260716-immutable-financial-audit-trail-refund.
+- Planned, not yet run (plan, Test strategy, AC-6.1 to AC-6.12, Security surfaces 1 and 2): a golden CSV compared byte for byte (header, order, quoting, BOM, CRLF); export twice gives identical bytes and hashes, and a rate correction gives a different hash; compiled and paid batches export, a discarded one answers 409 on both routes; blockers answer 409 with the list while compile, mark-paid and discard still succeed; a batch with only Italia or rejected lines gives the header only and the right `excludedLineCount`; a download writes a `refund_batch_export` row and a summary writes none; immutability of that table; a `welld_it`-scoped reviewer gets 403 `accounting_export_out_of_scope`; and unit tests of the guard on `= + - @`, TAB and CR. A test that a failing log write returns 500 with no body is not in the plan's table yet and should be added with the route. The `owasp-reviewer` pass is required (plan, Security).
+
+## Consequences
+
+**Positive:**
+- Every file that left has an actor, a time, a row count and a hash on record, and none of the file's content is kept
+- Accounting cannot import a half-computed file
+- Changing to the real dialect is a one-module change
+
+**Negative / trade-offs:**
+- The dialect may need a second iteration once accounting answers; imports done with `formatVersion 1` stay valid by their log row
+- Extra scope check on the export, so a WellD Italia-scoped accountant cannot export (intended)
+
+**Risks:**
+- **CSV dialect wrong for the accounting system** (R4, open question 3). Mitigation: one module, versioned, golden-file test.
+- **Re-export differs after a correction** (R9). Mitigation: allowed by AC-6.8; the hash shows it.
+- **Personal data in a downloaded file** that the system no longer controls. Mitigation: scope check, capability, no PII in the filename or logs (the request logger records the path only).
+- **Outbound fetch inside the export request** (R10). Mitigation: bounded; see the FX ADR.
+
+## Amendment (2026-11-19) — the first successful export copies pending rates in its own transaction, before the log row, and Accounting being unreachable is a blocker of its own
+
+Specs/20261119-accounting (plan amendment A4; decisions D12 and D14) changes where the export gets its inputs and adds one step to it. That the file is generated on request, never stored, logged before delivery with its hash and format version, deterministic, all-or-nothing, text-as-data and scoped to WellD CH stays. To be read in place of the original wording:
+
+1. **The file is built from the lines' copies.** Point 1's "always agrees with the current classification and rates" now means: with what each line holds. Rates no longer move under a line that has its copy (ADR 20261119-accounting-reference-data-belongs-to-accounting-api-which-consumers-read-live-with-no-copy-kept-across-requests-copy-by-natural-key-onto-what-they-book-and-refuse-to-act-when-they-cannot-read-it); a line's account or VAT code can still change while unpaid.
+2. **The first successful export copies the pending rates.** A line approved while no rate was in effect is rate pending and blocks the export. When the rate has since appeared, the CSV route, after its blockers are clear, runs one transaction: lock the pending lines `FOR UPDATE`; write each rate copy where `fxRateMicros IS NULL` (a concurrent export may have won: the first writer wins); audit `line_rate_copied` per line with the exporter as actor; re-read the lines; build the CSV from the copies; **write the export-log row**; commit; only then send. A failed commit answers 500, no file and no copy: a refused export copies nothing, and a summary copies nothing either. The log row and the copy commit together, so "recorded before delivered" in point 2 of the Decision holds as before and the log row's hash covers the copied rates.
+3. **Point 8 is replaced.** A missing rate no longer gets an attempt made by refund-api. The export asks Accounting for the rates of its pending pairs; Accounting may fetch within the consumer's budget (ADR 20261119-on-demand-outbound-work-that-a-provider-does-for-a-consumer-runs-on-a-budget-strictly-inside-the-deadline-of-the-consumer-and-what-triggered-it-is-derived-by-the-provider-never-claimed-by-the-caller). A pair still missing is the blocker `missingRates`, never a 5xx.
+4. **A new blocker, `accountingUnavailable`.** When Accounting cannot be read and the batch has pending lines, the answer is the same 409 `accounting_export_blocked` with the same summary schema and `blockers.accountingUnavailable: true`, not a 503 and not a missing rate (AC-6.6): the user must be able to tell "no rate exists" from "we could not find out".
+5. **Batches that hold all their copies never call Accounting,** neither the summary nor the CSV.
+6. **Consequence for the hash.** Two downloads of one batch can differ in content only through an unpaid line's reclassification or through a first-export rate copy; the log's hash still shows it. A correction of a rate in Accounting changes no line that already holds its copy.
+
+## Amendment (2026-11-19, accounting sign-off) — the file is an XLSX workbook in the accountant's template, written by a small in-repo deterministic writer, text is only ever a shared string and never a formula, `FORMAT_VERSION` is 2
+
+The accounting sign-off of 2026-11-19 (spec amendment E6, approved by the owner; specs/20261118-refund-accounting-export/plan.md § "Accounting sign-off delta (2026-11-19)", decisions SO-6 to SO-12; tasks T58 to T81 of specs/20261119-accounting/tasks.md) answers spec open question 3 and replaces the CSV. The accountant's sample import file, the "Riclassificazione RS 2025" workbook of the accounting system Accrio, is binding for the shape. It holds real names and reasons and is **not** in the repository. What stays: the file is generated on request and never stored; a download writes the append-only `refund_batch_export` row (actor, batch, row count, excluded count, SHA-256 of the bytes, format version) **before** the body is returned, and a failed log write is a 500 with no file; the summary writes none; blockers make the whole answer 409 `accounting_export_blocked`, never a partial file; the scope must cover `welld_ch`; the export-time rate copy of the 2026-11-19 amendment above is unchanged. To be read in place of the original wording wherever it says CSV:
+
+1. **The format is an XLSX workbook in the template's shape.** One sheet named `Sheet 1`. Row 1 is the header `Date | Description | Debit | Credit | Amount | Currency | Tax | Note` (eight columns, A to H, exactly these names). One row per approved, not rejected WellD CH line; a batch with no such line gives the header row only. `Tax` and `Note` are present and **empty on every row**, because the template has them. No other column exists. This replaces point 5's separator, decimal mark, encoding, BOM and line ending, which have no object in a workbook.
+2. **The bytes are written by a hand-written, deterministic OOXML writer with no dependency.** `src/accounting/xlsx.ts` is pure and knows nothing of accounting. It writes the parts as strings and packs them in a ZIP with method STORE (no compression), a fixed entry order, every entry dated 1980-01-01 00:00 (the DOS epoch, as the sample itself), no extra fields, the UTF-8 name flag and a CRC-32 per entry; there is no `docProps` part, so no author and no timestamp. The same lines give **the same bytes**, so point 3's "same data gives the same bytes and the same hash" and the log's SHA-256 keep their meaning. A 300-line batch is about 100 KiB.
+3. **Text reaches the file only as a shared string, and the writer has no path that emits a formula.** Every text cell is a shared string (`t="s"`), XML-escaped; no code path writes `<f>` or an inline formula, and a unit test scans every part for `<f`. Every text cell's style carries `quotePrefix="1"`, so a spreadsheet keeps a value that begins with `=`, `+`, `-` or `@` as text even when a person edits the cell. Before writing, each control character (C0, C1, including CR, LF and TAB) and U+2028/U+2029 becomes one space, runs of spaces collapse, the ends are trimmed, and a character XML 1.0 cannot carry (a lone surrogate, U+FFFE, U+FFFF) becomes U+FFFD, so a reason can neither add, merge nor split a row or a column. **This replaces point 6.** The leading `'` is dropped: inside a workbook it would be imported into Accrio as part of the description. The RFC 4180 quoting rules have no object any more.
+4. **Cells are typed as in the template; a value is never re-typed by the writer.** Date: a numeric serial (1900 system, computed from the `YYYY-MM-DD` string with integer arithmetic, never a time zone) with format `yyyy\-mm\-dd;@`. Description: shared string. Debit: a numeric cell holding the account number exactly as stored **when it is in canonical decimal form** (`^[1-9][0-9]{0,14}(\.[0-9]*[1-9])?$`, which covers `5905` and `2620.1`, the sample has `2620.1` as a number); any other account number (`2620.10`, `1.2.3`) is a **text** cell, unchanged, so it is never rounded or reformatted. Credit: numeric `5832`. Amount: numeric, written from integer cents as exact decimal text (`9.62`, `0.00`, never through a float), format `0.00`. Currency: shared string `CHF`.
+5. **Description pattern (provisional, for the accountant).** `<reason> [<receipt number>] <employee>` for a CHF line, and `<reason> [<receipt number>] [<CUR> <approved total> = CHF <CHF amount>] <employee>` for another currency; `<employee>` is the name, or the email when the account has none. It lives in one function (`describeLine`); changing it is a `FORMAT_VERSION` bump and a golden diff.
+6. **Order, route, headers, version.** Rows are ordered by Date descending (as the template), then by the employee cell in code-point order, `ownerUserId`, `receiptYear`, `receiptSeq` and line id, ascending (replaces point 3's order; the tie-breakers keep the file deterministic). The route is `GET /batches/{id}/accounting-export/file`; the old `…/csv` answers 404 (both were unreleased). It is named for what it gives, not its format, so the next dialect change does not move it. `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`; filename `refund-accounting-<cutoff YYYY-MM-DD>-<batchId>.xlsx` (no personal data); `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, `X-Export-Row-Count`, `X-Export-Excluded-Line-Count`. **`FORMAT_VERSION = 2`**; the golden files are `fixtures/accounting-export.golden.xlsx` (bytes) and `fixtures/accounting-export.golden.cells.json` (the expected cells, readable in review); the CSV golden is deleted. `exportFormat.ts` is still the one module that holds every dialect choice; `xlsx.ts` is mechanism only. Log rows with `formatVersion 1` stay valid proof of what left under the CSV.
+7. **A VAT code is not needed to export.** The `unclassifiedLines` blocker lists lines without an account only (ADR 20261118-accounting-classification-…, amendment 2026-11-19, accounting sign-off).
+
+**Considered and rejected for the writer** (continuing the lettering above):
+
+- *Option G — `exceljs`.* A large dependency tree; it stamps creation and modification times in `docProps/core.xml` and in the ZIP entries, so determinism would need post-processing.
+- *Option H — SheetJS (`xlsx`).* Distributed from its own CDN rather than the npm registry, so pinning and supply-chain review are harder.
+- *Option I — `fflate` plus hand-written XML.* DEFLATE output depends on the library version and level, which would make "identical" a property of a lockfile; STORE avoids it at a size cost that does not matter here.
+- *Option J — redefine "identical" as "same cell content".* Weakens the byte-identity test and the log hash, and needs an XLSX reader in production code.
+- *Option K — keep the CSV's leading `'` guard.* Wrong for this carrier: it becomes part of the imported description.
+
+**Failure shape of this amendment.** *A defence written for one carrier's syntax is carried to another carrier where it is wrong, or is left behind where the new carrier needs a different one.* The CSV guard (a leading `'`) was the right answer to "a cell read as a command"; in a workbook the same data meets a different interpreter (a formula cell, a spreadsheet's own re-typing of text) and the old prefix would corrupt the booking text. The same family: *a guarantee that holds only through an incidental property of a dependency.* "The same bytes" would have been true only as long as a library's timestamps, compression level and entry order stayed as they were, and the log hash would have silently stopped fingerprinting anything.
+
+Where else this shape can appear, including the mirror-image positions:
+
+- **Export and import.** A future import of a workbook (or of any structured file) must read every cell as data, ignore formula cells, and not trust that the writer's `quotePrefix` was applied. The writer and its test reader must be independent, so a defect in one is not shared by the other (plan R17).
+- **Typed and untyped.** A value re-typed by the writer is the same failure on the value side: `2620.10` written as a number arrives as `2620.1`, a date as text is not a date. The rule is "write what is stored, in the type the receiver reads", with a test for both branches, in either direction (a number written as text, text written as a number).
+- **Hash and bytes.** Anything logged by hash (another outbound artefact, a PDF, a feed) is a real fingerprint only if its bytes are deterministic; a new generator with timestamps, random ids or library-dependent compression gives hashes that differ with no change of content, and nobody will trust the log afterwards.
+- **A second carrier of the same rows.** Any other format built from these rows (JSON, PDF, a payroll file) needs its own answer to "can a text cell be read as an instruction by its consumer", not the previous format's answer.
+
+**Escalation triggers added.** Revisit the writer (and so the library choice) when Accrio needs more than the subset (several sheets, formulas, a Table object, which the template names `Table1` and the writer does not emit until the trial import says it is needed); when a Bun version lacks `zlib.crc32` (a 20-line table fallback is planned); when the Description pattern is rejected by accounting (one function, a version bump). The trial import of the golden file into Accrio is an owner task (plan R16, task T80) and has not been done at the time of writing; until then the format is a faithful copy of the template, not a proven import.
+
+**Compliance.** Unchanged: the workbook carries the same names, reasons and amounts as the CSV did, to the same role, under the same scope, with the same log row. The file name carries no personal data.
+
+## Escalation triggers
+
+This decision is revisited when any of these happens:
+
+- accounting answers open question 3 (change `exportFormat.ts`, bump `FORMAT_VERSION`, record the version in the next ADR amendment);
+- someone needs to re-download the exact bytes of an earlier export (then store the file, with a retention rule, and keep the hash as a check);
+- a second export (another entity, another format, another system) is built: promote the dialect module and the injection guard to a shared helper, and apply the three answers above;
+- the file is ever imported back or sent automatically instead of downloaded by a person.
+
+## Compliance notes
+
+- GDPR / data-protection impact: medium. The file carries employees' names, free-text reasons and amounts to a role that already sees them, outside the system's control once downloaded. Mitigations: capability plus entity scope, no PII in the filename or logs, a log row per download (actor, time, hash) and no stored copy. Purpose: bookkeeping of reimbursed expenses.
+- Data residency: no change for the generating service (EU region); once downloaded, the file is in the hands of the accounting team. Needs review if the accounting system is hosted outside the EU.
+- Audit trail: required (AC-6.10). Tier 1: `refund_batch_export` is append-only by trigger.
+
+---
+
+*This ADR was generated during a WellForge spec-driven session. Review and amend before committing.*

@@ -27,6 +27,7 @@ import { getTripSuggestions } from '../lib/suggestionsApi'
 import type { TripSuggestion } from '../lib/suggestionsApi'
 import * as ratesApi from '../lib/ratesApi'
 import { strings } from '../strings'
+import { expectNoAxeViolations } from '../test-support/axe'
 
 vi.mock('../lib/suggestionsApi')
 vi.mock('../lib/ratesApi')
@@ -728,4 +729,110 @@ describe('ExpenseLineComposer — the autocomplete never gets in the way (AC-5.1
       expect(screen.queryByTestId('composer-error')).toBeNull()
     },
   )
+})
+
+describe('ExpenseLineComposer — 14 types and the split-receipt hint (T68, AC-8.1, AC-8.2, AC-3.12)', () => {
+  it('offers the 14 types in enum order after the placeholder, flight and taxi included', () => {
+    render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    const values = Array.from((screen.getByTestId('composer-type') as HTMLSelectElement).options).map((o) => o.value)
+    expect(values).toEqual([
+      '',
+      'travel_highway',
+      'travel_km',
+      'travel_parking',
+      'travel_train',
+      'travel_other_public_transport',
+      'travel_flight',
+      'travel_taxi',
+      'company_manuals',
+      'stationery',
+      'representation_meals',
+      'representation_gifts',
+      'office_material',
+      'postal',
+      'telephone',
+    ])
+  })
+
+  it('shows the hint for WellD CH, tied to both the amount input and the entity select, and axe finds nothing', async () => {
+    const { container } = render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    fillNonKmLine()
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_ch' } })
+
+    const hint = screen.getByText(strings.pages.requestDetail.composer.splitReceiptHint)
+    expect(hint).not.toBeNull()
+    expect(hint.id).not.toBe('')
+    expect(screen.getByTestId('composer-amount').getAttribute('aria-describedby') ?? '').toContain(hint.id)
+    // SG-1: the Entity select comes after Amount, so it is the field a keyboard user is on when the hint applies.
+    expect(screen.getByTestId('composer-entity').getAttribute('aria-describedby') ?? '').toContain(hint.id)
+    await expectNoAxeViolations(container)
+  })
+
+  it('SG-1: the hint comes after the Entity select in document order, in a polite live region that exists before the hint does', async () => {
+    const { container } = render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    fillNonKmLine()
+    const region = screen.getByTestId('composer-split-hint-region')
+    // The region is in the DOM, empty, before the entity is chosen: content added to it is announced.
+    expect(region.getAttribute('aria-live')).toBe('polite')
+    expect(region.textContent).toBe('')
+    await expectNoAxeViolations(container)
+
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_ch' } })
+    expect(screen.getByTestId('composer-split-hint-region')).toBe(region)
+    expect(region.textContent).toBe(strings.pages.requestDetail.composer.splitReceiptHint)
+    const entity = screen.getByTestId('composer-entity')
+    expect(entity.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // It is not inside the grid of fields, so it never reflows the row of the fields themselves.
+    expect(region.closest('.grid')).toBeNull()
+    await expectNoAxeViolations(container)
+
+    // Switching back removes the sentence and the descriptions, and leaves the region in place.
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_it' } })
+    expect(screen.getByTestId('composer-split-hint-region')).toBe(region)
+    expect(region.textContent).toBe('')
+    expect(screen.getByTestId('composer-entity').getAttribute('aria-describedby')).toBeNull()
+    expect(screen.getByTestId('composer-amount').getAttribute('aria-describedby')).toBeNull()
+    await expectNoAxeViolations(container)
+  })
+
+  it('SG-1: an error on the entity and the hint both describe the select, in one aria-describedby', async () => {
+    render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    fillNonKmLine()
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_ch' } })
+    fireEvent.change(screen.getByTestId('composer-currency'), { target: { value: 'CHF' } })
+    fireEvent.change(screen.getByTestId('composer-amount'), { target: { value: '' } })
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+    const amount = screen.getByTestId('composer-amount')
+    await waitFor(() => expect(amount.getAttribute('aria-invalid')).toBe('true'))
+    const ids = (amount.getAttribute('aria-describedby') ?? '').split(' ')
+    expect(ids).toHaveLength(2)
+    for (const id of ids) expect(document.getElementById(id)).not.toBeNull()
+  })
+
+  it('does not show the hint for WellD Italia or before an entity is chosen, axe clean', async () => {
+    const { container } = render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    fillNonKmLine()
+    expect(screen.queryByText(strings.pages.requestDetail.composer.splitReceiptHint)).toBeNull()
+    await expectNoAxeViolations(container)
+
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_ch' } })
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_it' } })
+    expect(screen.queryByText(strings.pages.requestDetail.composer.splitReceiptHint)).toBeNull()
+  })
+
+  it('does not show the hint for a travel_km line (Amount is the computed mileage)', () => {
+    render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_ch' } })
+    fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'travel_km' } })
+    expect(screen.queryByText(strings.pages.requestDetail.composer.splitReceiptHint)).toBeNull()
+  })
+
+  it('the hint never blocks adding a line (no validation)', async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined)
+    render(<ExpenseLineComposer onAdd={onAdd} />)
+    fillNonKmLine()
+    fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_ch' } })
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1))
+  })
 })

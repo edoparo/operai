@@ -73,6 +73,20 @@ const en = {
     monthlyProcessing: 'Monthly processing',
     settings: 'Settings',
   },
+  /**
+   * Accounting's reference data is read through refund-api; when it cannot be read, each refusal says the
+   * cause and the remedy and what stayed (specs/20261119-accounting, AC-6.10, UX-21). No address, identifier or
+   * internal text.
+   */
+  accountingUnavailable: {
+    cause: "Accounting's reference data cannot be read right now.",
+    approve: "Accounting's reference data cannot be read right now. Nothing was approved. Try again in a few minutes.",
+    classify:
+      "Accounting's reference data cannot be read right now. The classification was not changed. Try again in a few minutes.",
+    save: "Accounting's reference data cannot be read right now. Nothing was saved. Try again in a few minutes.",
+    options:
+      "Accounting's reference data cannot be read right now, so there is nothing to choose from. Try again in a few minutes.",
+  },
   /** The Settings tab: mileage rates and the accounting distribution email (moved from Admin, 2026-11-13). */
   settings: {
     heading: 'Settings',
@@ -129,6 +143,97 @@ const en = {
       historyItem: (value: string, by: string, at: string) => `${value} — ${by} — ${at}`,
     },
     dismiss: 'Dismiss',
+    /** specs/20261118-refund-accounting-export: the page description once it has more than the mileage rates. */
+    descriptionAll: 'The mileage rates and the default classification of expense types.',
+    /** The Settings views (UX-1). */
+    sections: {
+      label: 'Settings sections',
+      general: 'General',
+      /** specs/20261119-accounting UX-16: the second Settings view. */
+      defaults: 'Default classification',
+    },
+    /** The note that heads the Default classification view (specs/20261119-accounting, AC-4.6, UX-16, UX-17). */
+    accountingLink: {
+      withAccess: 'Ledger accounts, VAT codes and exchange rates are kept in the Accounting app.',
+      linkText: 'Open Accounting',
+      linkLabel: 'Open Accounting: ledger accounts, VAT codes and exchange rates',
+      withoutAccess:
+        'Ledger accounts, VAT codes and exchange rates are kept in the Accounting app by accounting managers. Ask one of them if an entry is missing.',
+    },
+    /** Shared by the default-classification card and its dialogs. */
+    catalog: {
+      forbidden: "You don't have permission to do this.",
+      genericError: 'Could not save. Try again.',
+      cancel: 'Cancel',
+      none: 'None',
+    },
+    /** The change-history drawer (the default accounts of the expense types). */
+    history: {
+      title: (subject: string) => `History — ${subject}`,
+      description: 'Every change, newest first.',
+      empty: 'No changes recorded yet.',
+      columns: { when: 'When', by: 'By', account: 'Account' },
+      open: 'History',
+      openLabel: (subject: string) => `Show the history of ${subject}`,
+      closeLabel: 'Close the history',
+    },
+    defaults: {
+      title: 'Default classification',
+      /** Account-only (specs/20261118 SO-16, 2026-11-19): a default is an account; no VAT code, no designation. */
+      descriptionAccountOnly:
+        'The account each expense type gets in WellD CH. Accounting can change it line by line. Where a type has no default, accounting must choose on each line before approving.',
+      caption: 'Default classification by expense type',
+      loading: 'Loading the default classification…',
+      loadError: 'Could not load the default classification.',
+      columns: {
+        type: 'Expense type',
+        account: 'Default account',
+        changed: 'Last changed',
+        actions: 'Actions',
+      },
+      notSet: 'Not set yet',
+      /** The state of an Accounting entry a default points to (UX-18); `active` has no mark. */
+      state: {
+        deactivated: 'Deactivated in Accounting',
+        notFound: 'Not found in Accounting',
+      },
+      needsChoice: (n: number) =>
+        n === 1
+          ? '1 default needs a new choice: its entry is deactivated or no longer in Accounting. Lines of that type get no default until you choose another.'
+          : `${n} defaults need a new choice: their entry is deactivated or no longer in Accounting. Lines of those types get no default until you choose another.`,
+      /** The accessible name of the note above: it is a static `role="note"`, so it is named for a screen reader. */
+      needsChoiceLabel: 'Defaults that need a new choice',
+      /** Accounting cannot be read (AC-6.9, UX-19). */
+      unavailable: {
+        title: 'Accounting cannot be read now',
+        body: 'The defaults are shown as recorded. You cannot change them until Accounting can be read.',
+      },
+      changeBlocked: 'Accounting cannot be read now, so defaults cannot be changed.',
+      recovered: 'Accounting can be read again.',
+      stillUnavailable: 'Accounting still cannot be read.',
+      changedBy: (by: string, on: string) => `${by} · ${on}`,
+      change: 'Change',
+      changeLabel: (type: string) => `Change the default for ${type}`,
+      historyLabel: (type: string) => `Show the history of the default for ${type}`,
+      dialog: {
+        title: (type: string) => `Default classification — ${type}`,
+        description: 'Applies to lines reviewed from now on. Lines already approved keep what they have.',
+        account: 'Default account',
+        noneOption: 'None (no default)',
+        chooseOption: 'Choose…',
+        inactiveCurrent: (what: string) => `The current ${what} is deactivated. Choose another, or none.`,
+        inactiveSentence: 'Lines of this type get no default until you choose another.',
+        notFoundCurrent: (what: string) => `The current ${what} is no longer in Accounting. Choose another, or none.`,
+        tryAgain: 'Try again',
+        save: 'Save',
+        busy: 'Saving…',
+      },
+      saved: (type: string) => `Default saved for ${type}`,
+      errors: {
+        accountInactive: 'That account has been deactivated. Choose another.',
+        accountNotFound: 'That account is no longer in Accounting. Choose another.',
+      },
+    },
   },
   pages: {
     myRequests: {
@@ -171,6 +276,9 @@ const en = {
         typePlaceholder: 'Select a type…',
         motivoLabel: 'Motivo',
         amountLabel: 'Requested amount',
+        /** Under the amount of a WellD CH line only (SO-15, AC-3.12): never for WellD Italia, no validation. */
+        splitReceiptHint:
+          'One VAT rate per line: if a receipt has items at different VAT rates (for example 8.1 % and 2.6 % at a supermarket), enter one line per rate.',
         entityLabel: 'Entity',
         entityPlaceholder: 'Select an entity…',
         currencyLabel: 'Currency',
@@ -271,6 +379,8 @@ const en = {
         rejectionReasonLabel: 'Reason for rejection',
         /** Replaces the "Requested" `<dd>`'s `formatMoney` call when a travel_km line's mileage is blocked (no rate configured, AC-2.2) — never a stale/zero amount. */
         mileageBlockedAmount: '—',
+        /** Visually hidden label of a line's receipt number (specs/20261118-refund-accounting-export, design S9). */
+        receiptNumberLabel: 'Receipt number',
       },
       /** Title of the per-currency totals card (INC-33). */
       totalsHeading: 'Totals',
@@ -463,6 +573,110 @@ const en = {
       paid: {
         paidLine: (date: string, email: string) => `Paid on ${date} by ${email}`,
       },
+      /** The classification panel and the approve refusals (specs/20261118-refund-accounting-export, design S7/S8). */
+      classification: {
+        legend: 'Classification',
+        groupLabel: (line: string) => `Classification for ${line}`,
+        account: 'Account',
+        vatCode: 'VAT code',
+        chooseAccount: 'Choose an account',
+        accountOption: (number: string, name: string) => `${number} — ${name}`,
+        vatOption: (code: string, label: string, rate: string) => `${code} — ${label} (${rate})`,
+        /** A VAT code whose copy recorded no label. */
+        vatOptionNoLabel: (code: string, rate: string) => `${code} (${rate})`,
+        inactiveOption: (text: string) => `${text} (deactivated)`,
+        defaultMarker: 'Default',
+        handMarker: 'Set by hand',
+        required: 'Required to approve.',
+        missingAccount: 'Choose an account.',
+        /** The VAT select's empty choice (AC-3.3, AC-3.13): a line may have no VAT code. */
+        vatNone: 'None',
+        inactiveCurrentAccount:
+          'This account is deactivated in Accounting. The line keeps it; choose an active one to change it.',
+        inactiveCurrentVat:
+          'This VAT code is deactivated in Accounting. The line keeps it; choose an active one to change it.',
+        rate: 'Exchange rate',
+        rateValue: (rate: string, month: string) => `${rate} · ${month}`,
+        openRates: 'Open exchange rates',
+        chfAmount: 'CHF amount',
+        vatAmount: 'VAT amount',
+        vatAmountValue: (amount: string, rate: string) => `${amount} (${rate})`,
+        unavailable: '—',
+        follows:
+          'Amounts follow the approved total and the exchange rate as they stand now. They are fixed when the request is approved.',
+        saving: 'Saving…',
+        savedAccount: (text: string) => `Account set to ${text}`,
+        savedVat: (text: string) => `VAT code set to ${text}`,
+        /** Announced when the VAT code is cleared (AC-3.3). */
+        savedVatNone: 'VAT code cleared',
+        /** The VAT amount fact of a line with no VAT code (AC-3.8): there is none to show. */
+        vatAmountNone: 'No VAT code, so no VAT amount.',
+        saveError: 'Could not change the classification. Try again.',
+        forbidden: "You don't have permission to change this classification.",
+        accountInactive: 'That account was deactivated. Choose another.',
+        vatInactive: 'That VAT code was deactivated. Choose another.',
+        locked: 'Locked: its batch has been paid.',
+        readOnly: 'You can view the classification but not change it.',
+        selfRestricted: "You can't classify your own request. Someone else has to do it.",
+        outOfScope: 'Not shown: this line is outside your entity scope. Ask a colleague with WellD CH access.',
+        lineOutOfScope: "This line is outside your entity scope, so you can't change it.",
+        loading: 'Loading classification…',
+        loadError: 'Could not load the classification.',
+        unavailable404: 'The classification is not available for this request.',
+        lockedGuardrail: {
+          title: 'This line is locked',
+          message: 'Its batch has been paid, so the classification can no longer change.',
+        },
+        missingSummary: {
+          /** Account-only (AC-3.4, AC-3.11): approval needs an account, never a VAT code. */
+          titleAccounts: (n: number) =>
+            n === 1
+              ? 'Nothing was approved. 1 line needs an account.'
+              : `Nothing was approved. ${n} lines need an account.`,
+          hintAccounts: 'Choose an account for each line, then approve again.',
+          /** SG-3: lines outside the approver's entity scope (A-1) are not accounts this person can supply. */
+          titleOutOfScope: (n: number) =>
+            n === 1
+              ? 'Nothing was approved. 1 line needs a colleague with WellD CH access.'
+              : `Nothing was approved. ${n} lines need a colleague with WellD CH access.`,
+          hintOutOfScope: 'Ask a colleague with WellD CH access to choose their accounts, then approve again.',
+          /** Appended to `hintAccounts` when a refusal names both kinds of line. */
+          alsoOutOfScope: (n: number) =>
+            n === 1
+              ? '1 other line needs a colleague with WellD CH access.'
+              : `${n} other lines need a colleague with WellD CH access.`,
+          account: (line: string) => `${line}: choose an account`,
+          outOfScope: (line: string) => `${line}: needs a colleague with WellD CH access`,
+        },
+        releasePending:
+          'Approvals are not available yet: the accounting setup has not been completed. Ask an administrator.',
+        /** specs/20261119-accounting RS4: Accounting cannot be read (AC-6.5, UX-19). */
+        accountingUnavailablePage: {
+          title: 'Accounting cannot be read now',
+          body: 'Each line is shown as recorded. Classification cannot be changed until Accounting can be read.',
+        },
+        accountingUnavailableLine: 'Accounting cannot be read now, so this classification cannot be changed.',
+        defaultRecorded: 'Default (as recorded)',
+        notFoundOption: (text: string) => `${text} (not in Accounting)`,
+        notFoundCurrentAccount: 'This account is no longer in Accounting. The line keeps it; choose another to change it.',
+        notFoundCurrentVat: 'This VAT code is no longer in Accounting. The line keeps it; choose another to change it.',
+        /** `what` is "account": only an account can be a default (SO-2). */
+        defaultWhat: { account: 'account' },
+        defaultDeactivated: (what: string) => `The default ${what} for this type is deactivated in Accounting. Choose one.`,
+        defaultNotFound: (what: string) => `The default ${what} for this type is no longer in Accounting. Choose one.`,
+        /** The rate fact before approval (UX-20): approval is not refused for a missing rate. */
+        rateNotYet: 'No rate yet',
+        rateNotYetHelp: (currency: string, month: string) =>
+          `No ${currency} rate for ${month} yet. You can still approve: the rate is copied at the first export.`,
+        /** The rate fact after approval, with no copied rate (AC-5.6). */
+        ratePending: 'Rate pending',
+        ratePendingHelp: (currency: string, month: string) =>
+          `No ${currency} rate for ${month} yet. It is copied at the first accounting export of the batch.`,
+        frozen: 'Account, VAT code and rate are kept as booked. Later changes in Accounting do not change this line.',
+        askManager: 'Ask an accounting manager to enter or fetch it.',
+        accountUnknown: 'That account is no longer in Accounting. Choose another.',
+        vatUnknown: 'That VAT code is no longer in Accounting. Choose another.',
+      },
     },
     notFound: {
       heading: 'Page not found',
@@ -590,6 +804,71 @@ const en = {
         confirmation: (count: number) => `Batch discarded — ${count} request${count === 1 ? '' : 's'} released`,
         genericError: 'Could not discard this batch. Try again.',
       },
+      /** Receipt numbers under a batch request row (design S9). `list` is the numbers, joined by the page. */
+      receiptNumbers: (list: string) => `Receipts ${list}`,
+      /** The accounting export card (design S10). */
+      accountingExport: {
+        title: 'Accounting export',
+        /** The XLSX journal export (SO-6 to SO-12): one row per approved WellD CH line, an Excel file. */
+        descriptionExcel:
+          'One row per approved WellD CH expense line, with account and CHF amount, as an Excel file. VAT is not part of the file.',
+        loading: 'Checking the export…',
+        loadError: 'Could not check the export.',
+        rows: (n: number) => (n === 1 ? '1 row will be exported.' : `${n} rows will be exported.`),
+        headerOnly:
+          'There are no approved WellD CH lines in this batch. The file will contain only the header row.',
+        excluded: (n: number) =>
+          n === 1
+            ? '1 WellD Italia line is left out: the export covers WellD CH only.'
+            : `${n} WellD Italia lines are left out: the export covers WellD CH only.`,
+        downloadExcel: 'Download Excel file',
+        downloading: 'Preparing file…',
+        downloadLabel: (batchId: string) => `Download the accounting export of batch ${batchId}`,
+        downloaded: (n: number) => `Export downloaded: ${n} rows`,
+        /** Lines whose exchange rate is copied at this export (AC-5.6, UX-22). */
+        pending: (n: number) =>
+          n === 1
+            ? '1 line gets its exchange rate at this export.'
+            : `${n} lines get their exchange rate at this export.`,
+        blocked: {
+          title: 'The export is blocked',
+          /** AC-6.6: its own heading inside the blocked banner, never a missing rate. */
+          unavailableTitle: 'Accounting cannot be read',
+          unavailableBody:
+            'The exchange rates of lines with a pending rate cannot be fetched. You can still pay or discard this batch. Check again in a few minutes.',
+          /** Why a rate is missing (G7), after the currency and month. */
+          rateReason: {
+            notPublished: 'not published yet',
+            fetchFailed: 'the official source did not answer',
+            noSource: 'no official source',
+          },
+          intro:
+            'The file cannot be produced until the items below are resolved. You can still pay or discard this batch.',
+          reason: 'The export is blocked. See the items above.',
+          missingRates: 'Missing exchange rates',
+          rateItem: (currency: string, month: string) => `${currency} · ${month}`,
+          /** A missing rate with the reason the answer carries (G7): `reason` is one of `rateReason`. */
+          rateItemReason: (currency: string, month: string, reason: string) => `${currency} · ${month} — ${reason}`,
+          fetchTried: 'Accounting just tried to fetch the missing rates from the official source.',
+          unclassifiedAccounts: 'Lines without an account',
+          unclassifiedItem: (employee: string, receipt: string, missing: string) =>
+            `${employee} · ${receipt}: no ${missing}`,
+          missingWhat: { account: 'account' },
+          openRequest: 'Open request',
+          unnumbered: 'Lines without a receipt number',
+          unnumberedBody: 'Contact an administrator.',
+          checkAgain: 'Check again',
+          recheckReady: (n: number) =>
+            n === 0
+              ? 'The export is ready: the file will contain only the header row.'
+              : `The export is ready: ${n === 1 ? '1 row' : `${n} rows`}.`,
+          recheckBlocked: (n: number) => `Still blocked: ${n === 1 ? '1 item' : `${n} items`}.`,
+          turnedBlocked: 'The export became blocked while you were downloading. See the items below.',
+        },
+        downloadError: 'No file was produced. Try again.',
+        denied: 'The accounting export is available to reviewers with WellD CH access.',
+        discardedAnnouncement: 'This batch has been discarded; the export is no longer available.',
+      },
     },
   },
   components: {
@@ -656,9 +935,8 @@ const en = {
     /** `BatchEmployeeGroupList` (T10, specs/20260719-refund-monthly-processing/tasks.md) — modes `preview`|`detail`. */
     batchEmployeeGroupList: {
       requestCountLabel: (count: number) => `${count} request${count === 1 ? '' : 's'}`,
-      /** `detail` mode only — each request row's link, disambiguating a list of otherwise-identical controls (design.md Accessibility). */
-      openRequestLabel: (employeeName: string, status: string, amount: string) =>
-        `Open ${employeeName}’s request, ${status}, ${amount}`,
+      /** `detail` mode only — the visually hidden start of each request row's link, disambiguating a list of otherwise-identical controls (design.md Accessibility); the visible status, amount and receipts follow it. */
+      openRequestPrefix: (employeeName: string) => `Open ${employeeName}’s request: `,
     },
     /** `BatchPdfLink` (T10, specs/20260719-refund-monthly-processing/tasks.md) — mirrors `attachmentList`'s download states, scoped to a batch's compiled PDF. */
     /**
@@ -670,7 +948,7 @@ const en = {
      */
     requestExportLink: {
       buttonLabel: 'Export PDF',
-      downloadLabel: (reference: string) => `Export request ${reference} as an archive PDF, including all receipts`,
+      downloadLabel: (reference: string) => `Export PDF of request ${reference}, an archive including all receipts`,
       exporting: 'Preparing…',
       genericError: 'Could not export this request. Try again.',
       tooLargeError: 'This request’s receipts are too large to export in one PDF. Ask an administrator.',
@@ -826,6 +1104,16 @@ const it: Strings = {
     monthlyProcessing: 'Elaborazione mensile',
     settings: 'Impostazioni',
   },
+  accountingUnavailable: {
+    cause: 'I dati di riferimento di Contabilità non sono leggibili in questo momento.',
+    approve:
+      'I dati di riferimento di Contabilità non sono leggibili in questo momento. Non è stato approvato nulla. Riprovare tra qualche minuto.',
+    classify:
+      'I dati di riferimento di Contabilità non sono leggibili in questo momento. Non è stata modificata la classificazione. Riprovare tra qualche minuto.',
+    save: 'I dati di riferimento di Contabilità non sono leggibili in questo momento. Non è stato salvato nulla. Riprovare tra qualche minuto.',
+    options:
+      'I dati di riferimento di Contabilità non sono leggibili in questo momento, quindi non ci sono voci tra cui scegliere. Riprovare tra qualche minuto.',
+  },
   settings: {
     heading: 'Impostazioni',
     description: 'La tariffa chilometrica di ogni società e l’indirizzo che riceve il lotto mensile.',
@@ -881,6 +1169,89 @@ const it: Strings = {
       historyItem: (value: string, by: string, at: string) => `${value} — ${by} — ${at}`,
     },
     dismiss: 'Chiudi',
+    descriptionAll: 'Le tariffe chilometriche e la classificazione predefinita dei tipi di spesa.',
+    sections: {
+      label: 'Sezioni delle impostazioni',
+      general: 'Generale',
+      defaults: 'Classificazione predefinita',
+    },
+    accountingLink: {
+      withAccess: 'I conti contabili, i codici IVA e i tassi di cambio sono tenuti nell’app Contabilità.',
+      linkText: 'Apri Contabilità',
+      linkLabel: 'Apri Contabilità: conti contabili, codici IVA e tassi di cambio',
+      withoutAccess:
+        'I conti contabili, i codici IVA e i tassi di cambio sono tenuti nell’app Contabilità dai responsabili della contabilità. Se manca una voce, rivolgersi a uno di loro.',
+    },
+    catalog: {
+      forbidden: 'Non si dispone dei permessi per questa operazione.',
+      genericError: 'Impossibile salvare. Riprovare.',
+      cancel: 'Annulla',
+      none: 'Nessuno',
+    },
+    history: {
+      title: (subject: string) => `Cronologia — ${subject}`,
+      description: 'Tutte le modifiche, dalla più recente.',
+      empty: 'Ancora nessuna modifica registrata.',
+      columns: { when: 'Quando', by: 'Da', account: 'Conto' },
+      open: 'Cronologia',
+      openLabel: (subject: string) => `Mostra la cronologia di ${subject}`,
+      closeLabel: 'Chiudi la cronologia',
+    },
+    defaults: {
+      title: 'Classificazione predefinita',
+      descriptionAccountOnly:
+        'Il conto assegnato a ogni tipo di spesa in WellD CH. La contabilità può cambiarlo riga per riga. Dove un tipo non ha un predefinito, la contabilità deve sceglierlo su ogni riga prima di approvare.',
+      caption: 'Classificazione predefinita per tipo di spesa',
+      loading: 'Caricamento della classificazione predefinita…',
+      loadError: 'Impossibile caricare la classificazione predefinita.',
+      columns: {
+        type: 'Tipo di spesa',
+        account: 'Conto predefinito',
+        changed: 'Ultima modifica',
+        actions: 'Azioni',
+      },
+      notSet: 'Mai impostato',
+      state: {
+        deactivated: 'Disattivato in Contabilità',
+        notFound: 'Non trovato in Contabilità',
+      },
+      needsChoice: (n: number) =>
+        n === 1
+          ? '1 predefinito richiede una nuova scelta: la sua voce è disattivata o non più presente in Contabilità. Le righe di quel tipo non hanno un predefinito finché non se ne sceglie un altro.'
+          : `${n} predefiniti richiedono una nuova scelta: la loro voce è disattivata o non più presente in Contabilità. Le righe di quei tipi non hanno un predefinito finché non se ne sceglie un altro.`,
+      needsChoiceLabel: 'Predefiniti che richiedono una nuova scelta',
+      unavailable: {
+        title: 'Contabilità non è leggibile in questo momento',
+        body: 'I predefiniti sono mostrati come registrati. Non si possono modificare finché Contabilità non è leggibile.',
+      },
+      changeBlocked: 'Contabilità non è leggibile in questo momento: i predefiniti non si possono modificare.',
+      recovered: 'Contabilità è di nuovo leggibile.',
+      stillUnavailable: 'Contabilità non è ancora leggibile.',
+      changedBy: (by: string, on: string) => `${by} · ${on}`,
+      change: 'Modifica',
+      changeLabel: (type: string) => `Modifica il predefinito di ${type}`,
+      historyLabel: (type: string) => `Mostra la cronologia del predefinito di ${type}`,
+      dialog: {
+        title: (type: string) => `Classificazione predefinita — ${type}`,
+        description: 'Vale per le righe esaminate da ora in poi. Le righe già approvate mantengono quanto hanno.',
+        account: 'Conto predefinito',
+        noneOption: 'Nessuno (nessun predefinito)',
+        chooseOption: 'Scegliere…',
+        inactiveCurrent: (what: string) =>
+          `Il valore attuale (${what}) è disattivato. Sceglierne un altro, oppure nessuno.`,
+        inactiveSentence: 'Le righe di questo tipo non hanno un predefinito finché non se ne sceglie un altro.',
+        notFoundCurrent: (what: string) =>
+          `Il valore attuale (${what}) non è più presente in Contabilità. Sceglierne un altro, oppure nessuno.`,
+        tryAgain: 'Riprova',
+        save: 'Salva',
+        busy: 'Salvataggio…',
+      },
+      saved: (type: string) => `Predefinito salvato per ${type}`,
+      errors: {
+        accountInactive: 'Questo conto è stato disattivato. Sceglierne un altro.',
+        accountNotFound: 'Questo conto non è più presente in Contabilità. Sceglierne un altro.',
+      },
+    },
   },
   pages: {
     myRequests: {
@@ -922,6 +1293,8 @@ const it: Strings = {
         typePlaceholder: 'Selezionare un tipo…',
         motivoLabel: 'Motivo',
         amountLabel: 'Importo richiesto',
+        splitReceiptHint:
+          'Una sola aliquota IVA per riga: se uno scontrino contiene articoli con aliquote diverse (per esempio 8,1 % e 2,6 % al supermercato), inserisci una riga per aliquota.',
         entityLabel: 'Società',
         entityPlaceholder: 'Selezionare una società…',
         currencyLabel: 'Valuta',
@@ -978,6 +1351,7 @@ const it: Strings = {
         rejectedBadge: 'Spesa rifiutata',
         rejectionReasonLabel: 'Motivo del rifiuto',
         mileageBlockedAmount: '—',
+        receiptNumberLabel: 'Numero ricevuta',
       },
       totalsHeading: 'Totali',
       submit: {
@@ -1120,6 +1494,104 @@ const it: Strings = {
       paid: {
         paidLine: (date: string, email: string) => `Pagata il ${date} da ${email}`,
       },
+      classification: {
+        legend: 'Classificazione',
+        groupLabel: (line: string) => `Classificazione per ${line}`,
+        account: 'Conto',
+        vatCode: 'Codice IVA',
+        chooseAccount: 'Scegliere un conto',
+        accountOption: (number: string, name: string) => `${number} — ${name}`,
+        vatOption: (code: string, label: string, rate: string) => `${code} — ${label} (${rate})`,
+        vatOptionNoLabel: (code: string, rate: string) => `${code} (${rate})`,
+        inactiveOption: (text: string) => `${text} (disattivato)`,
+        defaultMarker: 'Predefinito',
+        handMarker: 'Impostato a mano',
+        required: 'Obbligatorio per approvare.',
+        missingAccount: 'Scegliere un conto.',
+        vatNone: 'Nessuno',
+        inactiveCurrentAccount:
+          'Questo conto è disattivato in Contabilità. La riga lo mantiene; sceglierne uno attivo per cambiarlo.',
+        inactiveCurrentVat:
+          'Questo codice IVA è disattivato in Contabilità. La riga lo mantiene; sceglierne uno attivo per cambiarlo.',
+        rate: 'Tasso di cambio',
+        rateValue: (rate: string, month: string) => `${rate} · ${month}`,
+        openRates: 'Apri i tassi di cambio',
+        chfAmount: 'Importo in CHF',
+        vatAmount: 'Importo IVA',
+        vatAmountValue: (amount: string, rate: string) => `${amount} (${rate})`,
+        unavailable: '—',
+        follows:
+          'Gli importi seguono il totale approvato e il tasso di cambio attuali. Si fissano quando la richiesta viene approvata.',
+        saving: 'Salvataggio…',
+        savedAccount: (text: string) => `Conto impostato su ${text}`,
+        savedVat: (text: string) => `Codice IVA impostato su ${text}`,
+        savedVatNone: 'Codice IVA rimosso',
+        vatAmountNone: 'Nessun codice IVA, quindi nessun importo IVA.',
+        saveError: 'Impossibile modificare la classificazione. Riprovare.',
+        forbidden: 'Non si dispone dei permessi per modificare questa classificazione.',
+        accountInactive: 'Questo conto è stato disattivato. Sceglierne un altro.',
+        vatInactive: 'Questo codice IVA è stato disattivato. Sceglierne un altro.',
+        locked: 'Bloccata: il lotto è stato pagato.',
+        readOnly: 'È possibile vedere la classificazione ma non modificarla.',
+        selfRestricted: "Non è possibile classificare la propria richiesta. Deve farlo un'altra persona.",
+        outOfScope: 'Non visibile: questa riga è fuori dal proprio ambito di entità. Rivolgersi a un collega con accesso a WellD CH.',
+        lineOutOfScope: 'Questa riga è fuori dal proprio ambito di entità: non è possibile modificarla.',
+        loading: 'Caricamento della classificazione…',
+        loadError: 'Impossibile caricare la classificazione.',
+        unavailable404: 'La classificazione non è disponibile per questa richiesta.',
+        lockedGuardrail: {
+          title: 'Questa riga è bloccata',
+          message: 'Il suo lotto è stato pagato: la classificazione non può più cambiare.',
+        },
+        missingSummary: {
+          titleAccounts: (n: number) =>
+            n === 1
+              ? 'Non è stato approvato nulla. 1 riga richiede un conto.'
+              : `Non è stato approvato nulla. ${n} righe richiedono un conto.`,
+          hintAccounts: 'Scegliere un conto per ogni riga, poi approvare di nuovo.',
+          titleOutOfScope: (n: number) =>
+            n === 1
+              ? 'Non è stato approvato nulla. 1 riga richiede un collega con accesso a WellD CH.'
+              : `Non è stato approvato nulla. ${n} righe richiedono un collega con accesso a WellD CH.`,
+          hintOutOfScope: 'Chiedere a un collega con accesso a WellD CH di scegliere i loro conti, poi approvare di nuovo.',
+          alsoOutOfScope: (n: number) =>
+            n === 1
+              ? '1 altra riga richiede un collega con accesso a WellD CH.'
+              : `${n} altre righe richiedono un collega con accesso a WellD CH.`,
+          account: (line: string) => `${line}: scegliere un conto`,
+          outOfScope: (line: string) => `${line}: serve un collega con accesso a WellD CH`,
+        },
+        releasePending:
+          'Le approvazioni non sono ancora disponibili: la configurazione contabile non è stata completata. Rivolgersi a un amministratore.',
+        accountingUnavailablePage: {
+          title: 'Contabilità non è leggibile in questo momento',
+          body: 'Ogni riga è mostrata come registrata. La classificazione non si può modificare finché Contabilità non è leggibile.',
+        },
+        accountingUnavailableLine:
+          'Contabilità non è leggibile in questo momento: questa classificazione non si può modificare.',
+        defaultRecorded: 'Predefinito (come registrato)',
+        notFoundOption: (text: string) => `${text} (non presente in Contabilità)`,
+        notFoundCurrentAccount:
+          'Questo conto non è più presente in Contabilità. La riga lo mantiene; sceglierne un altro per cambiarlo.',
+        notFoundCurrentVat:
+          'Questo codice IVA non è più presente in Contabilità. La riga lo mantiene; sceglierne un altro per cambiarlo.',
+        defaultWhat: { account: 'conto' },
+        defaultDeactivated: (what: string) =>
+          `Il ${what} predefinito di questo tipo è disattivato in Contabilità. Sceglierne uno.`,
+        defaultNotFound: (what: string) =>
+          `Il ${what} predefinito di questo tipo non è più presente in Contabilità. Sceglierne uno.`,
+        rateNotYet: 'Ancora nessun tasso',
+        rateNotYetHelp: (currency: string, month: string) =>
+          `Ancora nessun tasso ${currency} per ${month}. Si può comunque approvare: il tasso viene copiato alla prima esportazione.`,
+        ratePending: 'Tasso in attesa',
+        ratePendingHelp: (currency: string, month: string) =>
+          `Ancora nessun tasso ${currency} per ${month}. Viene copiato alla prima esportazione contabile del lotto.`,
+        frozen:
+          'Conto, codice IVA e tasso restano come registrati. Le modifiche successive in Contabilità non cambiano questa riga.',
+        askManager: 'Chiedere a un responsabile della contabilità di inserirlo o recuperarlo.',
+        accountUnknown: 'Questo conto non è più presente in Contabilità. Sceglierne un altro.',
+        vatUnknown: 'Questo codice IVA non è più presente in Contabilità. Sceglierne un altro.',
+      },
     },
     notFound: {
       heading: 'Pagina non trovata',
@@ -1221,6 +1693,64 @@ const it: Strings = {
           `Lotto annullato: ${count} ${plural(count, 'richiesta rilasciata', 'richieste rilasciate')}`,
         genericError: 'Impossibile annullare il lotto. Riprovare.',
       },
+      receiptNumbers: (list: string) => `Ricevute ${list}`,
+      accountingExport: {
+        title: 'Esportazione contabile',
+        descriptionExcel:
+          'Una riga per ogni spesa WellD CH approvata, con conto e importo in CHF, in un file Excel. L’IVA non fa parte del file.',
+        loading: 'Verifica dell’esportazione…',
+        loadError: 'Impossibile verificare l’esportazione.',
+        rows: (n: number) => (n === 1 ? 'Verrà esportata 1 riga.' : `Verranno esportate ${n} righe.`),
+        headerOnly:
+          'Nel lotto non ci sono righe WellD CH approvate. Il file conterrà solo la riga di intestazione.',
+        excluded: (n: number) =>
+          n === 1
+            ? '1 riga WellD Italia è esclusa: l’esportazione riguarda solo WellD CH.'
+            : `${n} righe WellD Italia sono escluse: l’esportazione riguarda solo WellD CH.`,
+        downloadExcel: 'Scarica file Excel',
+        downloading: 'Preparazione del file…',
+        downloadLabel: (batchId: string) => `Scarica l’esportazione contabile del lotto ${batchId}`,
+        downloaded: (n: number) => `Esportazione scaricata: ${n} righe`,
+        pending: (n: number) =>
+          n === 1
+            ? '1 riga riceve il tasso di cambio con questa esportazione.'
+            : `${n} righe ricevono il tasso di cambio con questa esportazione.`,
+        blocked: {
+          title: 'L’esportazione è bloccata',
+          unavailableTitle: 'Contabilità non è leggibile',
+          unavailableBody:
+            'I tassi di cambio delle righe con tasso in attesa non si possono recuperare. Il lotto può comunque essere pagato o scartato. Verificare di nuovo tra qualche minuto.',
+          rateReason: {
+            notPublished: 'non ancora pubblicato',
+            fetchFailed: 'la fonte ufficiale non ha risposto',
+            noSource: 'nessuna fonte ufficiale',
+          },
+          intro:
+            'Il file non può essere prodotto finché le voci seguenti non sono risolte. Il lotto può comunque essere pagato o scartato.',
+          reason: 'L’esportazione è bloccata. Vedere le voci qui sopra.',
+          missingRates: 'Tassi di cambio mancanti',
+          rateItem: (currency: string, month: string) => `${currency} · ${month}`,
+          rateItemReason: (currency: string, month: string, reason: string) => `${currency} · ${month} — ${reason}`,
+          fetchTried: 'Contabilità ha appena provato a recuperare i tassi mancanti dalla fonte ufficiale.',
+          unclassifiedAccounts: 'Righe senza conto',
+          unclassifiedItem: (employee: string, receipt: string, missing: string) =>
+            `${employee} · ${receipt}: manca ${missing}`,
+          missingWhat: { account: 'il conto' },
+          openRequest: 'Apri richiesta',
+          unnumbered: 'Righe senza numero di ricevuta',
+          unnumberedBody: 'Rivolgersi a un amministratore.',
+          checkAgain: 'Verifica di nuovo',
+          recheckReady: (n: number) =>
+            n === 0
+              ? "L'esportazione è pronta: il file conterrà solo la riga di intestazione."
+              : `L'esportazione è pronta: ${n === 1 ? '1 riga' : `${n} righe`}.`,
+          recheckBlocked: (n: number) => `Ancora bloccata: ${n === 1 ? '1 elemento' : `${n} elementi`}.`,
+          turnedBlocked: 'L’esportazione si è bloccata durante il download. Vedere le voci seguenti.',
+        },
+        downloadError: 'Nessun file è stato prodotto. Riprovare.',
+        denied: 'L’esportazione contabile è disponibile ai revisori con accesso a WellD CH.',
+        discardedAnnouncement: 'Questo lotto è stato scartato: l’esportazione non è più disponibile.',
+      },
     },
   },
   components: {
@@ -1279,13 +1809,12 @@ const it: Strings = {
     },
     batchEmployeeGroupList: {
       requestCountLabel: (count: number) => `${count} ${plural(count, 'richiesta', 'richieste')}`,
-      openRequestLabel: (employeeName: string, status: string, amount: string) =>
-        `Apri la richiesta di ${employeeName}, ${status}, ${amount}`,
+      openRequestPrefix: (employeeName: string) => `Apri la richiesta di ${employeeName}: `,
     },
     requestExportLink: {
       buttonLabel: 'Esporta PDF',
       downloadLabel: (reference: string) =>
-        `Esporta la richiesta ${reference} in un PDF d’archivio, con tutte le ricevute`,
+        `Esporta PDF della richiesta ${reference}, un archivio con tutte le ricevute`,
       exporting: 'Preparazione…',
       genericError: 'Impossibile esportare la richiesta. Riprovare.',
       tooLargeError:

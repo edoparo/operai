@@ -1,0 +1,185 @@
+# 20261118 — Accounting classification is live until approval and frozen at approval, changing it afterwards needs its own permission `request:reclassify`, and the database refuses it once the request is paid
+
+**Date:** 2026-11-18  
+**Status:** Accepted — approved plan of specs/20261118-refund-accounting-export (approved 2026-11-18 under the owner's pre-authorisation of an unattended run; review on the owner's return); decisions D4, D5, D11 and D12 of the plan. Plan ADR candidate 3. Who holds `request:reclassify` (spec open question 5) is a role edit, not a code change.  
+**Deciders:** Matteo Codogno (product owner), by pre-authorisation of the unattended run; the architect proposed it in the plan  
+**Project:** operai  
+**Relates to:** ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition (snapshot at a lifecycle transition), ADR 20260716-entity-scoped-abac-refund-api (`requestInScope`), ADR 20260721-self-approval-condition-and-403-exception (unchanged), ADR 20260716-immutable-financial-audit-trail-refund (the audit trail the new actions ride), ADR 20261118-receipt-numbers-come-from-a-row-locked-per-employee-and-year-counter-inside-the-approval-transaction-and-are-immutable-in-the-database (numbered in the same transaction).
+
+---
+
+## Context
+
+Each WellD CH expense line must be booked to a **ledger account** and a **VAT code** (AC-3.1 to AC-3.10). An expense type has a default of each, configured by an admin and changeable at any time (AC-2.1 to AC-2.4); a non-CHF line takes the one designated **foreign-currency VAT code** instead of the type's own (AC-3.2); accounting can override either on a line. Three timing questions follow. What does a reviewer see while a request is `submitted`, if an admin changes a default during the review? What exactly is booked once the request is approved, if the default changes afterwards (AC-3.5, AC-2.3)? And who may change a booking after approval, up to which point (AC-3.6, AC-3.7)? Open question 5 left the post-approval permission undecided. In addition, the employee who owns the request opens the same request page as the reviewer, and AC-3.10 says the employee must never see the account, VAT or CHF figures.
+
+## Decision
+
+We will resolve a line's classification **live** (override, else default) until approval, **freeze** it for every non-rejected WellD CH line in the approval transaction, allow later changes only through a separate action `request:reclassify` while the request is `approved` and not `paid`, refuse them when paid in the application and in the database, and serve accounting data only through its own endpoint.
+
+1. **One function.** `resolveClassification(line, overrides, defaults, foreignVatCodeId)` in `classification.ts` (pure) is used by the review view, the approve freeze, the release backfill and the export blockers. *(Signature as built, noted 2026-11-20: `resolveClassification(line, defaults, snapshot)`, with the line's stored copies, Refund's recorded default accounts and one snapshot of Accounting; see the two 2026-11-19 amendments below for the semantics.)* A default or the designation that points at an **inactive** entry resolves to **none**. A line shows or books only active entries; a frozen reference to a since-deactivated entry stays on the line.
+2. **Live before approval.** On `submitted`, `ledgerAccountId`/`vatCodeId` on the line are overrides; `null` means "follow the current default". A change goes through `PUT /review/requests/{id}/lines/{lineId}/classification` under `request:set-approved-total`, stores the override and writes `line_classified` (cause `review`). The body takes entry ids only. There is no "back to default" (`null`) on any status: such a body is refused by validation with 422 (plan G8).
+3. **Frozen at approval.** In the existing approval transaction, after the release gate and before numbering: resolve every non-rejected WellD CH line; if any lacks an account or a VAT code, throw `classification_missing` (409 with the list of lines; nothing changes); otherwise write the account, the VAT code and both `*IsDefault` flags onto the line and write `line_classified` (cause `approval`) (AC-3.5). WellD Italia lines have no classification (AC-3.9).
+4. **After approval, a separate permission.** `request:reclassify` is required while the request is `approved`, whether or not it is in a `compiled` batch (cause `post_approval`). It is new in `auth`'s refund catalog, with `supportedConditions: ["entity", "self-approval"]`, and the seed grants it with **the same conditions object as the role's `approve` grant**. It never touches `approvedTotalCents`, `status` or `decided*` (AC-3.6). A line missing a value cannot be approved (409 `classification_missing`, point 3); there is no separate refusal code for clearing a value, because the body cannot carry `null`. *Amended 2026-11-19 (security review S-01/S-02, fix round 1; plan SR-1, SR-2, FR-1 to FR-4):*
+   - **Line-level scope.** The caller's scope for the gating grant must cover the line's own entity: `request:review` for the view, `set-approved-total` while submitted, `reclassify` once approved. Global, or equal to `line.entity`. Otherwise the PUT answers 404, even for a WellD Italia line where a global caller gets 422 `line_not_welld_ch`. In the view, the line has `inScope: false` and `classification`/`chf`/`vatAmountCents` null. `GET /accounting/options` needs a review scope covering `welld_ch`.
+   - **Segregation of duties.** The owner of the request is refused with 403 `self_approval_forbidden`, before the scope 404s:
+     - while submitted, when their `approve` grant is self-restricted;
+     - after approval, when **either** their `reclassify` **or** their `approve` grant is self-restricted.
+
+     The view reports `selfRestricted`. `set-approved-total` itself stays unconditioned (specs/20260721-self-approval-control D3).
+   - **The seed never rewrites an existing `reclassify` rule.** A restriction later added to `approve` must be mirrored on `reclassify` by an admin. Until then, refund-api still refuses the owner through the either-grant rule (fail closed).
+5. **Locked when paid.** `409 classification_locked` at the application, and the trigger `refund_line_accounting_guard` raises on a change to `ledgerAccountId`, `vatCodeId` or the `*IsDefault` flags when the parent request's `status = 'paid'` **and the line already has a receipt number** (AC-3.7). *Amended 2026-11-19 (implementation, T1, commit 352c6747):*
+   - **Why the condition.** The release backfill must classify legacy lines of requests that were paid before this feature. It writes the classification before, or together with, the number. After the release, every non-rejected line is numbered in the same approval transaction that freezes its classification, so every post-release paid line is locked.
+   - **What stays unlocked at the database.** Pre-release WellD Italia lines (never numbered) and rejected lines. The application never classifies either, and the export excludes both.
+   - **Consequence (from the spec, not from the condition).** A legacy WellD CH line of a paid request that the release leaves unclassified is numbered and then locked for good, so its old batch cannot be exported. The release dry-run lists these lines (plan IS-1).
+6. **Decide on the locked status.** The PUT runs in one transaction that locks the request row with `SELECT … FOR UPDATE` and chooses the required permission from the **locked** status. Approve and mark-paid already update that row, so they serialise with it (R7).
+7. **Withdraw clears the overrides.** Withdraw-to-draft clears the line overrides, one `line_classified` row per line (cause `withdrawn`), so a changed expense type does not keep a stale override (D12).
+8. **Accounting never travels with the employee's view.** `GET /requests/{id}` gains only `receiptNumber`. Account, VAT and CHF come from `GET /review/requests/{id}/accounting`, gated by `request:review` and the entity scope (request-level, then line-level, point 4), and 404 for anyone else. A test asserts the exact key set of the owner's line JSON (AC-3.10, R8).
+9. **Before approval the amounts shown** use `approvedTotalCents ?? requestedAmountCents`, the figure approval will keep for an untouched line (D11).
+
+## Failure shape
+
+**A fact that must be settled at one moment is kept as a live reference, so a later change of configuration rewrites what was already decided; or the reverse, it is settled too early and the person deciding cannot see what will be true.** Related defects travel with it: the permission to change a settled fact is checked against a status read *before* the status is fixed (a check-then-act race: the rule that applied when the request was read is not the rule that applies when the write lands); the same resolution rule re-implemented in three places that then disagree; and data meant for one role shipped inside a response shared with another, protected only by a condition someone can forget.
+
+Where else this shape can appear, including the mirror-image positions:
+
+- **Set and clear.** Freezing must be answered on the way back too: withdrawing a request must clear what was set for review; a frozen value can only be replaced by another active entry, never cleared (the route accepts no `null`), so "clear" is never interpreted.
+- **Default changes and entry deactivation.** A change of the live default, a deactivated referenced entry, and a reactivated one are three different events; only the first two leave frozen records untouched by design, and "inactive" must mean "none" on the way in and "unchanged" on the way out.
+- **Approve and pay.** Any transition that makes a record immutable (paid, closed, exported) needs the lock at the database, because every route that writes it will not be written by the same author.
+- **Review and post-approval.** Two phases with two permissions on the same field are a status-dependent gate; the status must be read under the lock that the transition takes.
+- **Read and write visibility.** A field hidden on a read must also be absent from every write response and event that echoes the record; a role that can both own and review a record must still get the owner's shape on the owner's route.
+- **Snapshot and recompute.** Any value derived later from frozen references (the CHF and VAT amounts) must read the frozen reference, not re-resolve the current default.
+
+## Options considered
+
+### Option A — Live before approval, frozen at approval, a separate permission afterwards, trigger at paid (chosen)
+
+Described above.
+
+**Pros:**
+- The reviewer always sees the defaults that would apply now, and the approved record states exactly what was booked
+- A default change never rewrites an approved line (AC-2.3, AC-3.5)
+- Restricting post-approval changes later is a role edit in admin-ui, with no deploy (open question 5)
+- One resolution function, so the view, the freeze, the backfill and the export blockers cannot disagree
+- The employee's response has no accounting fields by construction
+
+**Cons:**
+- A new action in `auth`'s catalog: auth must be deployed first (R13), until then post-approval reclassification is 403 (fail closed)
+- Two phases to explain and to test (`review`, `post_approval`, plus `locked`)
+- An extra trigger branch to keep in step with the application rule
+
+### Option B — Write the classification at submit (rejected)
+
+**Pros:**
+- Simplest read model
+
+**Cons:**
+- A default changed during review would be invisible to the reviewer; AC-3.5 puts "that moment" at approval
+
+### Option C — Never freeze; resolve the current default at export (rejected)
+
+**Pros:**
+- No stored classification, no reclassify route
+
+**Cons:**
+- A default change would rewrite approved lines and paid batches; breaks AC-2.3 and the books
+
+### Option D — Reuse `request:set-approved-total` after approval (rejected)
+
+**Pros:**
+- No new catalog entry
+
+**Cons:**
+- Couples "may adjust the amount" to "may rebook"; makes open question 5 a code change instead of a role edit
+
+### Option E — Application check only for paid, no trigger (rejected)
+
+**Pros:**
+- Less SQL
+
+**Cons:**
+- Every future write path to `refund_line` would have to remember the rule; the same defence in depth the suite uses for the audit trail (ADR 20260716-immutable-financial-audit-trail-refund)
+
+### Option F — Put accounting fields on `GET /requests/{id}` and hide them for the owner (rejected)
+
+**Pros:**
+- One endpoint
+
+**Cons:**
+- AC-3.10 would depend on a condition that could be forgotten; a person holding both the owner and the accounting role would see it
+
+## Evidence
+
+- Planned, not yet run (plan, Test strategy, AC-2.3, AC-2.7, AC-3.1 to AC-3.10): unit vectors for `resolveClassification` (designation unset, cleared, or pointing at a deactivated code gives VAT `null` for non-CHF lines, CHF lines unaffected); int tests that approve then change defaults leaves the frozen ids, an approved line (no batch, then compiled batch) is reclassified with `reclassify` (audit `post_approval`, money fields unchanged) and refused without it (403), a paid request answers 409 `classification_locked`, a missing default blocks approval and leaves no number or counter row, an Italia line is not classified and an Italia-only request still approves; a db test that a raw `UPDATE refund_line SET "vatCodeId"` on a paid request's line raises; a key-set assertion on the owner's line JSON in every status; a concurrency test for a PUT racing approve and mark-paid is not in the plan's table yet and should be added with the route (R7).
+
+## Consequences
+
+**Positive:**
+- What was booked is a fact on the line, with who changed it and why in the audit trail (`line_classified`, with `cause`)
+- Defaults can be tuned freely after go-live without touching history
+- Visibility of accounting data is a property of the response shape
+
+**Negative / trade-offs:**
+- Deactivating or changing a default does nothing for lines already approved; fixing those is an explicit per-line reclassification, unpaid only
+- A paid line's classification is permanent short of a reviewed migration
+
+**Risks:**
+- **Wrong seed or default frozen into legacy lines** (R1). Mitigation: the release script's `--dry-run` and the release gate; unpaid lines remain reclassifiable.
+- **Deploy order** (R13). Mitigation: auth first; fail closed until then.
+- **A PUT racing approve or mark-paid** (R7). Mitigation: the request row lock and the trigger.
+- **A future field added to `RefundLineResponse`** (R8). Mitigation: the exact-key-set test.
+
+## Amendment (2026-11-19) — the line holds copies by natural key, the options and the validation come from Accounting, and an Accounting outage refuses approval and classification
+
+Specs/20261119-accounting (plan amendment A3; decisions D1, D2, D10, D11, D12, D13, D15 and D16) takes the ledger accounts and VAT codes out of refund-api. What this ADR decides about *when* a classification is live, frozen, changeable and locked stays: one resolution function, live until approval, frozen in the approval transaction, `request:reclassify` afterwards, locked at the database once paid and numbered, the permission chosen on the locked status, the owner's view free of accounting data. What changes, to be read in place of the original wording:
+
+1. **Copies by natural key replace the foreign keys.** `ledgerAccountId` and `vatCodeId` on the line are replaced by copies: `accountNumber` and `accountName`, `vatCode` and `vatRateBasisPoints`. The two `*IsDefault` flags stay and mean the same. Wherever this ADR says an id is stored on the line (points 2, 3 and 5), read: the copy of the entry as it was when it was chosen. A hand classification before approval writes its copy at the PUT; approval writes the copy of a default taken from the Accounting snapshot (ADR 20261119-accounting-reference-data-belongs-to-accounting-api-which-consumers-read-live-with-no-copy-kept-across-requests-copy-by-natural-key-onto-what-they-book-and-refuse-to-act-when-they-cannot-read-it). The body of the PUT takes natural keys (`accountNumber`, `vatCode`), not ids, and an unknown, deactivated or foreign-entity key is refused with 422 (`ledger_account_inactive`, `ledger_account_not_found`, `vat_code_inactive`, `vat_code_not_found`).
+2. **Defaults are copies too.** The type defaults and the foreign-currency designation are stored in refund-api as append-only rows holding the copies and the actor, and are validated live against Accounting when written. `resolveClassification` keeps its rules (a stored copy wins; otherwise the default applies, and only when its entry is active) but takes copies and one snapshot instead of foreign-key rows. "Inactive" in point 1 of the Decision is now a state of the snapshot: `active`, `deactivated`, `not_found` (an environment re-entered without that number) or `unverified` (Accounting could not be read). Only `active` is usable; the other three resolve to none. A frozen copy of an entry that has since been deactivated or has disappeared stays on the line.
+3. **The options come from Accounting.** `GET /accounting/options` lists the active WellD CH entries read live; its gate is a review scope covering `welld_ch` or `settings:manage`.
+4. **An Accounting outage refuses.** Approval of a request with at least one non-rejected WellD CH line, classification, and a change of a default answer 503 `accounting_unavailable` with nothing written (a request with no such line never calls Accounting). The review view still answers 200, shows what the lines hold, marks defaults `unverified`, offers no options. In point 3 of the Decision, the resolution now reads Accounting **before** the transaction, as a superset of the request's WellD CH lines, so that no row lock is held across an HTTP call; the transaction resolves against that snapshot and still throws `classification_missing` (409, nothing changes) when a half is missing.
+5. **The guard is replaced and extended.** `refund_line_accounting_guard` is replaced by the migration of ADR 20261119-data-that-moves-from-one-service-to-another-before-the-release-moves-by-an-additive-migration-that-carries-what-the-source-keeps-and-drops-what-moved-and-an-applied-migration-is-never-edited: once the line has a receipt number and the request is `paid`, a change to the account copy, the VAT copy or the `*IsDefault` flags raises (the condition in point 5 of the Decision, and the legacy-line consequence, are unchanged); and the three rate-copy columns are **write-once whatever the status**: null to set is allowed (the pending copy at the first export, also for a paid batch), any change once set raises. A post-approval reclassification changes only the copy of the half that changed and never the rate copy.
+6. **Audit.** `line_classified` has a detail version 2 carrying the copies from and to, and, for `approval` and `release`, the rate copied or `"pending"`; readers accept version 1. A new action `line_rate_copied` records the export-time copy with the exporter.
+7. **Withdraw** keeps its behaviour (point 7 of the Decision): it clears the line's hand-made copies, which are what the overrides now are, one `line_classified` row per line with cause `withdrawn`.
+
+## Amendment (2026-11-19, accounting sign-off) — the VAT half has no default and is optional, only the ledger account is required and defaulted, and there is no foreign-currency designation
+
+The accounting sign-off of 2026-11-19 (spec amendment E2, AC-3.11 to AC-3.13, retired AC-2.5 to AC-2.7 and AC-3.2; specs/20261118-refund-accounting-export/plan.md § "Accounting sign-off delta (2026-11-19)", decisions SO-2 to SO-5, SO-15, SO-16; specs/20261119-accounting/plan.md SO-18 and SO-19) removes every default of a VAT code. When each part of a classification is live, frozen, changeable and locked stays: one resolution function, live until approval, frozen in the approval transaction, `request:reclassify` afterwards, the permission chosen on the locked status, locked at the database once paid and numbered, the owner's view free of accounting data. What changes, to be read in place of the original wording and of the amendment above where they speak of a VAT default or the designation:
+
+1. **The VAT half is a hand copy or nothing.** `resolveClassification` loses the designation argument. Its VAT half is the line's stored copy, or **none**; it never resolves one from the type or from the currency. `missing` can only be `["account"]`. A new line, a submitted line and an approved line hold no VAT code unless a person set one. Point 3 of the Decision's "if any lacks an account **or a VAT code**" now reads "lacks a usable account": approval refuses with 409 `classification_missing` only for that, the array shape of `lines[].missing` is kept (`["account"]`) so the screens need no new branch, the release leaves unclassified only lines whose type has no usable default account, and the export's `unclassifiedLines` blocker lists missing accounts only. A line without a VAT code is approved, numbered, released and exported like any other (AC-3.11).
+2. **Setting and clearing.** `PUT …/lines/{lineId}/classification` takes `{ accountNumber?: string, vatCode?: string | null }`, at least one key. `vatCode: null` **clears** the copy (code and rate) and is audited as `line_classified` with `vatCode.to: null`, shown as "none". This replaces the original point 2's "no null on any status" for the VAT code only: the account stays non-nullable, there is still no "back to default" for it, and the account half of the original rule stands. A `vatCode` that is an array is refused (one VAT rate per line, AC-3.12). The gates (scope, self-approval, the locked status, the paid lock) are the ones of the amendment above and are unchanged for a clear.
+3. **Defaults are accounts only.** Refund keeps one append-only default per expense type, now **14 types** (`travel_flight` and `travel_taxi` are new, placed after `travel_other_public_transport`), holding an account copy and the actor; `PUT /accounting/expense-type-defaults/{type}` takes `{ accountNumber: string | null }` and is strict (a body with `vatCode` is 422). The foreign-currency designation is gone: the table, the history and `PUT /accounting/foreign-currency-vat-code` (now 404). A non-CHF line is classified exactly as a CHF line: the default account, no VAT code (AC-3.1, AC-3.13). The seed file for the defaults refuses `vatCode` and `foreignCurrencyVatCode` keys, so a stale file fails loudly.
+4. **Storage.** The additive migration `20261119200200_vat_defaults_retired` (applied migrations are not edited; ADR 20261119-data-that-moves-…) drops `foreign_currency_vat_designation` and, from `expense_type_accounting_default`, its two VAT CHECKs and the columns `vatCode`, `vatLabel`, `vatRateBasisPoints`. Production holds no rows (unreleased); in developer databases the account history of each default row is kept and the VAT values are discarded. The column `refund_line."vatCodeIsDefault"` **stays in the database** (dropping it would be a third replacement of `refund_line_accounting_guard()` for no visible gain), is written `false` for a hand-set code and `NULL` for none, and nothing reads it; it leaves the wire. Audit detail version 2 stays, with `fromDefault`/`toDefault` always `false` for the VAT code. A line that already holds a VAT copy that came from a former default keeps it (frozen, as every copy), and an unpaid one can be cleared by hand. ADR 20261119-accounting-reference-data-belongs-to-accounting-api-…, where it says that a consumer validates the keys it stores "(defaults, designation)", now concerns the account defaults only.
+5. **The VAT amount exists only with a code** (the CHF and VAT ADR's inputs, plan SO-5): `vatAmountCents` is `null` when the line has no VAT code, never 0.00; with the zero-rate code `IP00` it is a decided `0.00`. The reverse-charge code `BZM81` uses the same formula as a reference and is never exported.
+6. **The employee is told to split multi-rate receipts, not asked to choose.** Because a line has at most one VAT code, the WellD CH expense form says "One VAT rate per line: if a receipt has items at different VAT rates (for example 8.1 % and 2.6 % at a supermarket), enter one line per rate." (IT in the strings), and accounting's way to refuse a line that needs splitting is the existing line rejection with its reason. No validation, and nothing about accounts or codes reaches the employee (AC-3.10).
+
+**Failure shape of this amendment.** *A plausible value is filled in for a fact that varies per record and that nobody has decided, and it is then treated as if somebody had.* A default VAT code, chosen by the expense type or by the currency, stood in for a property of the receipt (its supplier, its rates) that the system cannot know; once frozen at approval it went into the books looking like a decision. The pressure that produces it is the mirror: **a gate that demands a value for something that may legitimately be empty teaches people to fill in anything to get past it**, so "required" must be decided per fact and a legitimate "none" must exist as a state of its own.
+
+Where else this shape can appear, including the mirror-image positions:
+
+- **Write and read.** A default applied on the way in (approval, release backfill) and a default shown on the way out (the review panel, the export row, a count of "classified" lines) are the same fault; a value is shown as chosen only when it was. Check both when a field's default is removed: the freeze, the view, the blockers and the export all had to change together, which is why they share one function.
+- **Set and clear.** If a field may be empty, the API needs an unambiguous way to say so (`null`), and the audit must show the clear as an event, not as an absent write. The original ADR's rule that a frozen value is replaced and never cleared holds only for facts that are required.
+- **Global stand-ins.** A single value standing in for a family of cases (one code for "any foreign currency") has the same shape at a larger scale: it is right for the cases its author pictured and wrong, silently, for the rest.
+- **Retiring a default.** Removing a default must say what happens to the copies it already produced (kept, frozen, clearable by hand), and must not leave a stored flag that still reads as meaning something (`vatCodeIsDefault` is unread and written inert on purpose).
+- **Absent and unknown.** A line with no VAT code is "none, decided or never set"; a line whose Accounting data could not be read is "unknown" (`unverified`, 503). They must not share a representation, in the view or in a blocker.
+
+**Escalation triggers added.** Revisit this amendment if accounting asks for a **proposed** (never pre-set) VAT code, it would have to be shown as a suggestion and be set by a person, not resolved by `resolveClassification`; if a line needs more than one VAT rate (the split rule is then replaced by a model, not a hint); or if the same VAT code must be applied to every line of a receipt (a receipt-level model).
+
+**Compliance.** No change in data held. The VAT treatment of a booking is now an accountant's recorded choice (actor and time in the audit trail), not a system default.
+
+## Escalation triggers
+
+This decision is revisited when any of these happens:
+
+- open question 5 is answered with a narrower holder than `approve`: edit the grants first; change code only if the rule is not "same people as approve";
+- a second entity needs classification (the function and the freeze are per entity, WellD CH only today);
+- a status after `paid` or a reopening of paid requests is introduced;
+- another field of an approved record needs the live-then-frozen treatment: reuse this structure (one pure resolver, a freeze in the transition, a separate permission, a trigger at the final state).
+
+## Compliance notes
+
+- GDPR / data-protection impact: none beyond what refund already holds; the classification is business data about an expense.
+- Data residency: no change.
+- Audit trail: required (AC-3.3, AC-3.5, AC-3.6). Two new `AuditAction` values, `line_classified` and `receipt_number_assigned`, ride the existing immutable trail; the actor is the verified JWT, or `system:accounting-release` for the script.
+
+---
+
+*This ADR was generated during a WellForge spec-driven session. Review and amend before committing.*

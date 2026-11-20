@@ -25,11 +25,18 @@ import { defineConfig, devices } from '@playwright/test'
  *      (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired): `auth` needs a `SERVICE_CLIENTS` entry for it plus
  *      `SERVICE_AUDIENCE`, `refund-api` needs `SERVICE_CLIENT_ID` and
  *      `SERVICE_CLIENT_SECRET`, and `notify-api` needs `SERVICE_AUDIENCE`;
- *      without them the notification silently no-ops. Real object-storage
- *      credentials (`REFUND_S3_*`) are NOT
- *      required to run these journeys — refund-headline.spec.ts deliberately
- *      never attaches a receipt (AC-1.7: attachments are always optional),
- *      since no EU bucket is provisioned for local/CI e2e.
+ *      without them the notification silently no-ops. refund-headline.spec.ts
+ *      deliberately never attaches a receipt (AC-1.7: attachments are always optional),
+ *      so the request journeys need no real EU bucket.
+ *      OBJECT STORAGE IS REQUIRED for the batch journeys (refund-batches-headline.spec.ts,
+ *      refund-accounting.spec.ts, and any journey that compiles a batch): compiling writes
+ *      the batch PDF to the bucket (`PutObject`) and the download mints a link to it, so
+ *      the local S3 stand-in must be up before `pnpm e2e`:
+ *      `docker compose up -d minio minio-createbucket` (MinIO on localhost:9000, private
+ *      bucket `operai-refund-attachments-dev`), with refund-api's `REFUND_S3_*` pointing at
+ *      it (compose.yaml, the `minio` comment: endpoint http://localhost:9000, minioadmin
+ *      credentials, `REFUND_S3_EU_ENDPOINT_HOSTS=localhost`). Without it those journeys fail
+ *      at compile or download with a storage error, not on what they assert.
  *   6. inventory-api: `bun run dev` in `inventory-api/` (localhost:8083) — required
  *      for specs/20261006-hardware-inventory's journeys (inventory-assignment.spec.ts, inventory-ledger.spec.ts,
  *      T45). Its assignment/decision notifications (AC-2.8/2.9) also need `auth`'s
@@ -61,6 +68,22 @@ import { defineConfig, devices } from '@playwright/test'
  *      `legal-entity:manage`), and, while an entity still has no version, the compose Postgres with the CRM database for
  *      `mise run legal-entities:import` (T9). It leaves both entities at version >= 1 and complete and three people made
  *      (admin, a welld_ch-conditioned manager, a no-grant user). E2E_SKIP_LEGAL_ENTITIES_SETUP=1 skips it.
+ *
+ *  11. specs/20261119-accounting (T40; accounting.spec.ts, accounting-access.spec.ts, and the adapted refund-accounting*.spec.ts):
+ *      accounting-api (`mise run dev`, or `cd accounting-api && direnv exec . bun run dev`; :8089) with its own database
+ *      `accounting` migrated, `ACCOUNTING_FX_SOURCE=off` (no call to the federal source: a month's rate is typed by hand),
+ *      `auth` running with ENABLE_TEST_AUTH=true and its seed applied (the `admin` role holds `accounting:read` and
+ *      `accounting:manage`), refund-api with ACCOUNTING_INTERNAL_URL naming it, and `auth`'s SERVICE_CLIENTS entry for refund-api
+ *      holding the scope `accounting.reference.read`. accounting-ui is served here on E2E_ACCOUNTING_REMOTE_PORT (default 5185;
+ *      the `mise run dev` stack has it on 5183, which the projects-ui preview takes in THIS file's numbering), and the shell's
+ *      build is told the API's origin (VITE_ACCOUNTING_API_URL, E2E_ACCOUNTING_API_URL; default http://localhost:8089).
+ *      The global setup (e2e/global-setup.ts) checks accounting-api's `/health` first (it stops the run, naming the command,
+ *      when nothing answers), then loads WellD CH's list with `seed:welld-ch` (E2E_SKIP_ACCOUNTING_SEED=1 skips it), then
+ *      releases refund accounting (E2E_SKIP_REFUND_ACCOUNTING_RELEASE=1 skips it). Both scripts run under `direnv exec`, so each
+ *      writes to the database its service's `.envrc` names (the shared dev one). To point them at another database set
+ *      E2E_ACCOUNTING_DATABASE_URL (the accounting-api database) and E2E_REFUND_DATABASE_URL (the refund-api database) to
+ *      postgres URLs: the value replaces DATABASE_URL for that script only, is never printed, and must be the database the
+ *      RUNNING service uses.
  *
  * Every notification the suite raises (invitation email from `auth`, refund
  * decisions and batch emails from `refund-api`, collaborator changes from
@@ -156,6 +179,15 @@ const letterheadsApiUrl =
   process.env['VITE_LETTERHEADS_API_URL'] ??
   'http://localhost:8088'
 
+// accounting-api base URL (specs/20261119-accounting, T40). The SHELL's build bakes it into its trusted-origin allowlist
+// (ADR 20260607-jwt-in-memory-never-web-storage) and exposes it to accounting-ui (`getAccountingApiBaseUrl`), which ships no
+// VITE_* of its own: without it the Accounting screens send no Bearer token and every call is a 401. The same variable
+// (E2E_ACCOUNTING_API_URL) is what e2e/helpers/accountingFixtures.ts and the global setup's health pre-check talk to.
+const accountingApiUrl =
+  process.env['E2E_ACCOUNTING_API_URL'] ??
+  process.env['VITE_ACCOUNTING_API_URL'] ??
+  'http://localhost:8089'
+
 // The shell's preview port. 5173 by default — the origin in auth's committed
 // ALLOWED_ORIGINS. E2E_SHELL_PORT only exists for a machine where 5173 is
 // already taken by an unrelated dev server (the services under test must then
@@ -204,15 +236,20 @@ const projectsRemoteOrigin = `http://localhost:${process.env['E2E_PROJECTS_REMOT
 // wrong remote:
 //   E2E_ESTIMAI_REMOTE_PORT=5174 E2E_REFUND_REMOTE_PORT=5175 E2E_NOTIFY_REMOTE_PORT=5176
 //   E2E_ADMIN_REMOTE_PORT=5177 E2E_INVENTORY_REMOTE_PORT=5178 E2E_CRM_REMOTE_PORT=5179
-//   E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181 E2E_LETTERHEADS_REMOTE_PORT=5182 pnpm e2e
+//   E2E_MEETINGS_REMOTE_PORT=5180 E2E_PROJECTS_REMOTE_PORT=5181 E2E_LETTERHEADS_REMOTE_PORT=5182 E2E_ACCOUNTING_REMOTE_PORT=5183 pnpm e2e
 // letterheads-ui (specs/20261116-letterhead-service, T26): ./App at /letterheads. The `mise run dev` stack has it on 5182,
 // which the meetings-ui preview above takes in THIS file's numbering, so 5184 is the next free e2e-preview slot
 // (`E2E_LETTERHEADS_REMOTE_PORT=5182 pnpm e2e letterheads` reuses the `mise run dev` one).
 const letterheadsRemoteOrigin = `http://localhost:${process.env['E2E_LETTERHEADS_REMOTE_PORT'] ?? '5184'}`
+// accounting-ui (specs/20261119-accounting, T40): ./App at /accounting. The `mise run dev` stack has it on 5183, which the
+// projects-ui preview above takes in THIS file's numbering, so 5185 is the next free e2e-preview slot
+// (`E2E_ACCOUNTING_REMOTE_PORT=5183 pnpm e2e accounting` reuses the `mise run dev` one).
+const accountingRemoteOrigin = `http://localhost:${process.env['E2E_ACCOUNTING_REMOTE_PORT'] ?? '5185'}`
 const projectsRemotePort = new URL(projectsRemoteOrigin).port
 const crmRemotePort = new URL(crmRemoteOrigin).port
 const meetingsRemotePort = new URL(meetingsRemoteOrigin).port
 const letterheadsRemotePort = new URL(letterheadsRemoteOrigin).port
+const accountingRemotePort = new URL(accountingRemoteOrigin).port
 
 export default defineConfig({
   testDir: './e2e',
@@ -423,6 +460,20 @@ export default defineConfig({
       },
     },
     {
+      // accounting-ui (specs/20261119-accounting, T40): the Accounting tool at /accounting.
+      // Reads no VITE_* of its own: the accounting-api origin comes from the shell.
+      command: `pnpm build && pnpm preview --port ${accountingRemotePort} --strictPort`,
+      cwd: '../accounting-ui',
+      url: accountingRemoteOrigin,
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: {
+        SHELL_REMOTE_URL: `${shellUrl}/remoteEntry.js`,
+      },
+    },
+    {
       command: `pnpm build && pnpm preview --port ${shellPort} --strictPort`,
       url: shellUrl,
       reuseExistingServer: !process.env['CI'],
@@ -439,6 +490,7 @@ export default defineConfig({
         MEETINGS_REMOTE_URL: `${meetingsRemoteOrigin}/remoteEntry.js`,
         PROJECTS_REMOTE_URL: `${projectsRemoteOrigin}/remoteEntry.js`,
         LETTERHEADS_REMOTE_URL: `${letterheadsRemoteOrigin}/remoteEntry.js`,
+        ACCOUNTING_REMOTE_URL: `${accountingRemoteOrigin}/remoteEntry.js`,
         VITE_AUTH_URL: authUrl,
         VITE_API_URL: apiUrl,
         VITE_NOTIFY_API_URL: notifyApiUrl,
@@ -449,6 +501,7 @@ export default defineConfig({
         VITE_PROJECTS_API_URL: projectsApiUrl,
         VITE_ACTIVITIES_API_URL: activitiesApiUrl,
         VITE_LETTERHEADS_API_URL: letterheadsApiUrl,
+        VITE_ACCOUNTING_API_URL: accountingApiUrl,
       },
     },
   ],

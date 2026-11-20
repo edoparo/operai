@@ -33,7 +33,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
  * Scopes a service token may carry. Adding one is a deliberate code change, not an env edit.
  * - `notifications.push` / `emails.send`: the notify-api capabilities (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired).
  * - `users.contact`: resolve one active user's `{id, email, name}` through
- *   `POST /system/users/contact` (specs/20261101-crm-notifications, D-1). Only notify-api holds it.
+ *   `POST /system/users/contact` (specs/20261101-crm-notifications, D-1). notify-api holds it; refund-api only during the production accounting
+ *   release window, for the script's one-off read of the names of employees whose old requests carry none (specs/20261119-accounting T84).
  * - `estimate-notices.send`: tell crm-api an EstimAI estimate was closed or
  *   reopened (`POST /system/estimate-notices`, specs/20261101-crm-sales-flow AC-3.3, ADR 20261105-estimai-closes-the-estimate-crm-follows).
  *   Only estimai-api holds it.
@@ -64,6 +65,11 @@ import { createHash, timingSafeEqual } from "node:crypto";
  *   (crm-api first); the letterhead service verifies it.
  * - `legal-entities:read`: read the group's legal entities through auth's `GET /system/legal-entities[/{entity}]`
  *   (specs/20261117-legal-entities, AC-3.2; auth verifies it itself). Held by crm-api and letterhead-api.
+ * - `accounting.reference.read`: read an entity's ledger accounts, VAT codes (with their active state) and the
+ *   monthly exchange rates in effect through accounting-api's `GET /system/v1/*`
+ *   (specs/20261119-accounting, AC-3.8; ADR 20261119-accounting-reference-data-belongs-to-accounting-api-…).
+ *   accounting-api verifies it, and also checks the `sub` against its own allowlist `SYSTEM_READERS`. Only
+ *   `refund-api` holds it. It never allows a write: a consumer that must write to Accounting is a new scope.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -80,6 +86,7 @@ export const KNOWN_SERVICE_SCOPES = [
   "projects.purchase-orders.read",
   "letterhead:render",
   "legal-entities:read",
+  "accounting.reference.read",
 ] as const;
 
 /**

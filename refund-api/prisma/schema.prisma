@@ -78,6 +78,8 @@ enum ExpenseType {
   travel_parking
   travel_train
   travel_other_public_transport
+  travel_flight
+  travel_taxi
   company_manuals
   stationery
   representation_meals
@@ -109,6 +111,15 @@ enum AuditAction {
   batch_compiled
   batch_paid
   batch_discarded
+  // specs/20261118-refund-accounting-export: both carry `lineId`, written in
+  // the same transaction as the event they record (classification freeze or
+  // change; receipt number assignment). Detail shapes: plan.md § Data model.
+  line_classified
+  receipt_number_assigned
+  // specs/20261119-accounting (T16): a pending exchange-rate copy written by
+  // the first successful export of a batch (actor = the exporter, AC-5.6).
+  // Added last in the migration and not used inside it.
+  line_rate_copied
 }
 
 // Two-phase presigned upload (ADR 20260716-eu-object-storage-refund-attachments, wired by T9): `pending` until the
@@ -219,6 +230,7 @@ model RefundBatch {
   items        RefundBatchItem[]
   requests     RefundRequest[] // live "currently claimed by" pointer (nulled on discard)
   auditEntries RefundAuditEntry[]
+  exports      RefundBatchExport[] // append-only accounting-export log (specs/20261118-refund-accounting-export, AC-6.10)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -293,10 +305,10 @@ model RefundLine {
   // together on restore or withdraw-to-draft); a rejected line's
   // `approvedTotalCents` is 0, so every existing consumer of the approved
   // figure (subtotals, batch PDF, export, email) already pays nothing for it.
-  rejectionReason      String?
-  rejectedAt           DateTime?
-  rejectedByUserId     String?
-  rejectedByEmail      String?
+  rejectionReason  String?
+  rejectedAt       DateTime?
+  rejectedByUserId String?
+  rejectedByEmail  String?
 
   // ─── specs/20260720-mileage-rate: applied-rate snapshot (Decision 1) ──────────
   // All three are non-null ONLY once this line's containing request has ever
@@ -313,11 +325,56 @@ model RefundLine {
   appliedRateEntryId   String?
   appliedRate          MileageRate? @relation(fields: [appliedRateEntryId], references: [id], onDelete: Restrict)
 
+  // ─── specs/20261118-refund-accounting-export: accounting classification ───────────────────
+  // WellD CH lines only. Before approval: null = follow the live default,
+  // non-null = an accounting override. Frozen (account, VAT code and both
+  // flags set) at approval for every non-rejected WellD CH line. Immutable once
+  // the parent request is `paid` (trigger refund_line_accounting_guard, AC-3.7).
+  // What the line books is held as copies by natural key (next block); the two
+  // "is default" flags say whether the copy came from the default.
+  ledgerAccountIsDefault Boolean?
+  vatCodeIsDefault       Boolean?
+
+  // ─── specs/20261119-accounting (T16, T24): the copy columns ─────────────────────────────
+  // What this line BOOKS, copied by natural key from Accounting at the moment it
+  // is booked (ADR 20261119-accounting-reference-data-belongs-to-accounting-api-...).
+  // WellD CH lines only (CHECK refund_line_classification_ch_only). The old
+  // foreign keys into Refund's own catalog were dropped by T24
+  // (20261119130000_accounting_reference_moved_out).
+  //   account : both or neither (CHECK)
+  //   VAT     : both or neither (CHECK), rate 0..10000
+  //   fx      : all three or none (CHECK), non-CHF lines only, the expense
+  //             month's rate, WRITE-ONCE (trigger): null -> set at approval or at
+  //             the first export, never changed afterwards, whatever the status.
+  // `vatCodeCopy` maps the column "vatCode". The field keeps the `Copy` suffix
+  // (decision of T24): it said "the copy, not the relation" while both existed,
+  // and it is the name the repos, the classification domain and the tests use.
+  accountNumber      String?
+  accountName        String?
+  vatCodeCopy        String?   @map("vatCode")
+  vatRateBasisPoints Int?
+  fxRateMicros       Int? // CHF per 1 unit x 1e6, > 0 and < 1e9
+  fxRateMonth        DateTime? @db.Date // first day of the month of `date`
+  fxRateCopiedAt     DateTime?
+
+  // ─── specs/20261118-refund-accounting-export: receipt number ──────────────────────────────
+  // Set once at approval (or by the release script), never changed or
+  // deleted (trigger refund_line_accounting_guard, AC-4.7). The five columns
+  // are set together or not at all (CHECK refund_line_receipt_all_or_none).
+  // `receiptOwnerUserId` is the denormalised request.ownerUserId, only so the
+  // unique index below can express "per employee and year".
+  receiptNumber      String? // "MC26/014"
+  receiptOwnerUserId String?
+  receiptYear        Int? // year of `date`
+  receiptSeq         Int?
+  numberedAt         DateTime?
+
   attachments Attachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([receiptOwnerUserId, receiptYear, receiptSeq]) // AC-4.3/4.10 backstop
   @@index([requestId])
   @@index([requestId, entity]) // backs the per-request "at least one line matches" entity-scope predicate (ADR 20260716-entity-scoped-abac-refund-api)
   @@index([appliedRateEntryId]) // FK lookup / provenance queries
@@ -394,6 +451,88 @@ model RefundSetting {
 
   @@index([key, createdAt]) // latest-per-key (current value) + chronological history/audit
   @@map("refund_setting")
+}
+
+// ─── specs/20261118-refund-accounting-export ───────────────────────────────────────────────
+//
+// Every model below except ReceiptCounter is APPEND-ONLY, enforced by a
+// raising BEFORE UPDATE/DELETE trigger in the same migration (the pattern of
+// `mileage_rate` / `refund_setting`, ADR 20260716-immutable-financial-audit-trail-refund).
+// The defaults history, the numbering baseline and the export log are their
+// own audit trail. Never add an update/delete route for them. The catalog, its
+// status history and the exchange rates moved to accounting-api (T24 dropped
+// them here).
+
+// specs/20261119-accounting (T16, T58): the default LEDGER ACCOUNT per expense type, as an append-only history of copies,
+// no foreign key into Accounting (ADR 20261119-accounting-reference-data-belongs-to-accounting-api-...). Append-only
+// (accounting_history_immutable() trigger); the current value is the latest row. Replaced ExpenseTypeDefault (dropped by
+// T24). CHECKs: entity = welld_ch, number and name both or neither (null = "no default"). The VAT half (code, label,
+// rate) and the foreign-currency VAT designation table were retired by 20261119200200_vat_defaults_retired (T58,
+// 20261119 SO-18): no VAT code is ever pre-set.
+model ExpenseTypeAccountingDefault {
+  id              String      @id @default(cuid())
+  entity          Entity
+  type            ExpenseType
+  accountNumber   String?
+  accountName     String?
+  createdByUserId String
+  createdByEmail  String
+  createdAt       DateTime    @default(now())
+
+  @@index([entity, type, createdAt])
+  @@map("expense_type_accounting_default")
+}
+
+// specs/20261118-refund-accounting-export (T58, SO-13): the 2026 numbering baseline, the last receipt sequence issued by
+// hand before Refund took over, per employee EMAIL (not user id: it also serves an employee with no Refund request yet).
+// Append-only (accounting_history_immutable() triggers); the current value is the latest row per (emailKey, year).
+// CHECKs: emailKey lower-case and containing "@", year = 2026 (AC-4.12: no other year is continued), lastIssuedSeq 1..99999.
+// Read when classifyAndNumber creates the employee's 2026 counter (T63); `receipt_counter.startAfterSetBy` is then "baseline".
+model ReceiptNumberBaseline {
+  id              String   @id @default(cuid())
+  emailKey        String // lower(btrim(email))
+  year            Int
+  lastIssuedSeq   Int
+  createdByUserId String // system:accounting-release
+  createdByEmail  String
+  createdAt       DateTime @default(now())
+
+  @@index([emailKey, year, createdAt])
+  @@map("receipt_number_baseline")
+}
+
+// Per (employee, year of the expense date) receipt counter, row-locked by the
+// approval transaction. NOT append-only: `lastSeq` grows. The trigger makes
+// `lastSeq` monotonic, freezes the key, `startAfter` and `startAfterSetBy`
+// after insert, and refuses DELETE.
+model ReceiptCounter {
+  ownerUserId     String
+  year            Int
+  lastSeq         Int // highest number issued (= startAfter before the first)
+  startAfter      Int      @default(0) // one-time offset; 0 = start at 001
+  startAfterSetBy String? // "baseline" when the counter started from receipt_number_baseline (T58/T63); older rows: "system:accounting-release"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@id([ownerUserId, year])
+  @@map("receipt_counter")
+}
+
+// Append-only accounting-export log (AC-6.10): one row per CSV download.
+model RefundBatchExport {
+  id                String      @id @default(cuid())
+  batchId           String
+  batch             RefundBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  actorUserId       String
+  actorEmail        String
+  rowCount          Int
+  excludedLineCount Int // WellD Italia lines left out
+  contentSha256     String
+  formatVersion     Int
+  createdAt         DateTime    @default(now())
+
+  @@index([batchId, createdAt])
+  @@map("refund_batch_export")
 }
 
 // Attachment — a receipt file attached to a specific expense line (T5;

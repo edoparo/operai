@@ -1,0 +1,157 @@
+{
+  "schema": "wellforge-run/v1",
+  "run_id": "2026-11-20T13-00-00Z-live-e2e-and-close-20261119-20261118",
+  "command": "orchestrate",
+  "feature": "20261119-accounting + 20261118-refund-accounting-export, live e2e (T81), owner inputs (T80) and the close",
+  "rigor": "production",
+  "started": "2026-11-20T13:00:00Z",
+  "finished": "2026-11-20T18:00:00Z",
+  "reconstructed": true,
+  "reconstruction_note": "Written by the orchestrator from git history (086b92fb..04ccd615 on feat/accounting-module) and agent hand-back reports; times are approximate.",
+  "agents": [
+    {
+      "agent": "orchestrator",
+      "tasks": [
+        "T81"
+      ],
+      "outcome": "completed",
+      "note": "live e2e driven with the owner on the Mac Studio; three defects found and fixed in the main loop with tests: 5fc594c5, 3e9faef7 (refund-ui a11y), 086b92fb (owner name never snapshotted); 27/27 refund-* and accounting* journeys green"
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [
+        "T79"
+      ],
+      "outcome": "FAIL",
+      "score": 77.4,
+      "note": "legacy null ownerName (AC-6.13/AC-4.2); design files stale"
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [
+        "T37"
+      ],
+      "outcome": "FAIL",
+      "score": 72.2,
+      "note": "same legacy-name blocker; T39 done-when unmet"
+    },
+    {
+      "agent": "backend-dev",
+      "tasks": [
+        "T84"
+      ],
+      "outcome": "completed",
+      "worktree": "fix/legacy-owner-names",
+      "note": "release fills legacy owner names from auth before numbering (b7294792)"
+    },
+    {
+      "agent": "designer",
+      "outcome": "completed",
+      "worktree": "docs/design-live-sync",
+      "note": "design.md files record the live browser axe result and what was not performed (28d4192e)"
+    },
+    {
+      "agent": "quality-engineer",
+      "outcome": "PASS",
+      "note": "QE delta 3f8a6645..b7294792 incl. T83 (a5799b9f); F-2 fixed by c62a1125"
+    },
+    {
+      "agent": "owasp-reviewer",
+      "outcome": "PASS with notes",
+      "note": "L-1 release-window scope and L-3 name normalisation fixed (1f44c2e5)"
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [
+        "T79"
+      ],
+      "outcome": "PASS",
+      "score": 86.1
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [
+        "T37"
+      ],
+      "outcome": "FAIL",
+      "score": 78.3,
+      "note": "rounds 4-7: no dimension below floor; spec fidelity held at 4 by plan/spec text still calling settled answers open"
+    },
+    {
+      "agent": "backend-dev",
+      "outcome": "completed",
+      "worktree": "fix/eval-drift",
+      "note": "14 tests (release-to-export, normalisation, auth contract, mocked-jwt parity), error codes in plan, runbook notes (6ea392d1, 0a968716)"
+    },
+    {
+      "agent": "orchestrator",
+      "outcome": "completed",
+      "note": "owner answers carried into spec/plan/design text and data notes (87634a9a, 6f247bdd, 77633b21, ac7fa804, 04ccd615); tests tightened (564a897b)"
+    },
+    {
+      "agent": "evaluator",
+      "tasks": [
+        "T37"
+      ],
+      "outcome": "PASS",
+      "score": 83.5,
+      "note": "round 8, after 04ccd615 and this trace"
+    },
+    {
+      "agent": "orchestrator",
+      "outcome": "completed",
+      "note": "a459fd8c batch-row name separators (product fix, outside a task); T48/T49/T79 and T37/T38 closed; both specs status done. Order note: eval rounds 5-7 of 20261118 ran after 6ea392d1"
+    }
+  ],
+  "drift_events": [
+    {
+      "agent": "orchestrator",
+      "artifact": "tasks.md",
+      "summary": "T39/T50 closed too early (production-copy dry run not done); reopened in a459fd8c",
+      "resolved": true
+    },
+    {
+      "agent": "orchestrator",
+      "artifact": "qe-report.md",
+      "summary": "browser axe coverage over-claimed (request page, Refund locales/themes); corrected in ff9ba391",
+      "resolved": true
+    },
+    {
+      "agent": "orchestrator",
+      "artifact": "plan.md",
+      "summary": "ac7fa804 left the SO-9 rationale phrase round 6 had quoted; fixed in 04ccd615",
+      "resolved": true
+    }
+  ],
+  "collision_events": [],
+  "env_faults": [
+    {
+      "agent": "orchestrator",
+      "class": "runtimes",
+      "detail": "Playwright chromium 1228 missing on the Mac; the e2e path filter matched every file because the worktree name contains 'accounting'",
+      "resolved_by": "owner installed the browser; filters e2e/accounting e2e/refund-"
+    },
+    {
+      "agent": "orchestrator",
+      "class": "external services",
+      "detail": "no object storage on the e2e stack: batch PDF journeys red",
+      "resolved_by": "docker compose up -d minio minio-createbucket; prerequisite documented (0a968716)"
+    },
+    {
+      "agent": "orchestrator",
+      "class": "databases",
+      "detail": "a hook blocks removing databases from the shell: the scratch databases refund_ownername_scratch and refund_ownernames_scratch on :5435 are left for the owner",
+      "resolved_by": "owner removed the first; the second reported to the owner"
+    }
+  ],
+  "verdicts": {
+    "qe": "PASS (delta)",
+    "security": "PASS with notes (delta)",
+    "eval": "20261119 PASS 86.1 (round 5); 20261118 PASS 83.5 (round 8)"
+  },
+  "result": "completed",
+  "tokens": null,
+  "cost_usd": null,
+  "terse": false,
+  "control_run_id": null
+}

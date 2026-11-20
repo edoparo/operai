@@ -25,11 +25,11 @@ describe("REFUND_CATALOG (T2, AC-1.1/5.4/7.5/8.2)", () => {
     });
   });
 
-  test("declares the `request` resource with exactly create/read/review/set-approved-total/approve/reject", () => {
+  test("declares the `request` resource with exactly create/read/review/set-approved-total/approve/reject/reclassify", () => {
     const requestResource = REFUND_CATALOG.resources.find((r) => r.key === "request");
     expect(requestResource).toBeDefined();
     expect(requestResource?.actions.map((a) => a.key).sort()).toEqual(
-      ["approve", "create", "read", "reject", "review", "set-approved-total"].sort(),
+      ["approve", "create", "read", "reclassify", "reject", "review", "set-approved-total"].sort(),
     );
   });
 
@@ -60,6 +60,34 @@ describe("REFUND_CATALOG (T2, AC-1.1/5.4/7.5/8.2)", () => {
   });
 });
 
+describe("REFUND_CATALOG `request:reclassify` (T2, specs/20261118-refund-accounting-export — AC-3.6; plan D5)", () => {
+  const reclassify = () =>
+    REFUND_CATALOG.resources
+      .find((r) => r.key === "request")
+      ?.actions.find((a) => a.key === "reclassify");
+
+  test("is declared, labelled \"Reclassify approved line\"", () => {
+    expect(reclassify()).toBeDefined();
+    expect(reclassify()?.label).toBe("Reclassify approved line");
+  });
+
+  test("supports `entity` and `self-approval`, nothing else (plan SR-2, security review S-02: segregation of duties as for `approve`)", () => {
+    expect(reclassify()?.supportedConditions).toEqual(["entity", "self-approval"]);
+  });
+
+  test("declares the same conditions as `approve`, so the two stay one knob", () => {
+    const approve = REFUND_CATALOG.resources.find((r) => r.key === "request")?.actions.find((a) => a.key === "approve");
+    expect(reclassify()?.supportedConditions).toEqual(approve?.supportedConditions);
+  });
+
+  test("is declared exactly once, on `request` only", () => {
+    const declaring = REFUND_CATALOG.resources.flatMap((resource) =>
+      resource.actions.filter((a) => a.key === "reclassify").map(() => resource.key),
+    );
+    expect(declaring).toEqual(["request"]);
+  });
+});
+
 describe("REFUND_CATALOG self-approval condition (T1, specs/20260721-self-approval-control — AC-4.3, AC-5.1; ADR 20260721-self-approval-condition-and-403-exception)", () => {
   test("`approve` supports both `entity` and `self-approval` — the declared surface grows from one to two", () => {
     const requestResource = REFUND_CATALOG.resources.find((r) => r.key === "request");
@@ -67,13 +95,13 @@ describe("REFUND_CATALOG self-approval condition (T1, specs/20260721-self-approv
     expect(approve?.supportedConditions).toEqual(["entity", "self-approval"]);
   });
 
-  test("`self-approval` is declared on `approve` ONLY — absent from every other action, on every resource", () => {
+  test("`self-approval` is declared on `approve` and, since the security review (SR-2), on `reclassify` — absent from every other action, on every resource", () => {
     const declaring = REFUND_CATALOG.resources.flatMap((resource) =>
       resource.actions
         .filter((action) => action.supportedConditions.includes("self-approval"))
         .map((action) => `${resource.key}.${action.key}`),
     );
-    expect(declaring).toEqual(["request.approve"]);
+    expect(declaring).toEqual(["request.approve", "request.reclassify"]);
   });
 });
 

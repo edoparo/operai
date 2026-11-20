@@ -18,7 +18,7 @@
 import { requestInScope, type EntityScope } from "../authz/conditions";
 import { computeSubtotals, type LineRow } from "../requests/requests.service";
 import type { Subtotal } from "../requests/requests.schemas";
-import type { BatchPdfEmployee } from "./pdf";
+import { compareReceiptNumbers, type BatchPdfEmployee } from "./pdf";
 import type { BatchSummaryRow, CandidateRow, BatchWithRequests } from "./batches.repo";
 import type {
   BatchDetail,
@@ -116,13 +116,22 @@ export function toBatchPdfEmployees(
       email: reqs[0]!.ownerEmail,
       name: reqs[0]!.ownerName,
     },
-    requests: reqs.map((r) => ({ id: r.id, decidedAt: r.decidedAt, lines: r.lines })),
+    requests: reqs.map((r) => ({ id: r.id, decidedAt: r.decidedAt, lines: r.lines, receiptNumbers: receiptNumbersOf(r.lines) })),
   }));
 }
 
 export interface BatchPdfLinkInput {
   readonly url: string;
   readonly expiresAt: string;
+}
+
+/**
+ * The receipt numbers of a request's lines (specs/20261118-refund-accounting-export T15, AC-4.6, AC-4.9), in order:
+ * by prefix (initials and year), then by the NUMBER of the sequence, so `MC26/999` comes before `MC26/1000`.
+ * A rejected or not yet numbered line has none and contributes nothing.
+ */
+export function receiptNumbersOf(lines: readonly { readonly receiptNumber?: string | null }[]): string[] {
+  return lines.flatMap((l) => (l.receiptNumber ? [l.receiptNumber] : [])).sort(compareReceiptNumbers);
 }
 
 /**
@@ -163,6 +172,7 @@ export function mapBatchDetail(
             id: r.id,
             status: r.status,
             subtotals: computeSubtotals(r.lines),
+            receiptNumbers: receiptNumbersOf(r.lines),
           }))
           .sort((a, b) => a.id.localeCompare(b.id)),
         subtotals: toBatchSubtotals(computeSubtotals(lines)),

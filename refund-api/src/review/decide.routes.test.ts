@@ -40,6 +40,7 @@ process.env["AUTH_BASE_URL"] = "http://localhost:3001";
 process.env["AUTH_AUDIENCE"] = "operai-suite";
 process.env["NODE_ENV"] = "test";
 process.env["NOTIFY_INTERNAL_URL"] = "http://localhost:8081";
+process.env["ACCOUNTING_INTERNAL_URL"] = "http://localhost:8089";
 process.env["SERVICE_CLIENT_ID"] = "refund-api";
 process.env["SERVICE_CLIENT_SECRET"] = "test-service-client-secret-at-least-32-characters";
 
@@ -51,6 +52,7 @@ const { notifyTransport } = await import("../lib/notifyPost");
 const { ServiceTokenError } = await import("../lib/serviceToken");
 const { db } = await import("../lib/db");
 const { __resetAuthzCacheForTests } = await import("../auth/authz.middleware");
+const { createStandardFakeAccounting, seedDefaultCopies, useFakeAccounting, restoreAccounting } = await import("../test-support/fakeAccounting");
 
 // ─── Fake the notify-api HTTP boundary (global fetch) — no live notify-api
 // required, and no module-cache pollution across test files (T13) ─────────
@@ -266,6 +268,11 @@ async function createSubmittedRequest(
 
 beforeEach(async () => {
   await truncateRefundTables();
+  // specs/20261118-refund-accounting-export (T12), specs/20261119-accounting (T20): approving a WellD CH line needs an
+  // account and a VAT code that Accounting lists as active (AC-6.3). The fake and Refund's recorded defaults give every type
+  // a usable default, so the approve tests below stay about the decision itself.
+  useFakeAccounting(createStandardFakeAccounting());
+  await seedDefaultCopies();
   __resetAuthzCacheForTests();
   notifyCalls = [];
   notifyShouldFail = false;
@@ -276,6 +283,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  restoreAccounting();
   await truncateRefundTables();
   notifyTransport.tokens = realTokens;
   globalThis.fetch = originalFetch;
@@ -541,7 +549,8 @@ describe("POST /review/requests/:id/approve", () => {
     expect(byId.get(lines[1]!.id)).toBe(2000); // untouched — defaulted to requested
 
     const auditRows = await db.refundAuditEntry.findMany({ where: { requestId: request.id } });
-    expect(auditRows.map((r) => r.action)).toEqual(["approved"]);
+    // specs/20261118-refund-accounting-export (AC-4.1): approval also numbers every line, and audits each number.
+    expect(auditRows.map((r) => r.action).sort()).toEqual(["approved", "receipt_number_assigned", "receipt_number_assigned"]);
     expect(auditRows[0]?.actorUserId).toBe("acct-1");
   });
 

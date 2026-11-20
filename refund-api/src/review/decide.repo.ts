@@ -13,9 +13,31 @@
  *
  * Every mutation writes an append-only audit row (audit.ts, AC-8.1) inside
  * the SAME transaction as the state change it records.
+ *
+ * specs/20261118-refund-accounting-export (T12), reworked by T20 of specs/20261119-accounting: approving is also where a
+ * line's accounting is settled, in this order (plan § Interaction flows, 6; D10, D11):
+ *   1. the cheap refusals: capability, self-approval, scope, status, every line rejected, and the release gate (409
+ *      `accounting_release_pending`, 20261118 D6);
+ *   2. when the request has at least ONE non-rejected WellD CH line (D10: literally, even if every one is already classified
+ *      by hand), Accounting is read, OUTSIDE any transaction so no row lock is held across an HTTP call: the reference data
+ *      and the rates in effect of EVERY foreign-currency WellD CH line of the request, rejected or not. That is a superset of
+ *      what the transaction resolves, because the line set is fixed while a request is submitted. Unreachable: 503
+ *      `accounting_unavailable`, nothing written (AC-6.1, AC-6.2). A request with only WellD Italia or rejected lines never
+ *      calls Accounting (AC-6.4);
+ *   3. one transaction: the CAS, the existing defaulting, and `classifyAndNumber(cause: "approval")`, which resolves every
+ *      non-rejected WellD CH line against what was read, COPIES the account, the VAT code and, when Accounting has one in
+ *      effect for the expense month, the exchange rate (otherwise the line is "rate pending", AC-5.6), and numbers every
+ *      non-rejected line of either entity. A line with no usable default and no hand copy rolls the whole transaction back
+ *      (409 `classification_missing`), so a refused approval changes nothing and consumes no number (AC-6.2, AC-6.3).
  */
 
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
+import { accountingPort, AccountingUnavailableError, ratePairKey } from "../accounting/accountingClient";
+import { classifyAndNumber, type AccountingReads } from "../accounting/numbering.repo";
+import { monthOf, type MissingPart } from "../accounting/classification";
+import { referenceSnapshot } from "../accounting/referenceSnapshot";
+import { isAccountingReleased } from "../accounting/release";
+import type { Currency, ExpenseType } from "../lib/generated/prisma/enums";
 import { db } from "../lib/db";
 import { ownershipOwn, requestInScope, type EntityScope } from "../authz/conditions";
 import {
@@ -35,6 +57,9 @@ const toDbErr = (message: string) => (cause: unknown) =>
 interface ScopeCheckLine {
   readonly id: string;
   readonly entity: string;
+  readonly currency: Currency;
+  /** The expense date: its month picks the exchange rate (`@db.Date`, UTC midnight). */
+  readonly date: Date;
   readonly rejectionReason: string | null;
 }
 interface ScopeCheckRow {
@@ -57,7 +82,7 @@ function fetchScopeCheckRow(
         select: {
           status: true,
           ownerUserId: true,
-          lines: { select: { id: true, entity: true, rejectionReason: true } },
+          lines: { select: { id: true, entity: true, currency: true, date: true, rejectionReason: true } },
         },
       }),
     catch: toDbErr("Failed to look up refund request"),
@@ -175,17 +200,56 @@ export function setApprovedTotal(
   );
 }
 
-// ─── POST .../approve (AC-7.2) ──────────────────────────────────────────────
+// ─── POST .../approve (AC-7.2; specs/20261118-refund-accounting-export T12) ──
+
+/**
+ * 409 `classification_missing` (AC-3.4): at least one non-rejected WellD CH
+ * line has no usable account once resolved (the VAT code
+ * is optional, 20261118 SO-4: `missing` is `["account"]`, the array shape kept for the UI). The approval was rolled
+ * back, so nothing changed and no number was consumed. `lines` is what the
+ * review page needs to point at each value: id, date and type are always
+ * present (plan § API contracts).
+ */
+export class ClassificationMissingError extends Data.TaggedError("ClassificationMissingError")<{
+  readonly message: string;
+  readonly lines: readonly {
+    readonly lineId: string;
+    readonly date: string;
+    readonly type: ExpenseType;
+    readonly missing: readonly MissingPart[];
+  }[];
+}> {}
+
+/** Thrown inside the approve transaction to roll it back with a typed refusal. */
+class ApprovalRefused extends Error {
+  constructor(readonly refusal: ConflictError | ClassificationMissingError) {
+    super(refusal.message);
+  }
+}
 
 function approveTransaction(
   requestId: string,
   actorUserId: string,
   actorEmail: string,
+  reads: AccountingReads | null,
   actorName?: string,
-): Effect.Effect<void, DatabaseError | ConflictError> {
+): Effect.Effect<void, DatabaseError | ConflictError | ClassificationMissingError> {
   return Effect.tryPromise({
     try: () =>
       db.$transaction(async (tx) => {
+        // D6: nothing is numbered before the release script has numbered the
+        // legacy lines (by expense date) and loaded any offsets. Read inside the
+        // transaction, before anything is written; the marker only ever appears.
+        if (!(await isAccountingReleased(tx))) {
+          throw new ApprovalRefused(
+            new ConflictError({
+              message: "Accounting has not been released yet: approvals are refused until the release script has run",
+              code: "accounting_release_pending",
+            }),
+          );
+        }
+
+        // The CAS locks the request row for the rest of the transaction.
         const { count } = await tx.refundRequest.updateMany({
           where: { id: requestId, status: "submitted" },
           data: {
@@ -218,9 +282,46 @@ function approveTransaction(
           actorEmail,
           action: "approved",
         });
+
+        // Freeze the classification and issue the receipt numbers, in this
+        // transaction (AC-3.5, AC-4.1 to AC-4.5, AC-4.10). A WellD CH line that
+        // cannot be resolved refuses everything: the throw below rolls back the
+        // CAS above, the defaulted totals, the counters and the audit rows.
+        const owner = await tx.refundRequest.findUniqueOrThrow({
+          where: { id: requestId },
+          select: { ownerUserId: true, ownerEmail: true, ownerName: true },
+        });
+        const numbered = await classifyAndNumber(tx, {
+          owner: { userId: owner.ownerUserId, name: owner.ownerName, email: owner.ownerEmail },
+          requestIds: [requestId],
+          cause: "approval",
+          actor: { userId: actorUserId, email: actorEmail },
+          reference: reads,
+        });
+        if (!numbered.ok && numbered.reason === "reference_missing") {
+          // A WellD CH line (or a pair) that the read of Accounting did not account for appeared between that read and the
+          // lock. Nothing was written; the caller retries and reads again. Never a classification from data not read.
+          throw new ApprovalRefused(
+            new ConflictError({ message: "Refund request status changed concurrently — retry" }),
+          );
+        }
+        if (!numbered.ok) {
+          throw new ApprovalRefused(
+            new ClassificationMissingError({
+              message: "Some lines have no ledger account or VAT code: classify them before approving",
+              lines: numbered.missing.map((m) => ({
+                lineId: m.lineId,
+                date: m.date,
+                type: m.type,
+                missing: m.missing,
+              })),
+            }),
+          );
+        }
         return true;
       }),
-    catch: toDbErr("Failed to approve refund request"),
+    catch: (cause) =>
+      cause instanceof ApprovalRefused ? cause.refusal : toDbErr("Failed to approve refund request")(cause),
   }).pipe(
     Effect.flatMap((ok) =>
       ok
@@ -232,6 +333,52 @@ function approveTransaction(
           ),
     ),
   );
+}
+
+/**
+ * Steps 1 (last part) and 2 of the approval: the release gate, then the live read of Accounting, both BEFORE the
+ * transaction. `null` when no non-rejected WellD CH line needs Accounting (AC-6.4): no call at all.
+ */
+function prepareApproval(
+  line: readonly ScopeCheckLine[],
+): Effect.Effect<AccountingReads | null, DatabaseError | ConflictError | AccountingUnavailableError> {
+  return Effect.tryPromise({
+    try: async () => {
+      // D6 of 20261118: nothing is numbered before the release script has numbered the legacy lines (by expense date) and
+      // loaded any offsets. The marker only ever appears; the transaction checks it again, so this is an early refusal only.
+      if (!(await isAccountingReleased(db as unknown as Prisma.TransactionClient))) {
+        throw new ApprovalRefused(
+          new ConflictError({
+            message: "Accounting has not been released yet: approvals are refused until the release script has run",
+            code: "accounting_release_pending",
+          }),
+        );
+      }
+      return readAccountingForApproval(line);
+    },
+    catch: (cause) =>
+      cause instanceof ApprovalRefused
+        ? (cause.refusal as ConflictError)
+        : cause instanceof AccountingUnavailableError
+          ? cause
+          : toDbErr("Failed to read Accounting for the approval")(cause),
+  });
+}
+
+/**
+ * D10, D11: with at least one non-rejected WellD CH line, the reference data and the rates of EVERY foreign-currency WellD CH
+ * line (a superset of the non-rejected ones, because a reviewer may restore a rejected line between this read and the lock).
+ * One operation, one deadline, both reads in parallel. Any failure is `AccountingUnavailableError`.
+ */
+async function readAccountingForApproval(lines: readonly ScopeCheckLine[]): Promise<AccountingReads | null> {
+  const chLines = lines.filter((l) => l.entity === "welld_ch");
+  if (!chLines.some((l) => l.rejectionReason === null)) return null;
+  const operation = accountingPort().begin("approve");
+  const pairs = chLines
+    .filter((l) => l.currency !== "CHF")
+    .map((l) => ({ currency: l.currency as "EUR" | "USD" | "GBP", month: monthOf(l.date) }));
+  const [reference, answers] = await Promise.all([operation.referenceData("welld_ch"), operation.rates(pairs, "welld_ch")]);
+  return { snapshot: referenceSnapshot(reference), rates: new Map(answers.map((a) => [ratePairKey(a), a] as const)) };
 }
 
 /**
@@ -255,7 +402,12 @@ export function approveRequest(
   actorName?: string,
 ): Effect.Effect<
   void,
-  DatabaseError | NotFoundError | ConflictError | SelfApprovalDeniedError
+  | DatabaseError
+  | NotFoundError
+  | ConflictError
+  | SelfApprovalDeniedError
+  | ClassificationMissingError
+  | AccountingUnavailableError
 > {
   return fetchScopeCheckRow(requestId).pipe(
     Effect.flatMap(
@@ -303,7 +455,11 @@ export function approveRequest(
         return Effect.succeed(row);
       },
     ),
-    Effect.flatMap(() => approveTransaction(requestId, actorUserId, actorEmail, actorName)),
+    Effect.flatMap((row) =>
+      prepareApproval(row.lines).pipe(
+        Effect.flatMap((reads) => approveTransaction(requestId, actorUserId, actorEmail, reads, actorName)),
+      ),
+    ),
   );
 }
 

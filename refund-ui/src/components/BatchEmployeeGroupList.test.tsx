@@ -16,6 +16,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import { expectNoAxeViolations } from '../test-support/axe'
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from '@tanstack/react-router'
 import BatchEmployeeGroupList from './BatchEmployeeGroupList'
 import type { CandidateEmployeeGroup, BatchEmployeeGroup } from '../lib/batchesApi'
@@ -123,10 +124,74 @@ describe('BatchEmployeeGroupList — detail mode', () => {
     expect(row2.querySelector('[data-testid="request-status-badge"]')?.textContent).toBe('Paid')
   })
 
-  it('gives each request row a full, disambiguating aria-label (employee, status, amount)', async () => {
+  it('names each request row by its own text, after a hidden "Open <employee>’s request:" (WCAG 2.5.3)', async () => {
     await renderDetailAt([detailGroup])
 
     const row1 = screen.getByTestId('batch-employee-group-u1-request-req-1')
-    expect(row1.getAttribute('aria-label')).toBe('Open Alice’s request, Approved, EUR 9.10')
+    // No aria-label: the accessible name is the content, so it always contains the visible text.
+    expect(row1.hasAttribute('aria-label')).toBe(false)
+    expect(row1.textContent).toBe('Open Alice’s request: Approved, EUR 9.10')
+    expect(row1.querySelector('.sr-only')?.textContent).toBe('Open Alice’s request: ')
+  })
+
+  it('lists the request\u2019s receipt numbers in full under the row, and the accessible name includes them (AC-4.6)', async () => {
+    await renderDetailAt([
+      {
+        ...detailGroup,
+        requests: [
+          { ...detailGroup.requests[0], receiptNumbers: ['MC26/014', 'MC26/015', 'MC26/017'] },
+          detailGroup.requests[1],
+        ],
+      },
+    ])
+
+    const row = screen.getByTestId('batch-employee-group-u1-request-req-1')
+    const receipts = screen.getByTestId('batch-employee-group-u1-request-req-1-receipts')
+    expect(row.contains(receipts)).toBe(true)
+    // In full: no "MC26/014\u2013017" run.
+    expect(receipts.textContent).toBe('Receipts MC26/014, MC26/015, MC26/017')
+    expect(row.hasAttribute('aria-label')).toBe(false)
+    expect(row.textContent).toContain('Open Alice\u2019s request: ')
+    expect(row.textContent).toContain('Receipts MC26/014, MC26/015, MC26/017')
+  })
+
+  it('shows no receipts line for a request with none, or with the key absent', async () => {
+    await renderDetailAt([
+      {
+        ...detailGroup,
+        requests: [{ ...detailGroup.requests[0], receiptNumbers: [] }, detailGroup.requests[1]],
+      },
+    ])
+    expect(screen.queryByTestId('batch-employee-group-u1-request-req-1-receipts')).toBeNull()
+    expect(screen.queryByTestId('batch-employee-group-u1-request-req-2-receipts')).toBeNull()
+    expect(screen.getByTestId('batch-employee-group-u1-request-req-1').textContent).toBe(
+      'Open Alice\u2019s request: Approved, EUR 9.10',
+    )
+  })
+})
+
+// T44: automated axe checks (test-support/axe.ts), both modes, with and without receipt numbers under the rows.
+describe('BatchEmployeeGroupList — accessibility (axe)', () => {
+  it('has no violations in preview mode', async () => {
+    const { container } = render(<BatchEmployeeGroupList mode="preview" groups={[previewGroup, previewGroupNoName]} />)
+    await expectNoAxeViolations(container)
+  })
+
+  it('has no violations in detail mode, without receipt numbers', async () => {
+    const { container } = await renderDetailAt([detailGroup])
+    await expectNoAxeViolations(container)
+  })
+
+  it('has no violations in detail mode, with receipt numbers under a row', async () => {
+    const { container } = await renderDetailAt([
+      {
+        ...detailGroup,
+        requests: [
+          { ...detailGroup.requests[0], receiptNumbers: ['MC26/014', 'MC26/015', 'MC26/017'] },
+          detailGroup.requests[1],
+        ],
+      },
+    ])
+    await expectNoAxeViolations(container)
   })
 })

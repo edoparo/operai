@@ -1,0 +1,19 @@
+{
+  "_note": "Signed off by accounting on 2026-11-19 (20261118 plan, sign-off delta, SO-17). The default ACCOUNT of each of the fourteen expense types of Refund, by natural key (the account's number), and nothing else: there is no VAT default and no foreign-currency VAT code, and the release refuses a file that carries either. `representation_gifts` has no default account (accounting chooses one per line). The release seeds each type only where Refund holds no row yet, and only for an account that is ACTIVE in Accounting at that moment (else it is skipped and reported). The accounts themselves are Accounting's: `accounting-api/scripts/data/seed.welld-ch.json`, and a test keeps the two files in agreement. Accounting confirmed all fourteen on 2026-11-20 (20261119 T80), including the nine that were the draft read off the 2026 register. Reviewed before the release: `bun run accounting:release --dry-run` prints what it would do.",
+  "typeDefaults": {
+    "travel_highway": { "ledgerAccount": "5906" },
+    "travel_km": { "ledgerAccount": "5905" },
+    "travel_parking": { "ledgerAccount": "5907" },
+    "travel_train": { "ledgerAccount": "5901" },
+    "travel_other_public_transport": { "ledgerAccount": "5904" },
+    "travel_flight": { "ledgerAccount": "5902" },
+    "travel_taxi": { "ledgerAccount": "5903" },
+    "company_manuals": { "ledgerAccount": "6501" },
+    "stationery": { "ledgerAccount": "6101" },
+    "representation_meals": { "ledgerAccount": "6701" },
+    "representation_gifts": { "ledgerAccount": null },
+    "office_material": { "ledgerAccount": "6101" },
+    "postal": { "ledgerAccount": "6104" },
+    "telephone": { "ledgerAccount": "6102" }
+  }
+}

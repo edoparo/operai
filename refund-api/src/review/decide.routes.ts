@@ -46,6 +46,7 @@ import {
 import type { RequestDetail } from "../requests/requests.schemas";
 import {
   approveRequest,
+  ClassificationMissingError,
   rejectLine,
   rejectRequest,
   restoreLine,
@@ -57,6 +58,11 @@ import {
   RejectLineBodySchema,
 } from "./decide.schemas";
 import { approveRestrictedForCaller, scopeForReviewAction } from "./review.service";
+import {
+  ACCOUNTING_RETRY_AFTER_SECONDS,
+  accountingUnavailableProblem,
+  AccountingUnavailableError,
+} from "../accounting/accountingClient";
 
 /**
  * Fires the post-decision notification (T13, AC-3.6). Never throws — even
@@ -364,7 +370,14 @@ const approveRoute = createRoute({
     "finalized to its set value, defaulting to the requested amount for " +
     "any line left untouched (AC-7.2). Whole-request, including lines for " +
     "an entity outside the caller's own scope (AC-7.6). Writes an " +
-    "'approved' audit row (AC-8.1). specs/20260721-self-approval-control: if the " +
+    "'approved' audit row (AC-8.1). specs/20261119-accounting: a request with at least one " +
+    "non-rejected WellD CH line first reads Accounting live (reference data, and the rates of its " +
+    "foreign-currency lines), outside any transaction; if that fails the approval is refused with 503 " +
+    "`accounting_unavailable` (Retry-After) and nothing changes (AC-6.1, AC-6.2). Then, in one " +
+    "transaction, every non-rejected WellD CH line is classified and COPIED (account, VAT code, and the " +
+    "exchange rate in effect, or left \"rate pending\", AC-5.1, AC-5.6) and every non-rejected line, of " +
+    "either entity, gets its receipt number (20261118 AC-4.1). A request with no non-rejected WellD CH " +
+    "line never calls Accounting (AC-6.4). specs/20260721-self-approval-control: if the " +
     "caller's `request:approve` grant carries the self-approval restriction " +
     "and the caller owns the request, denied with 403 " +
     "`code: self_approval_forbidden` BEFORE the entity-scope 404 and the " +
@@ -394,7 +407,18 @@ const approveRoute = createRoute({
       content: { "application/json": { schema: ProblemSchema } },
       description:
         "Request is not submitted (already decided), or every line is " +
-        "rejected (`code: all_lines_rejected`)",
+        "rejected (`code: all_lines_rejected`), or (specs/20261118-refund-accounting-export) " +
+        "`code: accounting_release_pending` (the release script has not run yet), or " +
+        "`code: classification_missing` with `lines: [{ lineId, date, type, missing: " +
+        "(\"account\" | \"vatCode\")[] }]` (a non-rejected WellD CH line has no hand copy and no usable " +
+        "default: none set, or its entry deactivated or no longer found; nothing was changed and no receipt " +
+        "number consumed)",
+    },
+    503: {
+      content: { "application/json": { schema: ProblemSchema } },
+      description:
+        "`code: accounting_unavailable`, with `Retry-After`: Accounting could not be read, so nothing was approved " +
+        "(AC-6.1, AC-6.2, AC-6.8)",
     },
   },
 });
@@ -426,6 +450,25 @@ decideRouter.openapi(approveRoute, async (c) => {
     }
     if (cause._tag === "Fail" && cause.error instanceof NotFoundError) {
       return c.json(notFoundProblem(c.req.path, cause.error.message), 404);
+    }
+    if (cause._tag === "Fail" && cause.error instanceof AccountingUnavailableError) {
+      // AC-6.1, D15: a dependency outage, not a conflict. Nothing was written (AC-6.2); the UI branches on `code`.
+      c.header("Retry-After", String(ACCOUNTING_RETRY_AFTER_SECONDS));
+      return c.json(accountingUnavailableProblem(c.req.routePath), 503);
+    }
+    if (cause._tag === "Fail" && cause.error instanceof ClassificationMissingError) {
+      return c.json(
+        {
+          ...conflictProblem(c.req.path, cause.error.message, "classification_missing"),
+          lines: cause.error.lines.map((l) => ({
+            lineId: l.lineId,
+            date: l.date,
+            type: l.type,
+            missing: [...l.missing],
+          })),
+        },
+        409,
+      );
     }
     if (cause._tag === "Fail" && cause.error instanceof ConflictError) {
       return c.json(conflictProblem(c.req.path, cause.error.message, cause.error.code), 409);
