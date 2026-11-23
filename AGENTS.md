@@ -253,7 +253,8 @@ estimai-ui additionally uses:
 - **Tables:** TanStack Table v8; **drag & drop:** `@dnd-kit`
 - **Export:** none. The XLSX, client XLSX and PDF exports were removed on 2026-11-23
   (owner: they no longer worked and nobody needed them), with `exceljs`, `xlsx`, `jspdf`
-  and `jspdf-autotable`. The JSON import on the list stays.
+  and `jspdf-autotable`. What stays is the estimate as JSON: the editor's Export JSON
+  (`lib/projects.ts` `exportProjectToJson`) writes the file the list's Import JSON reads back.
 - **Sharing:** account-based collaborators only (specs/20260807-estimate-sharing). The anonymous
   link share (`lz-string` payload in a URL fragment + `qrcode`) was removed on
   2026-08-09 — an estimate is never viewable without an Operai account.

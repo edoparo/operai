@@ -7,6 +7,7 @@ import ActivityTable from './components/ActivityTable'
 import SummaryTable from './components/SummaryTable'
 import ParametersPanel from './components/ParametersPanel'
 import { useEstimatorContext } from './context/EstimatorContext'
+import { exportProjectToJson, projectJsonFileName } from './lib/projects'
 import { strings } from './strings'
 import { computeHealthWarnings } from './lib/healthWarnings'
 import ShortcutsModal from './components/ShortcutsModal'
@@ -253,6 +254,18 @@ export default function EstimatorApp() {
 
   const warnings = useMemo(() => computeHealthWarnings(acts, releases, summary), [acts, releases, summary])
 
+  // The estimate as a JSON file the list's Import JSON reads back (2026-11-23). Available in every
+  // access mode: whoever can open an estimate can read everything the file holds.
+  const exportJson = useCallback(() => {
+    const blob = new Blob([exportProjectToJson({ name, author, params, releases, acts })], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = projectJsonFileName(name)
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [name, author, params, releases, acts])
+
   return (
     <div className="min-h-full w-full">
       {/* INC-30: the editor's h1. The sticky header has no room for a visible
@@ -384,6 +397,10 @@ export default function EstimatorApp() {
                 {lifecycleBusy ? strings.lifecycle.reopenBusy : strings.lifecycle.reopenAction}
               </Button>
             ))}
+          <div className="w-px h-4 bg-rule mx-0.5" />
+          <Button size="sm" onClick={exportJson} title={strings.editor.exportJsonTitle} data-testid="export-json-button">
+            {strings.editor.exportJson}
+          </Button>
           <div className="w-px h-4 bg-rule mx-0.5" />
           <Button
             variant="ghost"

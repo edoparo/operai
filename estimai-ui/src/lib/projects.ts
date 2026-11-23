@@ -84,6 +84,22 @@ export function getLastProjectId(): string | null {
   return localStorage.getItem(CURRENT_ID_KEY)
 }
 
+/**
+ * The JSON file of an estimate (2026-11-23): exactly what `importProjectFromJson` and the list's
+ * Import JSON read back — name, author, parameters, releases and activities. No id, owner,
+ * collaborators or CRM link: an imported file is a new estimate of whoever imports it.
+ */
+export function exportProjectToJson(data: Omit<ProjectData, 'id'>): string {
+  const { name, author, params, releases, acts } = data
+  return JSON.stringify({ name, author, params, releases, acts }, null, 2)
+}
+
+/** The file name of an estimate's JSON: its name with spaces as underscores, `estimate` when blank. */
+export function projectJsonFileName(name: string): string {
+  const stem = name.trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_')
+  return `${stem || 'estimate'}.json`
+}
+
 /** Parse and import a JSON file. Returns the new project id, or throws on invalid input. */
 export function importProjectFromJson(raw: string): string {
   let parsed: unknown
