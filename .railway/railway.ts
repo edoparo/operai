@@ -166,7 +166,8 @@ export default defineRailway(() => {
     preDeploy: "bun run db:deploy",
     replicas: { "europe-west4-drams3a": 1 },
     deploy: { restartPolicyMaxRetries: 3 },
-    // No `domains` yet (as accounting-api before e7f825e1): `railway config plan` refuses to register a custom domain. It is added with `railway domain`, then declared here.
+    // The domain was attached with `railway domain` (config cannot register a custom domain), then declared here.
+    domains: [{ domain: "hours-api.operai.welld.io", port: 8090 }],
   });
 
   return project("operai", {
