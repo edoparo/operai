@@ -155,10 +155,11 @@ export default defineRailway(() => {
   });
 
   // specs/20261112-time-tracking (ADR 20261112-hours-api-time-entries-own-service-hours-catalog): time entries, categories and work types, read through the ungated hours remote.
-  // - Declared WITHOUT `source` first (.claude/skills/provision-tool/SKILL.md): the variables are set before the first build, then the source is added (infra/README.md § Time tracking, step 4).
+  // - Declared without `source` first (.claude/skills/provision-tool/SKILL.md); the source was added once its variables were set (infra/README.md § Time tracking, step 4).
   // - preDeploy `bun run db:deploy` runs its first migration against its own logical database `hours`, which creates and seeds the lists.
   // - Single replica, EU only: nothing in it depends on one instance (its one memo is a 30 s refusal cache).
   const hoursApi = service("hours-api", {
+    source: github("matteocodogno/operai", { branch: "main", checkSuites: false, rootDirectory: "/hours-api" }),
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     start: "bun run src/index.ts",
     healthcheck: "/health",
