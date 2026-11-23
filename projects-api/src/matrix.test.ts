@@ -43,8 +43,9 @@ const ENTITIES: readonly Entity[] = ["welld_ch", "welld_it"];
  *   take         `handoff:take` AND `project:manage` for the CRM DEAL's entity, which the CRM says
  *                (`out_of_scope` for the other one; `forbidden` without `handoff:take` at all)
  *   bexio        `purchase-order:bexio`, not entity-scoped
- *   host         the activity-host contract (specs/20261110-activities T5): any caller with a valid token and a live
- *                authz answer gets 200, a non-holder of `projects:access` as `reader:false`
+ *   host         the activity-host contract (specs/20261110-activities T5) and the meeting-host contract
+ *                (specs/20261104-meetings A18): any caller with a valid token and a live authz answer gets 200,
+ *                a non-holder of `projects:access` as `reader:false` / `closed`
  *   pick         `manage` for the project's entity, and then — the project having no project manager yet —
  *                to be the purchase order's ops-manager (`purchase-order:receive` for the project's entity
  *                AND named on the row) or to hold `purchase-order:receive` for every entity (the admin
@@ -128,6 +129,16 @@ const SPECS: Record<string, RouteSpec> = {
     prepare: async (entity) => ({
       method: "POST",
       path: "/activity-host/v1/resolve",
+      body: { entityType: "project", ids: [await withProject(entity)] },
+    }),
+  },
+  // The meeting-host contract (specs/20261104-meetings A18): answered, never refused — a non-holder gets `closed`.
+  "POST /meeting-host/v1/resolve": {
+    need: "host",
+    ok: 200,
+    prepare: async (entity) => ({
+      method: "POST",
+      path: "/meeting-host/v1/resolve",
       body: { entityType: "project", ids: [await withProject(entity)] },
     }),
   },

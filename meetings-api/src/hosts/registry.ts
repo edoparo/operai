@@ -116,7 +116,7 @@ export type NoticeResult =
       readonly code: NoticeFailureCode;
     };
 
-// ─── CRM: the one production host ───────────────────────────────────────────
+// ─── CRM ───────────────────────────────────────────
 
 const crmDefinition = (baseUrl: string): HostDefinition => ({
   app: "crm",
@@ -140,6 +140,39 @@ const crmDefinition = (baseUrl: string): HostDefinition => ({
   hostVisibleRequirement: "deal:financials",
   notices: true,
   recommendedTemplates: ["builtin:sales-discovery"],
+  contract: 1,
+});
+
+// ─── Projects: a project (specs/20261104-meetings A18, 2026-11-23) ──────────
+
+/**
+ * A meeting about a project. The host reader opt-in is the project's TEAM (its project manager and
+ * members), answered live by projects-api's resolve; no notices (the project page lists its meetings
+ * through `HostMeetings`, nothing is mirrored into its activities). A meeting started from a project
+ * task is linked to the task's project.
+ */
+const projectsDefinition = (baseUrl: string): HostDefinition => ({
+  app: "projects",
+  entityType: "project",
+  baseUrl,
+  labels: {
+    en: {
+      app: "Projects",
+      entity: "Project",
+      visibilityHint: "and are on the project's team",
+      noticeFailed: "The project could not be told about this meeting",
+    },
+    it: {
+      app: "Progetti",
+      entity: "Progetto",
+      visibilityHint: "e fanno parte del team del progetto",
+      noticeFailed: "Non è stato possibile avvisare il progetto di questo meeting",
+    },
+  },
+  offersHostVisible: true,
+  hostVisibleRequirement: "project team (project manager or member)",
+  notices: false,
+  recommendedTemplates: [],
   contract: 1,
 });
 
@@ -172,12 +205,15 @@ export interface RegistryOptions {
   readonly production: boolean;
   /** The CRM host's base URL. */
   readonly crmApiUrl: string;
+  /** The Projects host's base URL; absent = the Projects host is not registered. */
+  readonly projectsApiUrl?: string;
   /** Raw `MEETINGS_TEST_HOSTS` elements, or already-built definitions in tests. Ignored in production. */
   readonly testHosts?: readonly unknown[];
 }
 
 export function buildRegistry(options: RegistryOptions): HostRegistry {
   const hosts: HostDefinition[] = [crmDefinition(options.crmApiUrl)];
+  if (options.projectsApiUrl) hosts.push(projectsDefinition(options.projectsApiUrl));
 
   if (!options.production) {
     (options.testHosts ?? []).forEach((raw, index) => {
@@ -206,6 +242,8 @@ export function buildRegistry(options: RegistryOptions): HostRegistry {
 
 /** Where the CRM lives when CRM_API_URL is unset (development and test only; env.ts requires it in production). */
 const LOCAL_CRM_API_URL = "http://localhost:8084";
+/** Where Projects lives when PROJECTS_API_URL is unset outside production; in production an unset one leaves Projects out. */
+const LOCAL_PROJECTS_API_URL = "http://localhost:8086";
 
 let current: HostRegistry | null = null;
 
@@ -214,6 +252,9 @@ export function hostRegistry(): HostRegistry {
   current ??= buildRegistry({
     production: env.NODE_ENV === "production",
     crmApiUrl: env.CRM_API_URL ?? LOCAL_CRM_API_URL,
+    ...(env.PROJECTS_API_URL || env.NODE_ENV !== "production"
+      ? { projectsApiUrl: env.PROJECTS_API_URL ?? LOCAL_PROJECTS_API_URL }
+      : {}),
     testHosts: env.MEETINGS_TEST_HOSTS,
   });
   return current;

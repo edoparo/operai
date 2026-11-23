@@ -42,6 +42,7 @@ More groups (plan.md § Environment). A misconfiguration exits 1 naming the vari
 | `MEETINGS_S3_ENDPOINT` / `_REGION` / `_BUCKET` / `_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | required; own EU bucket (MinIO locally). A non-AWS endpoint also needs `MEETINGS_S3_EU_ENDPOINT_HOSTS`. At start the bucket must carry one unfiltered lifecycle rule of at most 29 days and versioning must not be enabled (AC-4.4) |
 | `NOTIFY_INTERNAL_URL`, `SERVICE_CLIENT_ID`, `SERVICE_CLIENT_SECRET` | all or none; required in production. Client `meetings-api` needs scopes `notifications.push host-notices.send` |
 | `CRM_API_URL` | the CRM host; required in production (defaults to `http://localhost:8084` otherwise) |
+| `PROJECTS_API_URL` | the Projects host (a meeting linked to a project); unset in production leaves Projects out (defaults to `http://localhost:8086` otherwise) |
 | `MEETINGS_AI_PROVIDER` | `real` (default, required in production) or `fake` (development and test only) |
 | `MEETINGS_SPEECH_LOCATION` | Cloud Speech-to-Text v2 location (Chirp 3); only `eu` is accepted (S1). The endpoint `https://eu-speech.googleapis.com` is derived, never configured |
 | `MEETINGS_VERTEX_LOCATION` | Claude on Vertex AI: `eu` (recommended), `europe-west1` or `europe-west4` (S2). `global`, `us` and anything else is refused. The base URL is derived (`aiplatform.eu.rep.googleapis.com` for `eu`) |

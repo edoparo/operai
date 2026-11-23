@@ -17,6 +17,7 @@ const { apiFetch } = vi.hoisted(() => ({
   apiFetch: vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(),
 }))
 vi.mock('shell/session', () => ({
+  usePermissions: () => ({ epoch: 0, apps: [], roles: [], departments: [], permissions: [] }),
   apiFetch,
   getProjectsApiBaseUrl: () => 'http://projects-api.test',
   getAuthBaseUrl: () => 'http://auth.test',

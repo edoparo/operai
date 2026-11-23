@@ -1026,3 +1026,20 @@ contracts. Only the e2e tasks (T86–T90) join the two tracks.
 - [x] T136: [FE] meetings-ui: `TAB_CONSTRAINTS` opens the picker on the entire screen with system audio (`displaySurface: 'monitor'`, `systemAudio`/`monitorTypeSurfaces: 'include'`, `selfBrowserSurface`/`surfaceSwitching: 'exclude'`, typed by `DisplayCaptureOptions`); copy en/it names the computer's audio and the tab fallback — refs: AC-2.4, AC-2.5 — deps: none
   - touch: `meetings-ui/src/capture/mixer.ts`, `meetings-ui/src/capture/session.ts`, `meetings-ui/src/strings/{capture,dock}.ts`, `meetings-ui/src/capture/{mixer,session}.test.ts`
   - done when: `pnpm lint && pnpm build && pnpm test` pass
+
+## Amendment 2026-11-23 #2 — Projects as a host (spec A18, US-11)
+
+> Re-synced 2026-11-23 after spec A18 (user decision 2026-11-23). Built directly on `main`.
+
+- [x] T137: [BE] meetings-api: `projects/project` host definition (team opt-in, `notices: false`, labels en/it), registered from `PROJECTS_API_URL` (default `http://localhost:8086` outside production, absent in production = not registered); env-doctor manifest + production template — refs: AC-11.1, AC-11.4 — deps: none
+  - touch: `meetings-api/src/hosts/registry.ts`, `meetings-api/src/hosts/registry.test.ts`, `meetings-api/src/lib/env.ts`, `meetings-api/README.md`, `tools/env-doctor/**`
+  - done when: `bun test` on `meetings_test` and `bun run typecheck` pass; `mise run env:doctor` passes
+- [x] T138: [BE] projects-api: `POST /meeting-host/v1/resolve` (JWT + live authz, `entityType: "project"`, ≤ 25 ids; `missing` / `closed` without `projects:access` / `open` with title, href and `hostVisible` = project manager or member), matrix row — refs: AC-11.1, AC-11.3, AC-11.5 — deps: none
+  - touch: `projects-api/src/meeting-host/*`, `projects-api/src/index.ts`, `projects-api/src/matrix.test.ts`
+  - done when: `bun test` on `projects_test` and `bun run typecheck` pass
+- [x] T139: [FE] meetings-ui: `?title=` prefills the new meeting's title (wins over the host record's title, blank ignored) — refs: AC-1.1 — deps: none
+  - touch: `meetings-ui/src/pages/NewMeetingPage.tsx`, `meetings-ui/src/pages/NewMeetingPage.test.tsx`
+  - done when: `pnpm lint && pnpm build && pnpm test` pass
+- [x] T140: [FE] projects-ui: Meetings card on the project page through `shell/extensions` (`meetings.hostMeetings`, own fallback), "Start a meeting" on a project task (project page and My tasks) for `meetings:access` holders, linking to the task's project with the task's title; strings en/it — refs: AC-11.2 — deps: T137, T138, T139
+  - touch: `projects-ui/src/components/MeetingsSection.tsx`, `projects-ui/src/lib/meetings.ts`, `projects-ui/src/components/ProjectTaskItem.tsx`, `projects-ui/src/pages/{ProjectDetailPage,MyTasksPageRow}.tsx`, `projects-ui/src/federation/**`, `projects-ui/vitest.config.ts`, `projects-ui/src/strings/{project,tasks}.ts`, tests
+  - done when: `pnpm lint && pnpm build && pnpm test` pass

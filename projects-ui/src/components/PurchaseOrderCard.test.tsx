@@ -15,6 +15,7 @@ import type { Project, PurchaseOrder, Scope } from '../lib/types'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
+  usePermissions: () => ({ epoch: 0, apps: [], roles: [], departments: [], permissions: [] }),
   apiFetch,
   getProjectsApiBaseUrl: () => 'http://projects-api.test',
   getAuthBaseUrl: () => 'http://auth.test',

@@ -26,6 +26,7 @@ export default defineConfig({
       { find: /^@operai\/ui\/rich-text$/, replacement: fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url)) },
       { find: /^@operai\/ui$/, replacement: fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)) },
       { find: 'shell/session', replacement: fileURLToPath(new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url)) },
+      { find: 'shell/extensions', replacement: fileURLToPath(new URL('./src/federation/__stubs__/shellExtensions.ts', import.meta.url)) },
       { find: 'shell/tokens.css', replacement: fileURLToPath(new URL('./src/federation/__stubs__/shellTokens.css', import.meta.url)) },
     ],
   },

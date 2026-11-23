@@ -34,6 +34,8 @@ const en = {
     reopen: 'Mark not done',
     edit: 'Edit',
     delete: 'Delete',
+    startMeeting: 'Start a meeting',
+    startMeetingFor: (title: string) => `Start a meeting about ${title}`,
     actionsFor: (title: string) => `Actions for ${title}`,
   },
   saved: {
@@ -202,6 +204,8 @@ const it: typeof en = {
     reopen: 'Segna come non completata',
     edit: 'Modifica',
     delete: 'Elimina',
+    startMeeting: 'Avvia un meeting',
+    startMeetingFor: (title: string) => `Avvia un meeting su ${title}`,
     actionsFor: (title: string) => `Azioni per ${title}`,
   },
   saved: {

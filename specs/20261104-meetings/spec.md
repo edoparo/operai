@@ -190,6 +190,18 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   (Chrome on macOS before 141 / macOS before 14.2), a tab with its audio can still be chosen. Only
   the audio is kept; Operai's own tab is not offered. Why: the meeting is often in a desktop app,
   which a tab share cannot hear.
+- **A18 — decided by the user 2026-11-23 (US-11, AC-11.1):** Projects is the second host, entity
+  type `project` (registered when meetings-api has `PROJECTS_API_URL`; outside production it
+  defaults to the local service). A meeting can be started from a project (the project page's
+  Meetings card, the same `HostMeetings` panel as a deal) and from a project task: a task is not a
+  host of its own, the meeting is linked to the task's PROJECT and its title starts as the task's
+  (`/meetings/new?…&title=`, a prefill only). Host reader opt-in: the creator may let the project's
+  TEAM read it (its project manager and members, answered live by projects-api's
+  `POST /meeting-host/v1/resolve` as `hostVisible`; no role overrides it, an admin off the team is
+  not a host reader). A caller without `projects:access` is answered `closed`, an unknown project
+  `missing`. Projects takes NO host notices (`notices: false`): nothing about a meeting is stored in
+  Projects or mirrored into its activities. AC-11.1's "exactly the CRM" now reads "the CRM
+  (`deal`) and Projects (`project`)".
 
 ## Problem
 

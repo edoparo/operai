@@ -66,6 +66,17 @@ const parseHostRef = (search: Record<string, unknown>): HostRef | null => {
   return app && entityType && entityId ? { app, entityType, entityId } : null
 }
 
+/**
+ * A suggested title from the link that opened this page (`?title=…`, specs/20261104-meetings A18: a
+ * meeting started from a project task is titled after the task). Only a prefill; blank or over-long
+ * is ignored.
+ */
+const parseSuggestedTitle = (search: Record<string, unknown>): string | null => {
+  const raw = search['title']
+  const value = typeof raw === 'string' || typeof raw === 'number' ? String(raw).trim() : ''
+  return value !== '' && value.length <= TITLE_MAX ? value : null
+}
+
 type HostProblem = 'forbidden' | 'notFound' | 'unavailable'
 
 const HOST_NOT_FOUND_CODES = new Set(['host_entity_not_found', 'host_not_registered'])
@@ -127,13 +138,15 @@ export default function NewMeetingPage() {
   const t = strings.newMeeting
   const navigate = useNavigate()
   const hosts = useHosts()
-  const hostRef = parseHostRef(useSearch({ strict: false }))
+  const search = useSearch({ strict: false })
+  const hostRef = parseHostRef(search)
+  const suggestedTitle = parseSuggestedTitle(search)
   const { app: hostApp, entityType: hostType, entityId: hostId } = hostRef ?? { app: '', entityType: '', entityId: '' }
 
   const formRef = useRef<HTMLFormElement>(null)
   const radioName = useId()
 
-  // `null` until the person types: until then the title is the host record's.
+  // `null` until the person types: until then the title is the suggested one (`?title=`), else the host record's.
   const [titleInput, setTitleInput] = useState<string | null>(null)
   const [startsAt, setStartsAt] = useState(() => toLocalInput(new Date()))
   const [format, setFormat] = useState<MeetingFormat>('online')
@@ -169,7 +182,7 @@ export default function NewMeetingPage() {
     else if (lookedUp !== null && lookedUp.state === 'unavailable') problem = 'unavailable'
   }
 
-  const title = titleInput ?? lookedUp?.title ?? ''
+  const title = titleInput ?? suggestedTitle ?? lookedUp?.title ?? ''
 
   const startStandalone = () => {
     setHostGone(false)

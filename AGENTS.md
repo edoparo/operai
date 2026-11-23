@@ -22,7 +22,7 @@ the shell-owned `/notify` route, reached from the header bell (ADR 20260713-noti
 exposes a second, UNGATED entry, `./MyDevices`, mounted at the shell-owned `/devices` route
 (any signed-in user sees their own devices; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote). `meetings-ui` does the same with
 `./MyMeetings` at `/my-meetings` (a participant can always read what was captured about them;
-ADR 20261104-meetings-tool-shape-visibility-by-participation) and exposes a coarse `./HostMeetings` panel that a host app (today the CRM deal page)
+ADR 20261104-meetings-tool-shape-visibility-by-participation) and exposes a coarse `./HostMeetings` panel that a host app (the CRM deal page and, since 2026-11-23, the Projects project page)
 embeds through the shell's `HostExtension` seam with a timeout and an error boundary (ADR 20261104-host-extension-federated-panel-through-the-shell). It also exposes
 `./RecorderDock`, the recorder widget the shell shows in its floating slot while a recording runs and the person
 is elsewhere in Operai (ADR 20261110-shell-floating-slot-for-remote-widgets).
@@ -366,7 +366,7 @@ Per-service specifics:
   (ADR 20261104-projects-handoff-live-reads-between-crm-and-projects-over-service-credentials/0092); the PO's referent is a CRM contact id read live from crm-api, never stored or cached
   (`no-store`, ADR 20261105-handoff-take-and-purchase-order-receive-capabilities-auth-holders-listing-amends-0047); a project from a deal awaits its project manager until the ops-manager (or an admin)
   picks one; `GET /system/purchase-orders` serves crm-api behind `projects.purchase-orders.read`; answers activities-api's
-  `POST /activity-host/v1/resolve` for entity type `project` (specs/20261110-activities)
+  `POST /activity-host/v1/resolve` for entity type `project` (specs/20261110-activities), and meetings-api's `POST /meeting-host/v1/resolve` (a project's team are its host readers; no notices, specs/20261104-meetings A18)
 - `activities-api` — activities, tasks and blockers of the CRM and Projects (specs/20261110-activities): a JWKS resource
   server with **no permission catalog** — who may read or change an activity is asked of the host as the
   caller on every request (`POST /activity-host/v1/resolve` on crm-api or projects-api with the forwarded JWT,
@@ -578,7 +578,7 @@ The authoritative glossary is `specs/20261104-meetings/spec.md` § Domain langua
 | `meeting` | One conversation captured in Operai: metadata, one source, a transcript, any number of summaries, and each participant's private Q&A history |
 | `creator` | The one Operai user who created the meeting; a meeting whose creator is deactivated is frozen, not orphaned |
 | `participant` | An Operai participant (an active account) or an external participant (a name, never an account) |
-| `host` | An Operai app that lists and starts meetings about its own records (today CRM, entity type `deal`); a host reference is `{app, entityType, entityId}`, at most one per meeting |
+| `host` | An Operai app that lists and starts meetings about its own records (CRM, entity type `deal`; Projects, entity type `project`, since 2026-11-23: a meeting started from a project task is linked to its project, specs/20261104-meetings A18); a host reference is `{app, entityType, entityId}`, at most one per meeting |
 | `host notice` | The content-free message (id, event, creator, per-meeting `seq`) a host that opted in receives when a linked meeting is linked, changed, relinked, unlinked or deleted (ADR 20261104-meeting-host-contract-resolve-and-notices) |
 | `source` | `recorded` (browser), `uploaded` (a file) or `text` (typed/pasted) — exactly one per meeting |
 | `audio` | The only thing in the bucket; kept until 29 days after creation, then deleted by the bucket's lifecycle rule (ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup) |

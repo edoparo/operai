@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('shell/session', () => ({
+  usePermissions: () => ({ epoch: 0, apps: [], roles: [], departments: [], permissions: [] }),
   apiFetch: vi.fn(),
   getProjectsApiBaseUrl: vi.fn(() => 'http://projects-api.test'),
   getAuthBaseUrl: vi.fn(() => 'http://auth.test'),

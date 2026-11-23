@@ -41,6 +41,18 @@ describe("production registry (AC-11.1)", () => {
     });
   });
 
+  it("adds projects/project when its URL is set (A18): team opt-in, no notices", () => {
+    const withProjects = buildRegistry({ production: true, crmApiUrl: crm, projectsApiUrl: "http://projects-api.railway.internal:8086" });
+    expect(withProjects.all().map((h) => `${h.app}/${h.entityType}`)).toEqual(["crm/deal", "projects/project"]);
+    expect(withProjects.get("projects", "project")).toMatchObject({
+      app: "projects",
+      entityType: "project",
+      offersHostVisible: true,
+      notices: false,
+      labels: { en: { app: "Projects", entity: "Project" }, it: { app: "Progetti", entity: "Progetto" } },
+    });
+  });
+
   it("returns undefined for a host that is not registered", () => {
     expect(registry.get("crm", "company")).toBeUndefined();
     expect(registry.get("pm", "project")).toBeUndefined();

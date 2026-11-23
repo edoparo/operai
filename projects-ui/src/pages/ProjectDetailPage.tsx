@@ -5,6 +5,7 @@ import { EntityBadge, ProjectStateBadge, ProjectTypeBadge } from '../components/
 import PickProjectManagerDialog from '../components/PickProjectManagerDialog'
 import ProjectEditDialog from '../components/ProjectEditDialog'
 import { LoadFailure, Loading, Saved, StaleWriteBanner } from '../components/LoadState'
+import MeetingsSection from '../components/MeetingsSection'
 import PurchaseOrderCard from '../components/PurchaseOrderCard'
 import StateActions from '../components/StateActions'
 import TasksCard from '../components/TasksCard'
@@ -241,6 +242,7 @@ export default function ProjectDetailPage() {
           onStale={() => setStale(true)}
         />
         <TasksCard project={project} canManage={canManage} currentUserId={currentUserId} />
+        <MeetingsSection projectId={project.id} />
         {project.purchaseOrder !== null ? (
           <PurchaseOrderCard
             project={project}

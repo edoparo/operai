@@ -87,6 +87,11 @@ const en = {
     submit: 'Save',
     busy: 'Saving…',
   },
+  meetings: {
+    heading: 'Meetings',
+    loading: 'Loading meetings…',
+    unavailable: 'Meetings cannot be shown right now. Reload the page to try again.',
+  },
   team: {
     title: 'Team',
     edit: 'Edit team',
@@ -202,6 +207,11 @@ const it: typeof en = {
       'Questo progetto non ha ancora un project manager: lo sceglie il responsabile OPS del suo ordine d’acquisto.',
     submit: 'Salva',
     busy: 'Salvataggio…',
+  },
+  meetings: {
+    heading: 'Meeting',
+    loading: 'Caricamento dei meeting…',
+    unavailable: 'Al momento non è possibile mostrare i meeting. Ricarica la pagina per riprovare.',
   },
   team: {
     title: 'Team',

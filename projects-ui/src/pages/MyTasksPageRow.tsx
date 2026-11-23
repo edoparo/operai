@@ -6,6 +6,7 @@ import type { MyTask } from '../lib/activitiesApi'
 import { statusOf, codeOf, taskErrorMessage } from '../lib/errors'
 import { RichTextFilesView } from '@operai/ui/rich-text'
 import { openTaskFile, taskFileUrlResolver } from '../lib/taskFiles'
+import { newMeetingHref, useCanStartMeetings } from '../lib/meetings'
 import { strings } from '../strings'
 import { TASK_STATE_MEANING, refName, taskState, taskStatus } from '../components/TaskModel'
 
@@ -42,6 +43,7 @@ export default function MyTaskItem({
 }) {
   const t = strings.tasks.row
   const my = strings.tasks.my
+  const canStartMeetings = useCanStartMeetings()
   const [busy, setBusy] = useState(false)
   const state = taskState(task)
   const status = taskStatus(task)
@@ -185,6 +187,16 @@ export default function MyTaskItem({
             data-testid={`my-task-${task.id}-crm`}
           >
             {my.openInCrm}
+          </a>
+        ) : task.kind === 'operational' && task.project !== null && canStartMeetings ? (
+          // specs/20261104-meetings A18: a meeting about a project task is linked to its project.
+          <a
+            className="link self-center text-sm"
+            href={newMeetingHref(task.project.id, task.subject)}
+            aria-label={t.startMeetingFor(task.subject)}
+            data-testid={`my-task-${task.id}-meeting`}
+          >
+            {t.startMeeting}
           </a>
         ) : undefined
       }

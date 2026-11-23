@@ -92,6 +92,9 @@ const envSchema = z
     // ─── Hosts (ADR 20261104-meeting-host-contract-resolve-and-notices) ───────────────────────────────────────────────────
     // The CRM host's base URL (Railway private DNS). Required in production.
     CRM_API_URL: z.string().url("CRM_API_URL must be a valid URL").optional(),
+    // The Projects host's base URL (Railway private DNS). Optional: unset in production, a meeting
+    // cannot be linked to a project (specs/20261104-meetings A18).
+    PROJECTS_API_URL: z.string().url("PROJECTS_API_URL must be a valid URL").optional(),
     // JSON array of host definitions; TEST ONLY, refused in production. Its shape is
     // validated by the host registry (src/hosts/registry.ts).
     MEETINGS_TEST_HOSTS: z.string().optional(),

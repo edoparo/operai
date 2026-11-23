@@ -30,6 +30,7 @@ import type { Person, Project, ProjectState, PurchaseOrder, Scope } from '../lib
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
+  usePermissions: () => ({ epoch: 0, apps: [], roles: [], departments: [], permissions: [] }),
   apiFetch,
   getProjectsApiBaseUrl: () => 'http://projects-api.test',
   getAuthBaseUrl: () => 'http://auth.test',
@@ -134,6 +135,14 @@ describe('the project page (AC-1.4, AC-1.5)', () => {
     expect(within(terms).getByRole('heading', { level: 3, name: 'Terms' })).not.toBeNull()
     expect(terms.textContent).toContain('Senior developer')
     expect(screen.getByTestId('project-detail-back').getAttribute('href')).toBe('/')
+  })
+
+  it('has a Meetings card, the Meetings panel loaded through the shell seam, with its own fallback (A18)', async () => {
+    await renderProject(projectDetail({ name: 'Intranet' }))
+    // The test stub of `shell/extensions` is a shell with no remote: it renders the host's fallback.
+    const card = await screen.findByTestId('project-meetings')
+    expect(card.textContent).toContain('Meetings')
+    expect(screen.getByTestId('project-meetings-unavailable')).not.toBeNull()
   })
 
   it('shows "Open-ended" when the terms have no end, and no dates without terms', async () => {

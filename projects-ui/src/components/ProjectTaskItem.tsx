@@ -5,6 +5,7 @@ import type { ProjectTask } from '../lib/activitiesApi'
 import { codeOf, statusOf, taskErrorMessage } from '../lib/errors'
 import { RichTextFilesView } from '@operai/ui/rich-text'
 import { openTaskFile, taskFileUrlResolver } from '../lib/taskFiles'
+import { newMeetingHref, useCanStartMeetings } from '../lib/meetings'
 import { strings } from '../strings'
 import { TASK_STATE_MEANING, refName, taskState, taskStatus } from './TaskModel'
 
@@ -50,6 +51,7 @@ export default function ProjectTaskItem({
   const [progressing, setProgressing] = useState(false)
   const openBlockers = task.task.blockedBy?.filter((blocker) => !blocker.completed) ?? []
   const participants = task.participants ?? []
+  const canStartMeetings = useCanStartMeetings()
 
   const toggle = () => {
     setBusy(true)
@@ -155,6 +157,16 @@ export default function ProjectTaskItem({
       actionsLabel={t.actionsFor(task.subject)}
       actions={
         <>
+          {canStartMeetings && task.project !== null && (
+            <a
+              className="link self-center text-sm"
+              href={newMeetingHref(task.project.id, task.subject)}
+              aria-label={t.startMeetingFor(task.subject)}
+              data-testid={`project-task-${task.id}-meeting`}
+            >
+              {t.startMeeting}
+            </a>
+          )}
           {task.may.edit && (
             <Button
               size="sm"

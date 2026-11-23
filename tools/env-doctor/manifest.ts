@@ -331,7 +331,8 @@ export const INTERNAL_URL_VARS: ReadonlyArray<{
   // specs/20261104-meetings: meetings-api calls the CRM host's resolve (as the caller) and notices (as itself), ADR 20261104-meeting-host-contract-resolve-and-notices.
   // specs/20261110-activities (ADR 20261110-activities-service-access-delegated-to-host): activities-api asks each host "may this user ..." with the caller's own JWT.
   { name: "CRM_API_URL", services: ["meetings-api", "activities-api"], target: "crm-api" },
-  { name: "PROJECTS_API_URL", services: ["activities-api"], target: "projects-api" },
+  // specs/20261104-meetings A18: meetings-api also asks Projects (a meeting linked to a project); optional there.
+  { name: "PROJECTS_API_URL", services: ["activities-api", "meetings-api"], target: "projects-api" },
   // specs/20261110-activities (ADR 20261110-caller-chosen-ids-replace-cross-service-transactions): crm-api calls activities-api's user routes (as the caller) and /system/v1/* (as itself).
   { name: "ACTIVITIES_API_URL", services: ["crm-api"], target: "activities-api" },
   // specs/20261103-projects-handoff: projects-api reads a deal's estimate man-days from estimai-api with the same service

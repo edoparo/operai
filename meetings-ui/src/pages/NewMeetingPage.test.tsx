@@ -223,6 +223,22 @@ describe('started from a record (AC-1.1)', () => {
     })
   })
 
+  it('a suggested ?title= wins over the record title and is still linked to the record (A18: from a project task)', async () => {
+    serve({ 'GET /hosts/:app/:type/:id': () => ({ status: 200, body: { host: hostView() } }) })
+    const router = await renderAt(`${DEAL}&title=${encodeURIComponent('Kick-off with the client')}`)
+    await screen.findByText('Deal · Acme renewal')
+    expect(titleInput().value).toBe('Kick-off with the client')
+    await userEvent.click(submit())
+    await waitFor(() => expect(router.state.location.pathname).toBe('/m/new1'))
+    expect(posts()[0]?.body).toMatchObject({ title: 'Kick-off with the client', host: { app: 'crm', entityType: 'deal', entityId: 'd1' } })
+  })
+
+  it('ignores a blank suggested title', async () => {
+    serve({ 'GET /hosts/:app/:type/:id': () => ({ status: 200, body: { host: hostView() } }) })
+    await renderAt(`${DEAL}&title=%20%20`)
+    await waitFor(() => expect(titleInput().value).toBe('Acme renewal'))
+  })
+
   it('does not overwrite a title the person already typed when the record arrives late', async () => {
     let release: () => void = () => undefined
     const gate = new Promise<void>((resolve) => (release = resolve))

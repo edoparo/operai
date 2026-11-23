@@ -47,6 +47,25 @@ declare module 'shell/session' {
   export const usePermissions: () => PermissionsResult
 }
 
+// The host-extension seam (specs/20261104-meetings A18, ADR 20261104-host-extension-federated-panel-through-the-shell): a
+// federated panel the shell loads on behalf of a host, raced against a timeout, with an error boundary; a
+// failure of any kind renders `fallback`. Keep in sync by hand with shell/src/lib/extensions.tsx. Imported
+// DYNAMICALLY: a missing module or export reads as "unavailable".
+declare module 'shell/extensions' {
+  import type { JSX, ReactNode } from 'react'
+
+  export interface ExtensionProps {
+    'meetings.hostMeetings': { hostApp: string; entityType: string; entityId: string }
+  }
+
+  export function HostExtension<K extends keyof ExtensionProps>(props: {
+    name: K
+    props: ExtensionProps[K]
+    fallback: ReactNode
+    loading?: ReactNode
+  }): JSX.Element
+}
+
 declare module 'shell/tokens.css' {
   // Side-effect-only CSS module (the shared Operai tokens) — no exports.
 }
