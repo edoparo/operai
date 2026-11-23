@@ -149,6 +149,17 @@ Where else this shape can appear, including the mirror-image positions:
 
 **Compliance.** The baseline table holds employee emails with the last paper number: personal data of the same kind as the receipt owner's user id, low impact. It is append-only, so an erasure request needs an owner decision, as for the counter. The list is a release input kept outside the repository; the report masks emails by default.
 
+## Amendment (2026-11-24) — a number may also be imported from the accountant's register, the counter continues after the highest of every source, and the prefix may be a receipt code
+
+Specs/20261124-receipt-numbers-from-the-register (decisions D4 to D8) adds to the numbering and changes the release procedure. The decision above is **not** edited; read it with these additions. The counter row, the lock order, the immutability and the release gate stay.
+
+1. **Origin.** A stored number is `issued` (by the counter, as above), `paper` (imported as written from the register) or `paper_split` (a confirmed split receipt). `refund_line` gains `receiptOrigin` and `receiptSplitPart`; the guard is replaced so that they are frozen with the other receipt columns. Paper seq 0 is allowed; issued seq stays 1 to 99999. Point 1's "stored once" now covers imported numbers, which keep the paper text.
+2. **Uniqueness** is (owner, year, seq, split part) instead of (owner, year, seq); only a `paper_split` group may share one number, checked by a deferred trigger. A number issued by the counter is never shared.
+3. **Baseline.** The 2026 baseline (amendment of 2026-11-19, accounting sign-off) is now the maximum of the `--offsets` row (optional, exit 3 retired), every register row mapped to the employee and the imported numbers, written as the same append-only baseline row. The "required list, else exit 3" rule of that amendment is replaced by the register and a confirmed pairing file as the required inputs, with exit statuses 5 to 9.
+4. **Prefix.** The initials of point 3 are the fallback; an employee's receipt code, when there is one, is the prefix of new numbers, read once per numbering call inside the transaction. Issued numbers never change.
+
+Why, how, and the failure shape: ADR 20261124-a-receipt-number-is-issued-by-the-counter-or-imported-as-written-from-the-accountants-register-and-the-counter-continues-after-the-highest-of-both-and-only-a-confirmed-split-receipt-may-share-one-number, ADR 20261124-a-receipt-code-per-employee-overrides-the-derived-initials-for-new-numbers-only-is-stored-as-a-unique-current-row-with-an-append-only-history-and-is-managed-by-its-own-capability and ADR 20261124-a-one-off-release-that-needs-human-judgement-runs-as-propose-then-confirm-then-run-and-the-confirmation-is-a-file-bound-to-its-inputs-and-refused-when-they-changed.
+
 ## Escalation triggers
 
 This decision is revisited when any of these happens:
