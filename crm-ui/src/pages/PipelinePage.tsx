@@ -30,7 +30,7 @@ const BOARD_PAGE_SIZE = 200
  * the board reloads with the server's figures; a stale move shows the reload
  * banner. The entity, company and owner filters narrow both the figures and the board, server-side.
  * The owner filter offers "Mine" and everyone who owns a deal (`GET /deals/owners`); if that list
- * fails to load, it offers "Mine" only.
+ * fails to load, it offers "Mine" only. It starts on "Mine" for a person who manages deals.
  */
 export default function PipelinePage() {
   const t = strings.deals.pipeline
@@ -41,8 +41,12 @@ export default function PipelinePage() {
   const [entity, setEntity] = useState<Entity | ''>('')
   /** One company's deals only; null = every company. */
   const [company, setCompany] = useState<CompanyChoice | null>(null)
-  /** One owner's deals only; '' = everyone's. */
-  const [ownerId, setOwnerId] = useState('')
+  /**
+   * One owner's deals only; '' = everyone's; null = not chosen yet. Not chosen, a person who manages deals sees their
+   * own (owner request 2026-11-23); someone who cannot own one (crm-technical) sees everyone's rather than an empty board.
+   */
+  const [ownerChoice, setOwnerChoice] = useState<string | null>(null)
+  const ownerId = ownerChoice ?? (canManageDeals && currentUserId ? currentUserId : '')
   /** The calendar year whose won and lost deals show (AC-3.6); null = this year, the server's. */
   const [year, setYear] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
@@ -206,7 +210,7 @@ export default function PipelinePage() {
           />
           <Field label={t.ownerFilter} testId="crm-pipeline-owner">
             {(control) => (
-              <select {...control} value={ownerId} onChange={(event) => setOwnerId(event.target.value)}>
+              <select {...control} value={ownerId} onChange={(event) => setOwnerChoice(event.target.value)}>
                 <option value="">{t.allOwners}</option>
                 {currentUserId && <option value={currentUserId}>{t.mine}</option>}
                 {otherOwners.map((person) => (

@@ -54,17 +54,19 @@ type BoardOptions = {
   /** `false` plays a caller without deal:financials: the server leaves every figure out. */
   financials?: boolean
   move?: (body: { stage: string }) => { status: number; body: unknown }
+  /** The entities the caller manages deals for; [] = read-only (crm-technical). */
+  dealScope?: string[]
 }
 
 /** The pipeline answers for the year it was asked (AC-3.6), offering 2026 and 2025. */
 const yearOf = (url: URL) => ({ year: Number(url.searchParams.get('year') ?? 2026), years: [2026, 2025] })
 
-const renderBoard = async ({ financials = true, move: answerMove }: BoardOptions = {}) => {
+const renderBoard = async ({ financials = true, move: answerMove, dealScope = ['welld_ch'] }: BoardOptions = {}) => {
   const moves: Moved[] = []
   const boardQueries: string[] = []
   apiFetch.mockImplementation(
     fakeApi({
-      'GET /scope': () => ({ status: 200, body: { deal: ['welld_ch'], canErase: false, financials, managesAll: false } }),
+      'GET /scope': () => ({ status: 200, body: { deal: dealScope, canErase: false, financials, managesAll: false } }),
       'GET /companies': () => ({
         status: 200,
         body: page([{ id: 'c1', name: 'Acme SA', entity: 'welld_ch', status: 'client', source: null, sourceDetail: null }]),
@@ -284,16 +286,26 @@ describe('PipelinePage board', () => {
     expect(pipelineQueries().at(-1)!.searchParams.get('companyId')).toBe('c1')
   })
 
-  it('the owner filter offers Mine and the other owners, and narrows both the figures and the board', async () => {
+  it('the owner filter starts on Mine, offers the other owners, and narrows both the figures and the board', async () => {
     const { boardQueries, pipelineQueries } = await renderBoard()
-    expect(boardQueries[0]).not.toContain('ownerId')
+    // A person who manages deals sees their own first (owner request 2026-11-23), from the very first load.
+    expect(boardQueries[0]).toContain('ownerId=u-ada')
+    expect(pipelineQueries()[0]!.searchParams.get('ownerId')).toBe('u-ada')
     const select = screen.getByLabelText('Owner') as HTMLSelectElement
+    expect(select.value).toBe('u-ada')
     await waitFor(() => expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Everyone', 'Mine', 'Bob Builder']))
     fireEvent.change(select, { target: { value: 'u-bob' } })
     await waitFor(() => expect(boardQueries.at(-1)).toContain('ownerId=u-bob'))
     expect(pipelineQueries().at(-1)!.searchParams.get('ownerId')).toBe('u-bob')
-    fireEvent.change(select, { target: { value: 'u-ada' } })
-    await waitFor(() => expect(boardQueries.at(-1)).toContain('ownerId=u-ada'))
+    fireEvent.change(select, { target: { value: '' } })
+    await waitFor(() => expect(boardQueries.at(-1)).not.toContain('ownerId'))
+    expect(pipelineQueries().at(-1)!.searchParams.get('ownerId')).toBeNull()
+  })
+
+  it('someone who cannot own a deal (crm-technical) starts on Everyone, not an empty board', async () => {
+    const { boardQueries } = await renderBoard({ dealScope: [] })
+    expect(boardQueries[0]).not.toContain('ownerId')
+    expect((screen.getByLabelText('Owner') as HTMLSelectElement).value).toBe('')
   })
 
   it('a lane with two currencies lists each total on its own line, never summed (AC-3.4)', async () => {

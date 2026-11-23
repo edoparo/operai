@@ -1,7 +1,7 @@
 ---
 spec: 20261101
 status: in-progress
-synced: 2026-11-17
+synced: 2026-11-23
 ---
 
 # Tasks — CRM (specs/20261101-crm)
@@ -44,3 +44,4 @@ verified by the named check; `[ ]` = open, with the reason.
 | T31 | Add an existing contact from the company page (AC-2.5): `ContactPicker`, "Add existing" dialog warning when the contact moves, saved with the contact's If-Match (UI only, existing `PATCH /contacts/{id}`) | [x] | crm-ui lint + build + 201 tests |
 | T32 | Pipeline company filter and card order (AC-3.4 amendment): `companyId` on `GET /pipeline`, a company picker beside entity and year narrowing figures and board; the card shows the company first, the title under it | [x] | crm-api 355/355 on `crm_test`; crm-ui lint + build + 216 tests |
 | T33 | Pipeline owner filter (AC-3.4 amendment 2026-11-17): `ownerId` on `GET /pipeline`, `GET /deals/owners` (crm:access, the `/companies/owners` shape), an Owner select (Everyone / Mine / owners) beside entity, company and year narrowing figures and board | [x] | crm-api 2128/2129 on `crm_test` (the one failure, `offerDrafts.preview` LETTERHEAD env, fails on main too); crm-ui lint + build + 1616 tests |
+| T34 | Pipeline owner filter starts on Mine (AC-3.4 amendment 2026-11-23) for a person who manages deals; Everyone for crm-technical | [x] | crm-ui lint + build + 1755 tests |

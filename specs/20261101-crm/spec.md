@@ -132,6 +132,9 @@ the pipeline without a spreadsheet.
   - (owner, 2026-11-17) The board also filters by one owner: "Mine" or anyone who owns a deal
     (`GET /deals/owners`, readable with `crm:access`); the counts and totals follow the filter
     (`GET /pipeline?ownerId=`).
+  - (owner, 2026-11-23) The owner filter starts on "Mine" for a person who manages deals of
+    at least one entity; someone who cannot own a deal (`crm-technical`) starts on everyone's.
+    The choice is not remembered: the page opens on the default again.
 - AC-3.5 A user without the capability, or outside its entity scope, sees deals but no
   create/edit/move controls; the server refuses such a write with 403.
 - AC-3.6 The board's open columns show every open deal, whatever year it started in. Won and
