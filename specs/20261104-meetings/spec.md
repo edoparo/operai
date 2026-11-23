@@ -183,6 +183,13 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   its notice, markers and caveats. A refusal of every part still fails the meeting
   (`provider_rejected`). Why: a 2 h production recording failed three times on the same half hour
   (2026-11-19/20) and the other 90 minutes were lost with it.
+- **A17 — decided by the user 2026-11-23 (AC-2.4, AC-2.5):** for an `online` meeting the second
+  option records the microphone plus **the computer's audio**, not one browser tab: the share
+  picker opens on the entire screen and offers "Share system audio", so whatever app runs the
+  meeting (Zoom, Teams, a browser tab) is recorded. Where the browser does not offer system audio
+  (Chrome on macOS before 141 / macOS before 14.2), a tab with its audio can still be chosen. Only
+  the audio is kept; Operai's own tab is not offered. Why: the meeting is often in a desktop app,
+  which a tab share cannot hear.
 
 ## Problem
 
@@ -341,12 +348,12 @@ so that I need no bot, no platform recording and no extra software.
   recording, then no recording starts, the meeting stays `draft`, the message says what to
   change, and uploading a file or pasting text is offered.
 - AC-2.4: Given an `online` meeting, when the creator opens the capture options, then the
-  screen lists what this browser can do (microphone only; microphone plus the audio of a
-  shared browser tab) before recording. If the browser cannot capture the other participants'
+  screen lists what this browser can do (microphone only; microphone plus the computer's audio,
+  A17) before recording. If the browser cannot capture the other participants'
   audio, the screen says so and recommends uploading a recording; microphone-only stays
   selectable with a warning that remote voices are captured only if played through speakers.
-- AC-2.5: Given a recording that includes a shared tab, when the share ends or the tab has no
-  audio, then the creator is told that the meeting audio is no longer captured, and the
+- AC-2.5: Given a recording that includes the computer's audio (or a shared tab, A17), when the
+  share ends or carries no audio, then the creator is told that the meeting audio is no longer captured, and the
   microphone keeps recording.
 - AC-2.6: Given a recording, when the creator pauses, then the indicator reads "Paused",
   nothing is captured, and the transcript contains nothing from the paused time. Resuming

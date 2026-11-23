@@ -10,8 +10,8 @@ const en = {
     title: 'Record this meeting',
     sourceLabel: 'What to record',
     micOnly: 'Microphone only',
-    micAndTab: 'Microphone and the audio of a shared browser tab',
-    tabHint: 'Choose the tab with your meeting and tick "Share tab audio".',
+    micAndTab: 'Microphone and the computer audio',
+    tabHint: 'Choose Entire screen and turn on "Share system audio": everything your computer plays is recorded, whatever app runs the meeting. If that option is missing, choose the tab with your meeting and turn on "Share tab audio".',
     unsupportedTab:
       "This browser can't capture the other participants' audio. Uploading a recording of the meeting gives a better result.",
     micOnlyWarning: 'With the microphone only, remote voices are captured only if they play through your speakers.',
@@ -48,8 +48,8 @@ const en = {
     body: 'Another app may be using it. Close that app, then choose Start recording again. Nothing was recorded.',
   },
   tabCancelled: {
-    title: 'No tab was shared',
-    body: 'Choose Start recording again and pick the tab with your meeting, or record the microphone only.',
+    title: 'Nothing was shared',
+    body: 'Choose Start recording again and share your entire screen with its system audio, or record the microphone only.',
   },
   recorderFailed: {
     title: "The recording couldn't start",
@@ -125,8 +125,8 @@ const it: typeof en = {
     title: 'Registra questa riunione',
     sourceLabel: 'Cosa registrare',
     micOnly: 'Solo il microfono',
-    micAndTab: 'Microfono e audio di una scheda del browser condivisa',
-    tabHint: 'Scegli la scheda con la tua riunione e seleziona "Condividi audio scheda".',
+    micAndTab: 'Microfono e audio del computer',
+    tabHint: 'Scegli Schermo intero e attiva "Condividi audio di sistema": viene registrato tutto ciò che il computer riproduce, qualunque app usi la riunione. Se l’opzione non c’è, scegli la scheda con la riunione e attiva "Condividi audio scheda".',
     unsupportedTab:
       "Questo browser non può registrare l'audio degli altri partecipanti. Caricare una registrazione della riunione dà un risultato migliore.",
     micOnlyWarning: 'Con il solo microfono, le voci a distanza vengono registrate solo se escono dagli altoparlanti.',
@@ -160,8 +160,8 @@ const it: typeof en = {
     body: "Potrebbe essere in uso da un'altra app. Chiudila, poi scegli di nuovo Avvia registrazione. Non è stato registrato nulla.",
   },
   tabCancelled: {
-    title: 'Nessuna scheda condivisa',
-    body: 'Scegli di nuovo Avvia registrazione e seleziona la scheda con la tua riunione, oppure registra solo il microfono.',
+    title: 'Non è stato condiviso nulla',
+    body: 'Scegli di nuovo Avvia registrazione e condividi lo schermo intero con l’audio di sistema, oppure registra solo il microfono.',
   },
   recorderFailed: {
     title: 'Impossibile avviare la registrazione',

@@ -56,8 +56,34 @@ export const MIC_CONSTRAINTS = {
   audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
 } satisfies MediaStreamConstraints
 
-/** `getDisplayMedia` constraints for a shared tab: it needs video to be offered at all, and audio for the meeting. */
-export const TAB_CONSTRAINTS = { video: true, audio: true } satisfies DisplayMediaStreamOptions
+/**
+ * The display-capture hints Chromium reads that TypeScript's DOM library does not declare yet
+ * (Screen Capture spec, "Capture Handle and surface hints"). A browser that does not know one ignores it.
+ */
+export type DisplayCaptureOptions = DisplayMediaStreamOptions & {
+  systemAudio?: 'include' | 'exclude'
+  monitorTypeSurfaces?: 'include' | 'exclude'
+  selfBrowserSurface?: 'include' | 'exclude'
+  surfaceSwitching?: 'include' | 'exclude'
+}
+
+/**
+ * `getDisplayMedia` constraints for the other participants' audio. Video is required for the picker to
+ * open at all; only the audio is recorded. Since 2026-11-23 the picker opens on the ENTIRE SCREEN and
+ * offers "Share system audio" (`systemAudio: 'include'`), so everything the computer plays is recorded
+ * whatever app runs the meeting (Zoom, Teams, a browser tab): Chrome and Edge offer system audio only
+ * with an entire-screen share (Windows, ChromeOS; macOS from Chrome 141 on macOS 14.2+). A tab can
+ * still be chosen where system audio is not offered. Operai's own tab is left out of the picker
+ * (`selfBrowserSurface`); the computer keeps playing the audio it shares (the browser's default).
+ */
+export const TAB_CONSTRAINTS = {
+  video: { displaySurface: 'monitor' },
+  audio: true,
+  systemAudio: 'include',
+  monitorTypeSurfaces: 'include',
+  selfBrowserSurface: 'exclude',
+  surfaceSwitching: 'exclude',
+} as const satisfies DisplayCaptureOptions
 
 export type TabAudioLostReason =
   /** The share has no audio track (a window or screen share, or "Share tab audio" left unticked). */

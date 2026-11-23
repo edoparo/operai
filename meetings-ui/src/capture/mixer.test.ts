@@ -351,6 +351,14 @@ describe('constraints (plan § Browser capture)', () => {
   })
 
   it('asks the display for video (the share needs it) and audio', () => {
-    expect(TAB_CONSTRAINTS).toEqual({ video: true, audio: true })
+    // The picker opens on the entire screen and offers the computer's audio (2026-11-23).
+    expect(TAB_CONSTRAINTS).toEqual({
+      video: { displaySurface: 'monitor' },
+      audio: true,
+      systemAudio: 'include',
+      monitorTypeSurfaces: 'include',
+      selfBrowserSurface: 'exclude',
+      surfaceSwitching: 'exclude',
+    })
   })
 })

@@ -13,7 +13,7 @@ const en = {
     input: 'In',
     inputLabel: 'Microphone level',
     output: 'Out',
-    outputLabel: 'Shared tab level',
+    outputLabel: 'Computer audio level',
   },
   pause: 'Pause recording',
   resume: 'Resume recording',
@@ -22,7 +22,7 @@ const en = {
   close: 'Close',
   offline: 'Not saving right now: the audio is kept in this tab until the connection is back.',
   microphoneLost: 'The microphone stopped. Open the meeting to resume.',
-  tabAudioLost: 'The shared tab is no longer recorded; the microphone goes on.',
+  tabAudioLost: 'The computer audio is no longer recorded; the microphone goes on.',
 }
 
 const it: typeof en = {
@@ -39,7 +39,7 @@ const it: typeof en = {
     input: 'Entra',
     inputLabel: 'Livello del microfono',
     output: 'Esce',
-    outputLabel: 'Livello della scheda condivisa',
+    outputLabel: 'Livello dell’audio del computer',
   },
   pause: 'Metti in pausa la registrazione',
   resume: 'Riprendi la registrazione',
@@ -48,7 +48,7 @@ const it: typeof en = {
   close: 'Chiudi',
   offline: 'Il salvataggio è fermo: l’audio resta in questa scheda finché torna la connessione.',
   microphoneLost: 'Il microfono si è fermato. Apri la riunione per riprendere.',
-  tabAudioLost: 'La scheda condivisa non viene più registrata; il microfono continua.',
+  tabAudioLost: 'L’audio del computer non viene più registrato; il microfono continua.',
 }
 
 export const dock = { en, it }

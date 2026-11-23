@@ -32,6 +32,7 @@
 import { detectCapabilities, readEnvironment } from './capabilities'
 import type { CaptureCapabilities, CaptureSource } from './capabilities'
 import { createMixer, MIC_CONSTRAINTS, TAB_CONSTRAINTS } from './mixer'
+import type { DisplayCaptureOptions } from './mixer'
 import type { AudioContextLike, AudioLevels, AudioMixer, TabAudioLostReason } from './mixer'
 import { UPLOAD_BACKOFF, MAX_CAPTURED_MS, createUploader, isFatalUploadError } from './uploader'
 import type { Uploader, UploaderApi } from './uploader'
@@ -75,7 +76,7 @@ export type CaptureDeps = {
   api: SessionApi
   capabilities: CaptureCapabilities
   getUserMedia: (constraints: MediaStreamConstraints) => Promise<MediaStream>
-  getDisplayMedia: (constraints: DisplayMediaStreamOptions) => Promise<MediaStream>
+  getDisplayMedia: (constraints: DisplayCaptureOptions) => Promise<MediaStream>
   createAudioContext: () => AudioContextLike
   createRecorder: (stream: MediaStream, options: MediaRecorderOptions) => RecorderLike
   /** The bucket POST of one chunk (`postToBucket` by default). */

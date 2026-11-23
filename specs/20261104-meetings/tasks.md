@@ -1,7 +1,7 @@
 ---
 spec: 20261104
 generated: 2026-11-04
-synced: 2026-11-20
+synced: 2026-11-23
 ---
 
 # Tasks: Meetings — record, transcribe, summarise and question meetings
@@ -1018,3 +1018,11 @@ contracts. Only the e2e tasks (T86–T90) join the two tracks.
 | AC-15.1 to AC-15.6 | T129, T130, T131, T132 |
 | AC-1.9 (A15) | T133, T134 |
 | AC-6.12 (A16) | T135 |
+
+## Amendment 2026-11-23 — the computer's audio, not one tab (spec A17, AC-2.4, AC-2.5)
+
+> Re-synced 2026-11-23 after spec A17 (user decision 2026-11-23). Built directly on `main`.
+
+- [x] T136: [FE] meetings-ui: `TAB_CONSTRAINTS` opens the picker on the entire screen with system audio (`displaySurface: 'monitor'`, `systemAudio`/`monitorTypeSurfaces: 'include'`, `selfBrowserSurface`/`surfaceSwitching: 'exclude'`, typed by `DisplayCaptureOptions`); copy en/it names the computer's audio and the tab fallback — refs: AC-2.4, AC-2.5 — deps: none
+  - touch: `meetings-ui/src/capture/mixer.ts`, `meetings-ui/src/capture/session.ts`, `meetings-ui/src/strings/{capture,dock}.ts`, `meetings-ui/src/capture/{mixer,session}.test.ts`
+  - done when: `pnpm lint && pnpm build && pnpm test` pass

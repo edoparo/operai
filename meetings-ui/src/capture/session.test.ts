@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { TAB_CONSTRAINTS } from './mixer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('shell/session', () => ({
@@ -460,7 +461,7 @@ describe('the shared tab and the microphone (AC-2.5)', () => {
   it('mixes the tab in, and when the share ends reports it once while the microphone keeps recording', async () => {
     const { session } = setup({ source: 'microphone+tab' })
     await session.start()
-    expect(browser.getDisplayMedia).toHaveBeenCalledWith({ video: true, audio: true })
+    expect(browser.getDisplayMedia).toHaveBeenCalledWith(TAB_CONSTRAINTS)
     expect(session.getSnapshot().tabAudioLost).toBeNull()
 
     ;(browser.tabs[0]!.getVideoTracks()[0] as unknown as { end: () => void }).end()
