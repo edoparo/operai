@@ -197,6 +197,22 @@ note can hold sensitive details without every CRM user reading them.
 - AC-9.5 The subject is never restricted (it appears in lists, notices and blockers): the form
   says so next to the choice.
 
+### US-10 A task in progress (owner, 2026-11-23)
+As the person doing a task, I want to mark it in progress, so that others see it is being worked
+on before it is done.
+
+- AC-10.1 A task (pre-sales or operational) is **open**, **in progress** or **done**. Whoever may
+  mark it done (US-1 for the CRM: any reader; AC-3.3 for a project: the assignee or a manager)
+  may also start it (open → in progress) and stop it (in progress → open). Done is reached from
+  open or from in progress; reopening a done task makes it open, never in progress.
+- AC-10.2 A blocked task (waiting on an open or in-progress task, US-6/US-4) cannot be started,
+  exactly as it cannot be marked done. An in-progress task still blocks the tasks waiting on it.
+- AC-10.3 Starting an in-progress task or stopping an open one changes nothing; starting or
+  stopping a done task is refused (409 `task_done`). Starting records who and when; the task
+  shows "In progress" wherever it shows its state.
+- AC-10.4 Task lists keep "Open" (open and in progress, the latter badged) and "Done", and gain
+  "In progress" (only those). No notification is sent when a task is started or stopped.
+
 ## Non-goals
 
 - **Operational activities other than tasks** (notes, calls, meetings, emails on a project):
@@ -256,6 +272,10 @@ Technical decisions taken by the user on 2026-11-10, recorded verbatim in substa
   `deal:manage` for any entity; "only me" includes a task's assignee; no administrator
   override. The CRM's resolve answer gains `salesTeam`; activities-api stores the choice and
   withholds the details. An exception to the Non-goal "Changing CRM activity rules or copy".
+- 2026-11-23 (owner): US-10 added, a task in progress, in the CRM and in Projects. Owner
+  decisions: started and stopped by whoever may mark it done, free transitions (open → done
+  stays possible), a blocked task cannot be started, "Open" lists include in-progress tasks and
+  a new "In progress" filter shows only those. A further exception to the same Non-goal.
 
 ## Open questions
 

@@ -1,7 +1,7 @@
 ---
 spec: 20261110
 generated: 2026-11-10
-synced: 2026-11-20
+synced: 2026-11-23
 ---
 
 # Tasks: Activities — one place for CRM and project activities and tasks
@@ -143,3 +143,14 @@ service.
 - [x] T28: [FE] crm-ui "Who sees the details" choice in the activity form, "Details are restricted" line and restricted indicator in `ActivityItem`; projects-ui My tasks restricted line — refs: AC-9.2, AC-9.5 — deps: none (contract)
   - touch: `crm-ui/src/components/{ActivityFormDialog,ActivityItem}.tsx`, `crm-ui/src/lib/{types,activitiesApi}.ts`, `crm-ui/src/strings/activities.ts`, `projects-ui/src/pages/MyTasksPageRow.tsx`, `projects-ui/src/lib/activitiesApi.ts`, `projects-ui/src/strings/tasks.ts`, their tests
   - done when: crm-ui and projects-ui lint + build + test pass
+
+## Amendment 2026-11-23 — a task in progress (spec US-10)
+
+> Re-synced 2026-11-23 after spec US-10 (owner decisions 2026-11-23). Built directly on `main`.
+
+- [x] T29: [BE] activities-api: `startedAt`/`startedByUserId` (migration `20261123120000_task_in_progress`, CHECKs tasks-only and pair), view `task.status`/`startedAt`/`startedBy`, `POST /activities/{id}/start|stop` (complete's rule, blocked → 409 `task_blocked`, done → 409 `task_done`, idempotent), reopen → open, `GET /tasks?status=in_progress` (open includes it), system reopen of a done task clears the start, matrix rows — refs: AC-10.1 to AC-10.4 — deps: none
+  - touch: `activities-api/prisma/**`, `activities-api/src/{activities,tasks,system}/**`, `activities-api/src/matrix.test.ts`, `activities-api/src/activities/taskProgress.test.ts`
+  - done when: the full suite passes on `activities_test` and typecheck is clean
+- [x] T30: [FE] `@operai/ui` `TaskRow`: state `in_progress` and an optional Start/Stop action (additive props only, ADR 20261114); crm-ui `ActivityItem` and Tasks filter; projects-ui project Tasks card and My tasks filter — refs: AC-10.1, AC-10.3, AC-10.4 — deps: T29 (contract)
+  - touch: `operai-ui/src/components/TaskRow*`, `crm-ui/src/**` (tasks), `projects-ui/src/**` (tasks), strings, tests
+  - done when: operai-ui typecheck + lint + test, crm-ui and projects-ui lint + build + test pass

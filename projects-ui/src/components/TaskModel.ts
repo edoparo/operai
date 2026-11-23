@@ -1,3 +1,4 @@
+import { STATUS } from '@operai/ui'
 import type { StatusMeaning, TaskRowState } from '@operai/ui'
 import type { PersonRef, ProjectTask } from '../lib/activitiesApi'
 import { strings } from '../strings'
@@ -9,8 +10,16 @@ import { strings } from '../strings'
  * apart; an open task is waiting for its assignee ("pending"), a done one is
  * "settled".
  */
+/**
+ * "In progress" (specs/20261110-activities US-10) is the library's `progress` meaning. A remote runs on the LIVE
+ * shell's library (ADR 20261114): until that shell has `progress`, the badge falls back to `active`, which every
+ * shell has, instead of breaking.
+ */
+const IN_PROGRESS_MEANING: StatusMeaning = 'progress' in STATUS ? 'progress' : 'active'
+
 export const TASK_STATE_MEANING: Record<TaskRowState, StatusMeaning> = {
   open: 'pending',
+  in_progress: IN_PROGRESS_MEANING,
   blocked: 'attention',
   overdue: 'attention',
   done: 'settled',
@@ -24,15 +33,21 @@ export function today(now = new Date()): string {
 }
 
 /**
- * Done > Blocked > Overdue > Open (AC-3.4, AC-4.2). A blocked task cannot be
+ * Done > Blocked > Overdue > In progress > Open (AC-3.4, AC-4.2). A blocked task cannot be
  * acted on yet, so it reads Blocked even past its due date; the due date still
  * shows on its meta line.
  */
 export function taskState(task: Pick<ProjectTask, 'task'>, now = new Date()): TaskRowState {
-  if (task.task.completedAt !== null) return 'done'
+  if (taskStatus(task) === 'done') return 'done'
   if (task.task.blocked === true) return 'blocked'
   const due = task.task.dueDate
-  return due !== null && due < today(now) ? 'overdue' : 'open'
+  if (due !== null && due < today(now)) return 'overdue'
+  return taskStatus(task) === 'in_progress' ? 'in_progress' : 'open'
+}
+
+/** The task's status; an older server sends none, then it is derived from `completedAt`. */
+export function taskStatus(task: Pick<ProjectTask, 'task'>): 'open' | 'in_progress' | 'done' {
+  return task.task.status ?? (task.task.completedAt !== null ? 'done' : 'open')
 }
 
 /** How a person reference reads (ADR 20260807-live-identity-resolution-by-id-fail-soft): the live name, or what is known about the account. */

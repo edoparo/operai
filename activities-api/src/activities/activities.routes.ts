@@ -298,12 +298,23 @@ const deleteRoute = createRoute({
   responses: { 204: { description: "Deleted" }, ...commonErrors },
 });
 
-const completionRoute = (action: "complete" | "reopen") =>
+type TaskAction = "complete" | "reopen" | "start" | "stop";
+const TASK_ACTION_SUMMARY: Record<TaskAction, string> = {
+  complete: "Complete a task",
+  reopen: "Reopen a task (it becomes open, never in progress)",
+  start: "Start a task: it is in progress (US-10)",
+  stop: "Stop a task: from in progress back to open (US-10)",
+};
+
+/** 409: a done task is reopened, never started or stopped (US-10 AC-10.3). */
+const taskDone = () => new ProblemError({ status: 409, code: "task_done", detail: "This task is done: reopen it first" });
+
+const completionRoute = (action: TaskAction) =>
   createRoute({
     method: "post",
     path: `/activities/{id}/${action}`,
     tags: ["Activities"],
-    summary: action === "complete" ? "Complete a task" : "Reopen a task",
+    summary: TASK_ACTION_SUMMARY[action],
     middleware: [jwtMiddleware],
     request: { params: IdParams },
     responses: { 200: { description: "The task", ...json(ActivitySchema) }, ...commonErrors },
@@ -533,23 +544,37 @@ activitiesRouter.openapi(deleteRoute, async (c) => {
   return c.body(null, 204);
 });
 
-for (const action of ["complete", "reopen"] as const) {
+/**
+ * What a task action writes (US-10): `null` when it changes nothing. Idempotent: completing a completed task keeps who
+ * completed it and when, starting a started one who started it; reopening clears both, so a reopened task is open.
+ */
+function taskActionData(action: TaskAction, current: ActivityRow, userId: string) {
+  switch (action) {
+    case "complete":
+      return current.completedAt ? null : { completedAt: new Date(), completedByUserId: userId };
+    case "reopen":
+      return { completedAt: null, completedByUserId: null, startedAt: null, startedByUserId: null };
+    case "start":
+      return current.startedAt ? null : { startedAt: new Date(), startedByUserId: userId };
+    case "stop":
+      return current.startedAt ? { startedAt: null, startedByUserId: null } : null;
+  }
+}
+
+for (const action of ["complete", "reopen", "start", "stop"] as const) {
   activitiesRouter.openapi(completionRoute(action), async (c) => {
     const { id } = c.req.valid("param");
     const userId = c.get("userId");
     const { row: current, session, host, entity } = await loadFor(c, id);
     if (current.type !== "task") throw unprocessable("Only a task can be completed", { field: "type" }, "not_a_task");
-    // Allowed on a closed or cancelled entity too (AC-3.8): only the assignee or a manager (AC-3.3).
+    // Allowed on a closed or cancelled entity too (AC-3.8): only the assignee or a manager (AC-3.3). US-10: starting
+    // and stopping follow the same rule.
     if (!mayComplete(host, entity, current, userId)) throw completeRefused();
-    // US-6: a task waiting on an open task cannot be completed.
+    if ((action === "start" || action === "stop") && current.completedAt) throw taskDone();
+    // US-6 / US-10 AC-10.2: a task waiting on an open task can be neither completed nor started.
     if (action === "complete" && !current.completedAt) await assertUnblocked(id);
-    // Idempotent: completing a completed task keeps who completed it and when.
-    const data =
-      action === "reopen"
-        ? { completedAt: null, completedByUserId: null }
-        : current.completedAt
-          ? {}
-          : { completedAt: new Date(), completedByUserId: userId };
+    if (action === "start" && !current.startedAt) await assertUnblocked(id);
+    const data = taskActionData(action, current, userId) ?? {};
     const row = await ifStillThere(() => db.activity.update({ where: { id }, data, include: withRefs }));
     if (action === "complete" && !current.completedAt) {
       // Blockers share a host entity, so a freed task lives where this one does; only its deal (CRM)

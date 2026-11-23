@@ -81,6 +81,10 @@ model Activity {
   assigneeUserId    String?
   completedAt       DateTime?
   completedByUserId String?
+  /// US-10: when the task was started (in progress) and by whom; tasks only, both or neither (CHECKs). Kept when the
+  /// task is completed (done wins), cleared when it is stopped or reopened.
+  startedAt         DateTime?
+  startedByUserId   String?
   /// The last system completion applied (estimate notices, AC-1.3): a notice applies only
   /// when its seq is greater, so duplicates and reordering are no-ops.
   completionSeq     Int?

@@ -3,6 +3,7 @@
  * status dictionary (`STATUS` in @operai/ui, INC-23; plan.md § UI). The meaning
  * picks the badge's tone and icon; the label is this app's (`strings.badges`).
  */
+import { STATUS } from '@operai/ui'
 import type { StatusMeaning } from '@operai/ui'
 import type { CompanyStatus, DealStage, EstimateState } from './types'
 
@@ -21,10 +22,18 @@ export const DEAL_STAGE_MEANING: Record<DealStage, StatusMeaning> = {
   lost: 'failed',
 }
 
-export type TaskState = 'open' | 'overdue' | 'blocked' | 'done'
+/**
+ * "In progress" (specs/20261110-activities US-10) is the library's `progress` meaning. A remote runs on the LIVE
+ * shell's library (ADR 20261114): until that shell has `progress`, the badge falls back to `active`, which every
+ * shell has, instead of breaking.
+ */
+const IN_PROGRESS_MEANING: StatusMeaning = 'progress' in STATUS ? 'progress' : 'active'
+
+export type TaskState = 'open' | 'in_progress' | 'overdue' | 'blocked' | 'done'
 
 export const TASK_STATE_MEANING: Record<TaskState, StatusMeaning> = {
   open: 'pending',
+  in_progress: IN_PROGRESS_MEANING,
   overdue: 'attention',
   // Waiting on another task (specs/20261101-crm US-6): someone else has to act first.
   blocked: 'pending',

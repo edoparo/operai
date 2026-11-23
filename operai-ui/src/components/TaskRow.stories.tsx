@@ -53,6 +53,12 @@ const editDelete = (
 
 export const Open: Story = { args: { actions: editDelete } }
 
+export const InProgress: Story = {
+  args: { state: 'in_progress', stateLabel: 'In progress', onProgress: () => {}, progressLabel: 'Stop' },
+}
+
+export const Startable: Story = { args: { onProgress: () => {}, progressLabel: 'Start' } }
+
 export const Overdue: Story = {
   args: {
     state: 'overdue',

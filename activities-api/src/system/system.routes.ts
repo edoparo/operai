@@ -310,7 +310,10 @@ systemRouter.openapi(completionRoute, async (c) => {
           row.completedAt
           ? { completionSeq: seq }
           : { completedAt: new Date(at), completedByUserId: byUserId, completionSeq: seq }
-        : { completedAt: null, completedByUserId: null, completionSeq: seq },
+        : // Reopening a done task makes it open (US-10 AC-10.1); a task that was not done keeps its state.
+          row.completedAt
+          ? { completedAt: null, completedByUserId: null, startedAt: null, startedByUserId: null, completionSeq: seq }
+          : { completionSeq: seq },
     });
     return { applied: true, newlyDone: completed && row.completedAt === null, hostId: row.hostId };
   });

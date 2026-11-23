@@ -74,7 +74,11 @@ export const setTaskCompleted = (id: string, completed: boolean) =>
   sendJson<Activity>(`/activities/${encodeURIComponent(id)}/${completed ? 'complete' : 'reopen'}`, 'POST')
 
 /** `assignee`: `me`, `any`, or one person's auth user id. */
-export type TaskListQuery = PageQuery & { status?: 'open' | 'done'; assignee?: string }
+export const startTask = (id: string) => sendJson<Activity>(`/activities/${encodeURIComponent(id)}/start`, 'POST')
+export const stopTask = (id: string) => sendJson<Activity>(`/activities/${encodeURIComponent(id)}/stop`, 'POST')
+
+/** `open` includes the tasks in progress; `in_progress` is only those. */
+export type TaskListQuery = PageQuery & { status?: 'open' | 'in_progress' | 'done'; assignee?: string }
 export const listTasks = (params: TaskListQuery, init?: Init) =>
   getJson<Page<Activity>>(`/tasks${query({ ...params, kind: 'pre_sales' })}`, init)
 /** Everyone CRM tasks have been assigned to, by name (the task filter's colleagues). */

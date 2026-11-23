@@ -11,7 +11,7 @@ import {
   TaskRow,
 } from '@operai/ui'
 import { RichTextFilesView } from '@operai/ui/rich-text'
-import { deleteActivity, setTaskCompleted } from '../lib/activitiesApi'
+import { deleteActivity, setTaskCompleted, startTask, stopTask } from '../lib/activitiesApi'
 import { openTaskFile, taskFileUrlResolver } from '../lib/taskFiles'
 import { isOverdue } from '../lib/dates'
 import { errorMessage } from '../lib/errors'
@@ -51,6 +51,7 @@ export default function ActivityItem({
   const t = strings.activities
   const currentUserId = useCurrentUserId()
   const [busy, setBusy] = useState(false)
+  const [progressing, setProgressing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -58,19 +59,35 @@ export default function ActivityItem({
   const task = activity.task
   const isAuthor = currentUserId !== null && activity.author.id === currentUserId
   // specs/20261101-crm US-6: an open task waiting on an open task cannot be marked done.
-  const blocked = task !== null && task.completedAt === null && task.blocked === true
+  const taskStatus = task === null ? null : (task.status ?? (task.completedAt !== null ? 'done' : 'open'))
+  const blocked = task !== null && taskStatus !== 'done' && task.blocked === true
   const openBlockers = task?.blockedBy?.filter((blocker) => !blocker.completed) ?? []
 
   const toggle = () => {
     setBusy(true)
     setError(null)
-    setTaskCompleted(activity.id, task?.completedAt === null).then(
+    setTaskCompleted(activity.id, taskStatus !== 'done').then(
       (updated) => {
         setBusy(false)
         onChanged(updated)
       },
       (failure) => {
         setBusy(false)
+        setError(errorMessage(failure))
+      },
+    )
+  }
+
+  const progress = () => {
+    setProgressing(true)
+    setError(null)
+    ;(taskStatus === 'in_progress' ? stopTask : startTask)(activity.id).then(
+      (updated) => {
+        setProgressing(false)
+        onChanged(updated)
+      },
+      (failure) => {
+        setProgressing(false)
         setError(errorMessage(failure))
       },
     )
@@ -214,7 +231,15 @@ export default function ActivityItem({
 
   if (task) {
     const state: TaskState =
-      task.completedAt !== null ? 'done' : blocked ? 'blocked' : isOverdue(task) ? 'overdue' : 'open'
+      taskStatus === 'done'
+        ? 'done'
+        : blocked
+          ? 'blocked'
+          : isOverdue(task)
+            ? 'overdue'
+            : taskStatus === 'in_progress'
+              ? 'in_progress'
+              : 'open'
     return (
       <TaskRow
         state={state}
@@ -229,6 +254,10 @@ export default function ActivityItem({
           <>
             {task.dueDate ? t.due(formatDate(task.dueDate)) : t.noDue}
             {task.assignee && ` · ${t.assignedTo(personName(task.assignee, currentUserId))}`}
+            {taskStatus === 'in_progress' &&
+              task.startedAt &&
+              task.startedBy &&
+              ` · ${t.startedBy(personName(task.startedBy, currentUserId), formatDate(task.startedAt))}`}
             {task.completedAt &&
               task.completedBy &&
               ` · ${t.completedBy(personName(task.completedBy, currentUserId), formatDate(task.completedAt))}`}
@@ -239,8 +268,13 @@ export default function ActivityItem({
             ? `${t.waitingOn(openBlockers.map((blocker) => blocker.subject).join(', '))}. ${t.blockedHint}`
             : undefined
         }
+        onProgress={taskStatus === 'done' ? undefined : progress}
+        progressLabel={taskStatus === 'in_progress' ? t.stop : t.start}
+        progressing={progressing}
+        progressingLabel={t.completing}
+        progressTestId={`crm-activity-${activity.id}-progress`}
         onComplete={toggle}
-        completeLabel={task.completedAt === null ? t.complete : t.reopen}
+        completeLabel={taskStatus !== 'done' ? t.complete : t.reopen}
         completing={busy}
         completingLabel={t.completing}
         actions={authorActions}

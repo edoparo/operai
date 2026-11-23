@@ -44,6 +44,11 @@ export type TaskDetails = {
   files?: TaskFile[]
   dueDate: string | null
   assignee: PersonRef | null
+  /** `open`, `in_progress` or `done`. Absent from an older server: derive it from `completedAt`. */
+  status?: 'open' | 'in_progress' | 'done'
+  /** When and by whom it was started; null unless in progress. Absent from an older server. */
+  startedAt?: string | null
+  startedBy?: PersonRef | null
   completedAt: string | null
   completedBy: PersonRef | null
   /** The tasks it waits on; `blocked` while any of them is open (AC-4.2). */
@@ -76,7 +81,8 @@ export type ProjectTask = {
   updatedAt: string
 }
 
-export type TaskStatus = 'open' | 'done'
+/** `open` lists the tasks in progress too; `in_progress` only those. */
+export type TaskStatus = 'open' | 'in_progress' | 'done'
 
 export type ProjectTaskQuery = { status: TaskStatus; page?: number; pageSize?: number }
 
@@ -162,6 +168,10 @@ export const deleteTask = (id: string) => send<void>(activityPath(id), 'DELETE')
 /** Done (`completed: true`) or not done (reopen); assignee or manager, also on a closed project (AC-3.3, AC-3.8). */
 export const setTaskCompleted = (id: string, completed: boolean) =>
   send<ProjectTask>(`${activityPath(id)}/${completed ? 'complete' : 'reopen'}`, 'POST')
+/** Start an open task (anyone who may complete it); a blocked one is refused like complete. */
+export const startTask = (id: string) => send<ProjectTask>(`${activityPath(id)}/start`, 'POST')
+/** Stop a task in progress: it is open again. */
+export const stopTask = (id: string) => send<ProjectTask>(`${activityPath(id)}/stop`, 'POST')
 
 // ─── A task's files (ADR 20261113-task-description-files-in-activities-api-bucket) ───────────────────────────────────────────────
 // Two phases: activities-api mints a presigned POST, the browser sends the bytes straight to the

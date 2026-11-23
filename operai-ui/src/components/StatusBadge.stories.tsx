@@ -26,6 +26,7 @@ export const Playground: Story = {}
 const LABELS: Record<StatusMeaning, string> = {
   draft: 'Draft',
   pending: 'On order',
+  progress: 'In progress',
   active: 'Available',
   settled: 'Delivered',
   stored: 'In storage',

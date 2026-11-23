@@ -56,6 +56,8 @@ const USER = [
   "DELETE /activities/:id",
   "POST /activities/:id/complete",
   "POST /activities/:id/reopen",
+  "POST /activities/:id/start",
+  "POST /activities/:id/stop",
   "GET /tasks",
   "GET /tasks/assignees",
   "POST /activities/:id/files",
@@ -392,8 +394,8 @@ const CASES: readonly Case[] = [
     },
   },
 
-  // ── complete / reopen: any CRM reader; on a project the assignee or a manager (AC-3.3), closed or not (AC-3.8) ──
-  ...(["complete", "reopen"] as const).flatMap((action): Case[] => [
+  // ── complete / reopen / start / stop (US-10): any CRM reader; on a project the assignee or a manager (AC-3.3), closed or not (AC-3.8) ──
+  ...(["complete", "reopen", "start", "stop"] as const).flatMap((action): Case[] => [
     {
       route: `POST /activities/:id/${action}`,
       host: "crm",

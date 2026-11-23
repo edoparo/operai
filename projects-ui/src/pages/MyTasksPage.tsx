@@ -113,6 +113,8 @@ export default function MyTasksPage() {
         {tasks.data!.items.length === 0 ? (
           view === 'open' ? (
             <StatePanel title={t.emptyOpenTitle}>{t.emptyOpenBody}</StatePanel>
+          ) : view === 'in_progress' ? (
+            <StatePanel title={t.emptyInProgressTitle}>{t.emptyInProgressBody}</StatePanel>
           ) : (
             <StatePanel title={t.emptyDoneTitle}>{t.emptyDoneBody}</StatePanel>
           )
@@ -160,6 +162,7 @@ export default function MyTasksPage() {
         }}
         tabs={[
           { id: 'open', label: strings.tasks.open },
+          { id: 'in_progress', label: strings.tasks.inProgress },
           { id: 'done', label: strings.tasks.done },
         ]}
         testId="my-tasks-tabs"

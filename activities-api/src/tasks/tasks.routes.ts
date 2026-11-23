@@ -36,7 +36,8 @@ const ListTasksQuery = z.object({
   kind: z.enum([...ACTIVITY_KINDS, "all"]).optional(),
   /** One project's tasks (the project card). Implies `operational`, and `assignee=any` unless one is given. */
   projectId: IdParam.optional(),
-  status: z.enum(["open", "done"]).default("open"),
+  /** `open` includes the tasks in progress; `in_progress` lists only those (US-10 AC-10.4). */
+  status: z.enum(["open", "in_progress", "done"]).default("open"),
   /** `me` (default; a person's tasks are those assigned to them and those they take part in, 017 US-8), `any`, or a user id. */
   assignee: IdParam.optional(),
   ...pageQuery(),
@@ -100,8 +101,8 @@ const personsTasks = (userId: string): Prisma.ActivityWhereInput => ({
 });
 
 /** Open: earliest due first, no date last, then oldest, then id (AC-3.4). Done: latest completion first (crm-api's order). */
-const orderOf = (status: "open" | "done"): Prisma.ActivityOrderByWithRelationInput[] =>
-  status === "open"
+const orderOf = (status: "open" | "in_progress" | "done"): Prisma.ActivityOrderByWithRelationInput[] =>
+  status !== "done"
     ? [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }, { id: "asc" }]
     : [{ completedAt: "desc" }, { id: "desc" }];
 
@@ -151,7 +152,8 @@ tasksRouter.openapi(tasksRoute, async (c) => {
     const where: Prisma.ActivityWhereInput = {
       type: "task",
       kind: { in: [...hostKinds] },
-      completedAt: status === "open" ? null : { not: null },
+      ...(status === "done" ? { completedAt: { not: null } } : { completedAt: null }),
+      ...(status === "in_progress" ? { startedAt: { not: null } } : {}),
       ...(projectHost ? { hostApp: projectHost.app, hostType: projectHost.entityType, hostId: projectId! } : {}),
       ...(assignee === "any" ? {} : personsTasks(assignee === "me" ? c.get("userId") : assignee)),
     };

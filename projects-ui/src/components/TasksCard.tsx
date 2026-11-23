@@ -106,6 +106,8 @@ export default function TasksCard({
     content =
       view === 'open' ? (
         <StatePanel title={t.emptyOpenTitle}>{canAdd ? t.emptyOpenBodyManager : t.emptyOpenBody}</StatePanel>
+      ) : view === 'in_progress' ? (
+        <StatePanel title={t.emptyInProgressTitle}>{t.emptyInProgressBody}</StatePanel>
       ) : (
         <StatePanel title={t.emptyDoneTitle}>{t.emptyDoneBody}</StatePanel>
       )
@@ -165,6 +167,7 @@ export default function TasksCard({
           }}
           tabs={[
             { id: 'open', label: t.open },
+            { id: 'in_progress', label: t.inProgress },
             { id: 'done', label: t.done },
           ]}
           testId="project-tasks-tabs"

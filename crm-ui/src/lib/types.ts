@@ -304,6 +304,11 @@ export type ActivityTask = {
   files?: TaskFile[]
   dueDate: string | null
   assignee: PersonRef | null
+  /** `open`, `in_progress` or `done`. Absent from an older server: derive it from `completedAt`. */
+  status?: 'open' | 'in_progress' | 'done'
+  /** When and by whom it was started; null unless in progress. Absent from an older server. */
+  startedAt?: string | null
+  startedBy?: PersonRef | null
   completedAt: string | null
   completedBy: PersonRef | null
   /** The tasks it waits on (specs/20261101-crm US-6); `blocked` while any of them is open. Absent from an older server. */

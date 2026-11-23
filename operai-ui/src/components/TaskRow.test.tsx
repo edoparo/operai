@@ -136,4 +136,47 @@ describe('TaskRow', () => {
     const [first, second] = screen.getAllByRole('button', { name: 'Mark done' })
     expect(first!.getAttribute('aria-describedby')).not.toBe(second!.getAttribute('aria-describedby'))
   })
+
+  it('shows the in-progress state as glyph plus text', () => {
+    render(<TaskRow {...base} state="in_progress" stateLabel="In progress" />)
+    const badge = screen.getByText('In progress').closest('.badge')!
+    expect(badge.querySelector('svg')).not.toBeNull()
+    // The `progress` meaning (accent, play glyph): never the success tone a done task wears.
+    expect(badge).toHaveClass('badge-accent')
+    expect(badge).not.toHaveClass('badge-success')
+  })
+
+  it('has no progress button unless onProgress is given', () => {
+    render(<TaskRow {...base} progressLabel="Start" />)
+    expect(screen.queryByRole('button', { name: 'Start' })).toBeNull()
+  })
+
+  it('a progress button calls back, and shows the busy label while running', async () => {
+    const onProgress = vi.fn()
+    const { rerender } = render(<TaskRow {...base} onProgress={onProgress} progressLabel="Start" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }))
+    expect(onProgress).toHaveBeenCalledTimes(1)
+    rerender(<TaskRow {...base} onProgress={onProgress} progressLabel="Start" progressing progressingLabel="Saving…" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Saving…' }))
+    expect(onProgress).toHaveBeenCalledTimes(1)
+  })
+
+  it('a blocked task Start is aria-disabled, described by the waiting line, and ignores clicks', async () => {
+    const onProgress = vi.fn()
+    render(
+      <TaskRow
+        {...base}
+        state="blocked"
+        stateLabel="Blocked"
+        waiting="Waiting on Draft."
+        onProgress={onProgress}
+        progressLabel="Start"
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'Start' })
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(document.getElementById(button.getAttribute('aria-describedby')!)).toHaveTextContent('Waiting on Draft.')
+    await userEvent.click(button)
+    expect(onProgress).not.toHaveBeenCalled()
+  })
 })

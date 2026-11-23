@@ -14,7 +14,7 @@ import { strings } from '../strings'
 const PAGE_SIZE = 25
 const TABS_ID = 'crm-tasks'
 const loadAssignees = (signal: AbortSignal) => listTaskAssignees({ signal })
-type View = 'open' | 'done'
+type View = 'open' | 'in_progress' | 'done'
 
 /**
  * TasksPage — "Tasks" (AC-4.4): tasks across every company, the caller's by
@@ -58,6 +58,14 @@ export default function TasksPage() {
     document.getElementById(`${TABS_ID}-tab-${view}`)?.focus()
   }
 
+  const changeMessage = (updated: Activity) => {
+    const status = updated.task?.status ?? (updated.task?.completedAt ? 'done' : 'open')
+    if (status === 'done') return t.completed
+    if (status === 'in_progress') return t.started
+    // An open task here was reopened, or stopped when this view is "In progress".
+    return view === 'in_progress' ? t.stopped : t.reopened
+  }
+
   let content
   if (tasks.status === 'loading') content = <Loading label={t.loading} />
   else if (tasks.status === 'error') content = <ActivityLoadFailure error={tasks.error} onRetry={tasks.retry} />
@@ -65,6 +73,10 @@ export default function TasksPage() {
     content =
       view === 'open' ? (
         <StatePanel title={t.emptyOpenTitle}>{assignee === 'me' ? t.emptyOpenBody : t.emptyOthersOpenBody}</StatePanel>
+      ) : view === 'in_progress' ? (
+        <StatePanel title={t.emptyInProgressTitle}>
+          {assignee === 'me' ? t.emptyInProgressBody : t.emptyOthersInProgressBody}
+        </StatePanel>
       ) : (
         <StatePanel title={t.emptyDoneTitle}>{assignee === 'me' ? t.emptyDoneBody : t.emptyOthersDoneBody}</StatePanel>
       )
@@ -77,7 +89,7 @@ export default function TasksPage() {
               key={task.id}
               activity={task}
               showCompany
-              onChanged={(updated) => rowLeft(updated.task?.completedAt ? t.completed : t.reopened)}
+              onChanged={(updated) => rowLeft(changeMessage(updated))}
               onEdit={setEditing}
               onDeleted={() => rowLeft(strings.activities.deleted)}
             />
@@ -153,6 +165,7 @@ export default function TasksPage() {
           }}
           tabs={[
             { id: 'open', label: t.open },
+            { id: 'in_progress', label: t.inProgress },
             { id: 'done', label: t.done },
           ]}
           testId="crm-tasks-tabs"

@@ -5,11 +5,12 @@ import { listRowClassName, listRowMetaClassName } from './ListRows'
 import { StatusBadge } from './StatusBadge'
 import type { StatusMeaning } from './StatusBadge'
 
-export type TaskRowState = 'open' | 'blocked' | 'overdue' | 'done'
+export type TaskRowState = 'open' | 'in_progress' | 'blocked' | 'overdue' | 'done'
 
 /** Library default; an app overrides single entries through `stateMeanings` (one map per app, INC-23). */
 const DEFAULT_MEANING: Record<TaskRowState, StatusMeaning> = {
   open: 'pending',
+  in_progress: 'progress',
   blocked: 'attention',
   overdue: 'attention',
   done: 'settled',
@@ -34,6 +35,13 @@ export type TaskRowProps = {
    * description of the blocked complete button, so a keyboard user who reaches it hears why.
    */
   waiting?: ReactNode
+  /** Start / Stop, before Mark done. Omit it and the row has no such button. Not called while `state` is `blocked`. */
+  onProgress?: () => void
+  progressLabel?: string
+  /** The action is running: the button shows `progressingLabel` and ignores clicks. */
+  progressing?: boolean
+  progressingLabel?: string
+  progressTestId?: string
   /** Mark done / Reopen. Omit it and the row has no such button. Not called while `state` is `blocked`. */
   onComplete?: () => void
   completeLabel?: string
@@ -68,6 +76,11 @@ export function TaskRow({
   body,
   meta = [],
   waiting,
+  onProgress,
+  progressLabel,
+  progressing = false,
+  progressingLabel,
+  progressTestId,
   onComplete,
   completeLabel,
   completing = false,
@@ -84,6 +97,7 @@ export function TaskRow({
   const blocked = state === 'blocked'
   const showWaiting = blocked && waiting !== undefined && waiting !== null && waiting !== false && waiting !== ''
   const hasComplete = onComplete !== undefined
+  const hasProgress = onProgress !== undefined
   const meaning = stateMeanings?.[state] ?? DEFAULT_MEANING[state]
 
   return (
@@ -104,8 +118,23 @@ export function TaskRow({
           {waiting}
         </p>
       )}
-      {(hasComplete || actions) && (
+      {(hasComplete || hasProgress || actions) && (
         <div className="flex flex-wrap gap-2" role="group" aria-label={actionsLabel}>
+          {hasProgress && (
+            <Button
+              size="sm"
+              variant="secondary"
+              busy={progressing}
+              aria-disabled={blocked || undefined}
+              aria-describedby={blocked && showWaiting ? hintId : undefined}
+              onClick={() => {
+                if (!blocked) onProgress()
+              }}
+              data-testid={progressTestId}
+            >
+              {progressing && progressingLabel ? progressingLabel : progressLabel}
+            </Button>
+          )}
           {hasComplete && (
             <Button
               size="sm"

@@ -46,6 +46,10 @@ export const ActivitySchema = z.object({
     .object({
       dueDate: z.string().nullable(),
       assignee: PersonRefSchema.nullable(),
+      /** US-10: done when completed, in progress when started and not done, open otherwise. */
+      status: z.enum(["open", "in_progress", "done"]),
+      startedAt: z.string().nullable(),
+      startedBy: PersonRefSchema.nullable(),
       completedAt: z.string().nullable(),
       completedBy: PersonRefSchema.nullable(),
       /** The tasks it waits on (US-6); `blocked` while any of them is open. */
@@ -111,6 +115,7 @@ export async function toViews(c: Caller, rows: readonly ActivityRow[], session: 
       row.authorUserId,
       row.assigneeUserId,
       row.completedByUserId,
+      row.startedByUserId,
       ...row.participants.map((participant) => participant.userId),
       ...row.files.map((file) => file.uploadedByUserId),
     ]),
@@ -146,6 +151,9 @@ export async function toViews(c: Caller, rows: readonly ActivityRow[], session: 
           ? {
               dueDate: toDateOnly(row.dueDate),
               assignee: maybe(row.assigneeUserId),
+              status: row.completedAt ? "done" : row.startedAt ? "in_progress" : "open",
+              startedAt: row.startedAt?.toISOString() ?? null,
+              startedBy: maybe(row.startedByUserId),
               completedAt: row.completedAt?.toISOString() ?? null,
               completedBy: maybe(row.completedByUserId),
               blockedBy: row.blockedBy.map(({ blocker }) => ({

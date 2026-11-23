@@ -346,6 +346,18 @@ describe("POST /system/v1/activities/{id}/completion — only a newer seq applie
   const reopen = (id: string, seq: number, at = "2026-11-11T08:00:00.000Z") => complete(id, { completed: false, seq, at });
   const state = async (id: string) => db.activity.findUniqueOrThrow({ where: { id } });
 
+  it("US-10: a reopen makes a done task open (not in progress); one for a task that was not done keeps it in progress", async () => {
+    const started = { startedAt: new Date("2026-11-09T09:00:00Z"), startedByUserId: "user-tech" };
+    const done = await seedTask({ id: nextId("t"), ...started });
+    await complete(done.id, { seq: 1 });
+    await reopen(done.id, 2);
+    expect(await state(done.id)).toMatchObject({ completedAt: null, startedAt: null, startedByUserId: null });
+
+    const working = await seedTask({ id: nextId("t"), ...started });
+    expect((await reopen(working.id, 1)).json).toEqual({ applied: true });
+    expect(await state(working.id)).toMatchObject({ completedAt: null, startedByUserId: "user-tech", completionSeq: 1 });
+  });
+
   it("completes an open task with who and when, and remembers the seq", async () => {
     const t = await seedTask({ id: nextId("t") });
     const res = await complete(t.id, { seq: 3 });

@@ -16,6 +16,8 @@ export const STATUS = {
   draft: { tone: 'neutral', icon: 'pencil' },
   /** Waiting for someone else: submitted, pending invitation, ordered, compiled batch. */
   pending: { tone: 'accent', icon: 'clock' },
+  /** Being worked on now, not finished: a task in progress. */
+  progress: { tone: 'accent', icon: 'play' },
   /** Accepted and in effect: approved, accepted, assigned, rate in effect. */
   active: { tone: 'success', icon: 'check' },
   /** Finished for good: paid, receipt confirmed, year closed. */

@@ -21,6 +21,7 @@ const MEANINGS: Record<StatusMeaning, { label: string; meaning: string; examples
     meaning: 'Waiting for someone else',
     examples: 'submitted, invited, ordered, queued',
   },
+  progress: { label: 'In progress', meaning: 'Being worked on now, not finished', examples: 'a task in progress' },
   active: { label: 'Active', meaning: 'Accepted and in effect', examples: 'approved, accepted, assigned, in effect' },
   settled: { label: 'Settled', meaning: 'Finished for good', examples: 'paid, confirmed, closed' },
   stored: { label: 'Stored', meaning: 'Kept, not in use', examples: 'in stock' },

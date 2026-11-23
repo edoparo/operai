@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Badge, TaskRow, formatDate, listRowMetaClassName } from '@operai/ui'
-import { setTaskCompleted } from '../lib/activitiesApi'
+import { setTaskCompleted, startTask, stopTask } from '../lib/activitiesApi'
 import type { MyTask } from '../lib/activitiesApi'
 import { statusOf, codeOf, taskErrorMessage } from '../lib/errors'
 import { RichTextFilesView } from '@operai/ui/rich-text'
 import { openTaskFile, taskFileUrlResolver } from '../lib/taskFiles'
 import { strings } from '../strings'
-import { TASK_STATE_MEANING, refName, taskState } from '../components/TaskModel'
+import { TASK_STATE_MEANING, refName, taskState, taskStatus } from '../components/TaskModel'
 
 /** A refusal that means the row's buttons were stale: the list is read again to get fresh `may` flags. */
 const staleFlags = (failure: unknown): boolean =>
@@ -44,7 +44,9 @@ export default function MyTaskItem({
   const my = strings.tasks.my
   const [busy, setBusy] = useState(false)
   const state = taskState(task)
-  const done = task.task.completedAt !== null
+  const status = taskStatus(task)
+  const done = status === 'done'
+  const [progressing, setProgressing] = useState(false)
   const openBlockers = task.task.blockedBy?.filter((blocker) => !blocker.completed) ?? []
 
   const toggle = () => {
@@ -62,9 +64,28 @@ export default function MyTaskItem({
     )
   }
 
+  const progress = () => {
+    const starting = status !== 'in_progress'
+    setProgressing(true)
+    onFailed(task.id, null, false)
+    ;(starting ? startTask : stopTask)(task.id).then(
+      () => {
+        setProgressing(false)
+        onChanged(starting ? strings.tasks.saved.started : strings.tasks.saved.stopped)
+      },
+      (failure: unknown) => {
+        setProgressing(false)
+        onFailed(task.id, taskErrorMessage(failure, 'row'), staleFlags(failure))
+      },
+    )
+  }
+
   const facts = [
     task.task.dueDate ? t.due(formatDate(task.task.dueDate)) : t.noDue,
     task.task.assignee ? t.assignedTo(refName(task.task.assignee, currentUserId)) : null,
+    status === 'in_progress' && task.task.startedBy && task.task.startedAt
+      ? t.startedBy(refName(task.task.startedBy, currentUserId), formatDate(task.task.startedAt))
+      : null,
     done && task.task.completedBy && task.task.completedAt
       ? t.completedBy(refName(task.task.completedBy, currentUserId), formatDate(task.task.completedAt))
       : null,
@@ -145,6 +166,11 @@ export default function MyTaskItem({
           ? `${t.waitingOn(openBlockers.map((b) => b.subject).join(', '))}. ${t.blockedHint}`
           : undefined
       }
+      onProgress={task.may.complete && !done ? progress : undefined}
+      progressLabel={status === 'in_progress' ? t.stop : t.start}
+      progressing={progressing}
+      progressingLabel={t.completing}
+      progressTestId={`my-task-${task.id}-progress`}
       onComplete={task.may.complete ? toggle : undefined}
       completeLabel={done ? t.reopen : t.complete}
       completing={busy}
