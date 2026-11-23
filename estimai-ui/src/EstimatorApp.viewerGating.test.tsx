@@ -4,7 +4,7 @@
  * T17 (specs/20260807-estimate-sharing/tasks.md; design.md S5 "Viewer mode") —
  * the task's named EARLY CHECK: "mounting the editor as a viewer asserts
  * ZERO enabled mutating controls anywhere in the tree, while useEstimator's
- * computed outputs are deep-equal to the owner's and the export / link-share
+ * computed outputs are deep-equal to the owner's and the link-share
  * actions stay enabled; mounting as editor asserts the mutating controls are
  * enabled."
  *
@@ -25,9 +25,8 @@
  *     button never invokes a mutating callback (defense in depth beyond
  *     the per-component unit tests).
  *   - owner: the same controls ARE present and enabled.
- *   - export (Client/PDF/Excel) and "Share" link-share buttons are present
- *     and enabled in BOTH modes (AC-3.1 — read-only means content editing,
- *     not feature removal).
+ *   - no export button in either mode (the exports were removed on
+ *     2026-11-23).
  *   - the SAME computed numbers (PERT-derived Summary totals) render in
  *     both modes for identical input content — `useEstimator`'s output
  *     does not depend on access at all.
@@ -238,16 +237,9 @@ describe('T17 named early check — viewer mount has zero enabled mutating contr
   it('clicking every rendered button across all three tabs never fires estimatesApi.update (defense in depth)', async () => {
     renderEditor('viewer')
 
-    // Excludes Client/PDF/Excel — those trigger real file-generation side
-    // effects (XLSX/PDF writers) unrelated to what this test checks (that no
-    // MUTATING control exists); their presence/enabled-state is asserted
-    // separately below without invoking them.
-    const EXPORT_BUTTON_NAME = /client|pdf|excel/i
-
     for (const tabName of ['Activities', 'Summary', 'Parameters']) {
       fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${tabName}`, 'i') }))
       for (const btn of screen.queryAllByRole('button')) {
-        if (EXPORT_BUTTON_NAME.test(btn.textContent ?? '')) continue
         fireEvent.click(btn)
       }
     }
@@ -256,19 +248,10 @@ describe('T17 named early check — viewer mount has zero enabled mutating contr
     expect(vi.mocked(estimatesApi.update)).not.toHaveBeenCalled()
   })
 
-  it('export (Client/PDF/Excel) buttons stay present and enabled for a viewer (AC-3.1)', () => {
+  it('offers no export to a viewer either (exports removed 2026-11-23)', () => {
     renderEditor('viewer')
-
-    // The "Share link" button this test also used to assert was removed on
-    // 2026-08-09 with the whole anonymous link-share mechanism (specs/20260807-estimate-sharing US-8
-    // amendment). The exports remain the point of AC-3.1: read-only means no
-    // content editing, NOT feature removal.
-    const clientBtn = screen.getByRole('button', { name: /client/i }) as HTMLButtonElement
-    const pdfBtn = screen.getByRole('button', { name: /pdf/i }) as HTMLButtonElement
-    const excelBtn = screen.getByRole('button', { name: /excel/i }) as HTMLButtonElement
-
-    for (const btn of [clientBtn, pdfBtn, excelBtn]) {
-      expect(btn.disabled).toBe(false)
+    for (const name of [/client/i, /pdf/i, /excel/i]) {
+      expect(screen.queryByRole('button', { name })).toBeNull()
     }
   })
 })

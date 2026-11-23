@@ -17,8 +17,7 @@
  * paths — is technical and passes.
  *
  * Exempt on purpose (not scanned):
- *   - `src/strings.ts` and `src/strings/**` — the strings module itself
- *     (`strings/exportCopy.ts` is the English-only copy of exported files);
+ *   - `src/strings.ts` and `src/strings/**` — the strings module itself;
  *   - `lib/templates.ts` and `types.ts` PROFILES — template and profile names
  *     are DATA written into the estimate document, not UI copy;
  *   - API clients (`estimatesApi.ts`, `collaboratorsApi.ts`) — wire-contract
@@ -35,8 +34,6 @@ const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 /** `.ts` modules that build copy a person sees; every other copy lives in components. */
 const COPY_BEARING_TS = [
   'lib/healthWarnings.ts',
-  'lib/pdfExport.ts',
-  'lib/ganttChart.ts',
   'lib/projects.ts',
   'lib/identity.ts',
   'lib/figures.ts',

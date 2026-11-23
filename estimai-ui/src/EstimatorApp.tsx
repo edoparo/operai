@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import * as XLSX from 'xlsx'
-import ExcelJS from 'exceljs'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import Header from './components/Header'
 import { authClient } from './lib/authClient'
@@ -8,13 +6,8 @@ import MetricsBar from './components/MetricsBar'
 import ActivityTable from './components/ActivityTable'
 import SummaryTable from './components/SummaryTable'
 import ParametersPanel from './components/ParametersPanel'
-import { pertCalc } from './hooks/useEstimator'
 import { useEstimatorContext } from './context/EstimatorContext'
 import { strings } from './strings'
-import { exportPdf } from './lib/pdfExport'
-import { renderGanttPng } from './lib/ganttChart'
-import { svgToDataUrl } from './lib/logoUtils'
-import { computeActivityNums } from './lib/activityNums'
 import { computeHealthWarnings } from './lib/healthWarnings'
 import ShortcutsModal from './components/ShortcutsModal'
 import HealthWarningsModal from './components/HealthWarningsModal'
@@ -36,8 +29,6 @@ import {
   tabPanelProps,
   useFocusOnMount,
 } from '@operai/ui'
-import { EXPORT_LOCALE, exportCopy } from './strings/exportCopy'
-import { whole } from './lib/figures'
 
 type EditorTab = 'activities' | 'summary' | 'parameters'
 
@@ -262,228 +253,6 @@ export default function EstimatorApp() {
 
   const warnings = useMemo(() => computeHealthWarnings(acts, releases, summary), [acts, releases, summary])
 
-  // Exports are client documents: English copy (strings/exportCopy.ts), the
-  // suite's numeric date, numeric cells left as numbers for the spreadsheet.
-  const exportXLSX = useCallback(() => {
-    const x = exportCopy
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.aoa_to_sheet([
-        x.parameters.header,
-        [x.parameters.project, name],
-        [x.parameters.author, author],
-        [x.parameters.date, formatDate(new Date())],
-        [],
-        [x.parameters.parallelism, params.parallelism],
-        [x.parameters.sprintDays, params.sprintDays],
-        [x.parameters.workingDaysMonth, params.workingDaysMonth],
-        [x.parameters.qaDeployDays, params.qaDeployDays],
-        [x.parameters.qaTestDays, params.qaTestDays],
-        [x.parameters.pmDays, params.pmDays],
-      ]),
-      x.sheets.parameters,
-    )
-    const nums = computeActivityNums(acts)
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.aoa_to_sheet([
-        x.detailHeader,
-        ...acts.map((a) => {
-          const pv = pertCalc(a.o, a.ml, a.p)
-          const actGain =
-            a.aiGain !== undefined && a.aiGain !== null && (a.aiGain as unknown as string) !== ''
-              ? Number(a.aiGain)
-              : params.aiGain
-          return [
-            nums.get(a.id) ?? '',
-            a.epic,
-            a.act,
-            a.prof,
-            +a.o,
-            +a.ml,
-            +a.p,
-            +pv.toFixed(1),
-            +a.risk,
-            +(pv + (Number(a.risk) || 0)).toFixed(1),
-            Math.round(actGain * 100),
-            a.notes,
-            a.release,
-          ]
-        }),
-      ]),
-      x.sheets.detail,
-    )
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.aoa_to_sheet([
-        x.summaryHeader,
-        ...summary.map((s) =>
-          s.res
-            ? [
-                s.name,
-                s.fte,
-                s.res.ind,
-                s.res.plan,
-                s.res.base,
-                s.res.el,
-                s.res.tm,
-                s.res.mo,
-                s.res.best,
-                s.res.worst,
-                x.daysRange(whole(s.res.best, EXPORT_LOCALE), whole(s.res.worst, EXPORT_LOCALE)),
-                s.res.aiCost,
-                s.res.aiElapsed,
-                s.res.aiTotalMD,
-              ]
-            : [s.name, s.fte, ...Array(12).fill(x.empty)],
-        ),
-        [
-          x.total,
-          '',
-          +totals.ind.toFixed(1),
-          '',
-          +totals.base.toFixed(1),
-          totals.el,
-          totals.tm,
-          totals.mo,
-          totals.best,
-          totals.worst,
-          x.daysRange(whole(totals.best, EXPORT_LOCALE), whole(totals.worst, EXPORT_LOCALE)),
-          totals.aiCost,
-          totals.aiElapsed,
-          totals.aiTotalMD,
-        ],
-      ]),
-      x.sheets.summary,
-    )
-    XLSX.writeFile(wb, `${name.replace(/\s+/g, '_')}_${x.fileStem}.xlsx`)
-  }, [acts, summary, totals, params, name, author])
-
-  const exportClient = useCallback(async () => {
-    const wdm = params.workingDaysMonth || 20
-    const active = summary.filter((s) => s.res)
-
-    const x = exportCopy
-    const wb = new ExcelJS.Workbook()
-    wb.creator = author || x.product
-    wb.created = new Date()
-    const ws = wb.addWorksheet(x.sheets.client)
-
-    // ── Column widths ──────────────────────────────────────────────────
-    ws.columns = [
-      { key: 'release', width: 22 },
-      { key: 'mo', width: 18 },
-      { key: 'best', width: 18 },
-      { key: 'worst', width: 18 },
-      { key: 'tm', width: 18 },
-    ]
-
-    // ── Logo + project info (rows 1-2) ─────────────────────────────────
-    ws.getRow(1).height = 36
-    ws.getRow(2).height = 8 // spacer
-
-    const logoDataUrl = await svgToDataUrl('/estimai-light.svg', 128)
-    const logoImgId = wb.addImage({ base64: logoDataUrl.split(',')[1], extension: 'png' })
-    ws.addImage(logoImgId, {
-      tl: { col: 0, row: 0 } as ExcelJS.Anchor,
-      ext: { width: 32, height: 32 },
-      editAs: 'absolute',
-    })
-
-    const nameCell = ws.getCell('B1')
-    nameCell.value = name || x.untitled
-    nameCell.font = { bold: true, size: 12 }
-    nameCell.alignment = { vertical: 'middle' }
-
-    if (author) {
-      const authorCell = ws.getCell('C1')
-      authorCell.value = author
-      authorCell.font = { size: 9, color: { argb: 'FF888888' } }
-      authorCell.alignment = { vertical: 'middle' }
-    }
-
-    const dateCell = ws.getCell('E1')
-    dateCell.value = formatDate(new Date())
-    dateCell.alignment = { horizontal: 'right', vertical: 'middle' }
-    dateCell.font = { size: 9, color: { argb: 'FF888888' } }
-
-    // ── Table header (row 3) ───────────────────────────────────────────
-    const headerRow = ws.getRow(3)
-    x.clientHeader.forEach((h, i) => {
-      const cell = headerRow.getCell(i + 1)
-      cell.value = h
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5B6AF7' } }
-      cell.alignment = { horizontal: 'center' }
-    })
-
-    // ── Data rows (row 4+) ─────────────────────────────────────────────
-    let nextRow = 4
-    for (const s of active) {
-      const res = s.res!
-      const row = ws.getRow(nextRow)
-      const vals = [s.name, +res.mo.toFixed(1), +(res.best / wdm).toFixed(1), +(res.worst / wdm).toFixed(1), res.tm]
-      vals.forEach((v, i) => {
-        const cell = row.getCell(i + 1)
-        cell.value = v
-        cell.alignment = { horizontal: 'center' }
-        if (nextRow % 2 === 0) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0FF' } }
-        }
-      })
-      nextRow++
-    }
-
-    // ── Total row ──────────────────────────────────────────────────────
-    const totalRow = ws.getRow(nextRow)
-    const totalVals = [
-      x.total,
-      +totals.mo.toFixed(1),
-      +(totals.best / wdm).toFixed(1),
-      +(totals.worst / wdm).toFixed(1),
-      totals.tm,
-    ]
-    totalVals.forEach((v, i) => {
-      const cell = totalRow.getCell(i + 1)
-      cell.value = v
-      cell.font = { bold: true }
-      cell.alignment = { horizontal: 'center' }
-    })
-    nextRow++
-
-    // ── Gantt chart image ──────────────────────────────────────────────
-    const png = renderGanttPng(summary, wdm)
-    if (png) {
-      const chartRows = active.length
-      const chartH = 52 + chartRows * 48 + 28 // must match ganttChart.ts layout
-      const chartW = 668 // (16+120+500+32) logical px
-
-      const imgId = wb.addImage({ base64: png, extension: 'png' })
-      ws.addImage(imgId, {
-        tl: { col: 0, row: nextRow + 1 } as ExcelJS.Anchor,
-        ext: { width: chartW, height: chartH },
-      })
-      // Reserve rows for the image so the sheet scrolls correctly
-      const imgRowCount = Math.ceil(chartH / 20) + 1
-      for (let r = 0; r < imgRowCount; r++) ws.getRow(nextRow + 1 + r)
-    }
-
-    // ── Download ───────────────────────────────────────────────────────
-    const buffer = await wb.xlsx.writeBuffer()
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${name.replace(/\s+/g, '_') || x.fileStem}_client.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
-  }, [summary, totals, params, name, author])
-
-  const exportPDF = useCallback(() => {
-    exportPdf({ name, author, acts, summary, totals, params })
-  }, [name, author, acts, summary, totals, params])
-
   return (
     <div className="min-h-full w-full">
       {/* INC-30: the editor's h1. The sticky header has no room for a visible
@@ -615,16 +384,6 @@ export default function EstimatorApp() {
                 {lifecycleBusy ? strings.lifecycle.reopenBusy : strings.lifecycle.reopenAction}
               </Button>
             ))}
-          <div className="w-px h-4 bg-rule mx-0.5" />
-          <Button size="sm" onClick={exportClient} title={strings.editor.exportClientTitle}>
-            {strings.editor.exportClient}
-          </Button>
-          <Button size="sm" onClick={exportPDF} title={strings.editor.exportPdfTitle}>
-            {strings.editor.exportPdf}
-          </Button>
-          <Button size="sm" onClick={exportXLSX}>
-            {strings.editor.exportExcel}
-          </Button>
           <div className="w-px h-4 bg-rule mx-0.5" />
           <Button
             variant="ghost"

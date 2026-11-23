@@ -62,7 +62,7 @@ export const enList = {
     mineOpen: {
       heading: 'No open estimates',
       body: 'Create one, or look under Closed for finished work.',
-      features: 'PERT estimation · AI comparison · Excel and PDF export',
+      features: 'PERT estimation · AI comparison',
     },
     mineClosed: {
       heading: 'No closed estimates',
@@ -151,7 +151,7 @@ export const itList: typeof enList = {
     mineOpen: {
       heading: 'Nessuna stima aperta',
       body: 'Crearne una, oppure cercare tra le Chiuse il lavoro concluso.',
-      features: 'Stima PERT · Confronto con AI · Esportazione Excel e PDF',
+      features: 'Stima PERT · Confronto con AI',
     },
     mineClosed: {
       heading: 'Nessuna stima chiusa',

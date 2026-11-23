@@ -63,7 +63,7 @@ operai/
 │   │   │   ├── useEstimator.ts      # All estimation computation logic
 │   │   │   └── useImportOffer.ts    # One-time localStorage → estimai-api import offer
 │   │   ├── lib/                     # api (apiFetch interceptor), authClient, estimatesApi,
-│   │   │                            # collaboratorsApi, identity, pdfExport, ganttChart,
+│   │   │                            # collaboratorsApi, identity, ownerFilter, listFilters,
 │   │   │                            # healthWarnings, pert, projects, templates, …
 │   │   ├── pages/                   # EstimatesPage, EstimatePage
 │   │   ├── router.tsx               # TanStack Router
@@ -251,7 +251,9 @@ All of them share one stack. Each is installed and deployed on its own (no npm w
 
 estimai-ui additionally uses:
 - **Tables:** TanStack Table v8; **drag & drop:** `@dnd-kit`
-- **Export:** `exceljs` + `xlsx` for XLSX, `jspdf` + `jspdf-autotable` for PDF
+- **Export:** none. The XLSX, client XLSX and PDF exports were removed on 2026-11-23
+  (owner: they no longer worked and nobody needed them), with `exceljs`, `xlsx`, `jspdf`
+  and `jspdf-autotable`. The JSON import on the list stays.
 - **Sharing:** account-based collaborators only (specs/20260807-estimate-sharing). The anonymous
   link share (`lz-string` payload in a URL fragment + `qrcode`) was removed on
   2026-08-09 — an estimate is never viewable without an Operai account.

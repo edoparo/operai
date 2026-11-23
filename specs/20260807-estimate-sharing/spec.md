@@ -12,6 +12,9 @@ done: 2026-08-08
 
 ## Amendments
 
+- **2026-11-23 (owner):** the estimate exports (Excel, client Excel, PDF) are removed from
+  EstimAI. Where an acceptance criterion below says a person "can export", that part no longer
+  applies; the rest of the criterion stands.
 - **Amended by specs/20261108-estimate-list-oversight (2026-11-08, ADR 20261108-estimai-oversight-permission-amends-0036).** A third, read-only way in: a holder of
   `estimate:read-all` (seeded to `admin`) may list and open every estimate as `oversight`,
   and may never edit, close, reopen, delete or share one it reaches only that way (403
@@ -149,8 +152,7 @@ it.
 **Acceptance criteria:**
 - AC-3.1: Given a collaborator with `viewer` access, when they open the shared estimate,
   then they see identical computed values (PERT, Expected, Elapsed, Summary, etc.) to the
-  owner, and can use the existing link-share feature and XLSX/PDF export on it exactly as
-  the owner could — but every control to add, edit, or delete a release, epic, activity,
+  owner (the link share was removed on 2026-08-09, the XLSX/PDF export on 2026-11-23) — but every control to add, edit, or delete a release, epic, activity,
   or parameter is disabled or absent, and an edit attempt made directly against the
   underlying API is refused.
 - AC-3.2: Given a collaborator with `editor` access, when they open the shared estimate,

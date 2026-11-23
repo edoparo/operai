@@ -12,6 +12,9 @@ done: 2026-11-09
 
 ## Amendments
 
+- **2026-11-23 (owner):** the estimate exports (Excel, client Excel, PDF) are removed from
+  EstimAI. Where an acceptance criterion below says a person "can export", that part no longer
+  applies; the rest of the criterion stands.
 - **Amends specs/20260807-estimate-sharing (estimate sharing) and ADR 20260807-record-level-acl-resource-server-owned-access-primitive/0037.** So far an estimate opens only for
   its owner or a collaborator. This spec adds a third, read-only way in: an admin may open
   any estimate (US-1).
@@ -45,7 +48,7 @@ estimated without asking each owner to share it.
   EstimAI, including those they neither own nor collaborate on. Each row shows the name, the
   owner, the last-updated date and the deal badge (US-3).
 - AC-1.4: Given an admin who neither owns nor collaborates on an estimate, when they open it,
-  then they see it in full and can export it (XLSX, PDF). Edit, close, reopen, delete and
+  then they see it in full (no export since 2026-11-23). Edit, close, reopen, delete and
   sharing are not offered, and the server refuses each of them with 403.
 - AC-1.5: Given an admin who owns or collaborates on an estimate, when they open it, then
   their own access level applies, as before (the read-only rule of AC-1.4 never removes a

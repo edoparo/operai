@@ -30,7 +30,7 @@ export const en = {
   statusClosed: 'Closed',
   oversightTitle: 'Read-only: admin view',
   oversightBody: (owner: string) =>
-    `You can see this estimate because you may read every estimate. It is owned by ${owner}. You can export it, but not change, close or share it.`,
+    `You can see this estimate because you may read every estimate. It is owned by ${owner}. You cannot change, close or share it.`,
 }
 
 export const it: typeof en = {
@@ -60,5 +60,5 @@ export const it: typeof en = {
   statusClosed: 'Chiusa',
   oversightTitle: 'Sola lettura: vista amministratore',
   oversightBody: (owner) =>
-    `Questa stima è visibile perché è possibile leggere tutte le stime. Appartiene a ${owner}. È possibile esportarla, ma non modificarla, chiuderla o condividerla.`,
+    `Questa stima è visibile perché è possibile leggere tutte le stime. Appartiene a ${owner}. Non è possibile modificarla, chiuderla o condividerla.`,
 }

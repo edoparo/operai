@@ -3,7 +3,7 @@
  *
  * Oversight mode of the estimate page (specs/20261108-estimate-list-oversight AC-1.4, AC-1.5, AC-2.4): an
  * admin who reaches an estimate only through `estimate:read-all` sees it in
- * full and can export it, but nothing is editable or closable, collaborators
+ * full, but nothing is editable or closable, collaborators
  * are not offered, and merely opening it never dirties the document.
  *
  * Same mount recipe as EstimatorApp.viewerGating.test.tsx.
@@ -11,7 +11,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup } from '@testing-library/react'
 import type { Parameters, Release, Activity } from './types'
 import type { EstimateAccess, EstimateIdentity } from './lib/estimatesApi'
 
@@ -49,8 +49,6 @@ vi.mock('./lib/authClient', () => ({
   },
 }))
 
-vi.mock('./lib/pdfExport', () => ({ exportPdf: vi.fn() }))
-
 vi.mock('@vercel/analytics/react', () => ({
   Analytics: () => null,
 }))
@@ -69,7 +67,6 @@ vi.mock('./lib/estimatesApi', async (importOriginal) => {
 })
 
 import * as estimatesApi from './lib/estimatesApi'
-import { exportPdf } from './lib/pdfExport'
 import { strings } from './strings'
 import { EstimatorProvider } from './context/EstimatorContext'
 import EstimatorApp from './EstimatorApp'
@@ -189,11 +186,11 @@ describe('oversight mode (AC-1.4)', () => {
     expect(screen.queryByTestId('reopen-estimate-button')).toBeNull()
   })
 
-  it('keeps the exports (Client, PDF, Excel) and Help available', () => {
+  it('keeps Help available, and offers no export (removed 2026-11-23)', () => {
     renderEditor('oversight')
 
     for (const name of [/client/i, /pdf/i, /excel/i]) {
-      expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(false)
+      expect(screen.queryByRole('button', { name })).toBeNull()
     }
     expect(screen.getByRole('button', { name: strings.editor.modelReference })).toBeDefined()
   })
@@ -205,9 +202,6 @@ describe('oversight mode (AC-1.4)', () => {
 
     expect(vi.mocked(estimatesApi.update)).not.toHaveBeenCalled()
     expect(screen.queryByText(/Saving…|Saved/)).toBeNull()
-    // The document the admin exports is still the stored one, not stamped with their name.
-    fireEvent.click(screen.getByRole('button', { name: /pdf/i }))
-    expect(vi.mocked(exportPdf)).toHaveBeenCalledWith(expect.objectContaining({ author: '' }))
   })
 
   it('on a closed estimate shows the closed banner in its viewer wording and still no Reopen (AC-2.4)', () => {
@@ -236,7 +230,5 @@ describe('what oversight must not change (AC-1.5)', () => {
     renderEditor('viewer', { author: '' })
     await vi.runAllTimersAsync()
     expect(vi.mocked(estimatesApi.update)).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /pdf/i }))
-    expect(vi.mocked(exportPdf)).toHaveBeenCalledWith(expect.objectContaining({ author: '' }))
   })
 })

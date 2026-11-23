@@ -6,8 +6,6 @@
  * language is resolved by `resolveLocale`, never detected here).
  *
  * Not in here, on purpose:
- * - the copy inside exported files (PDF/XLSX) — client documents, English
- *   only: `./strings/exportCopy.ts`;
  * - template data (`lib/templates.ts`: template, epic and activity names) and
  *   the specialist profile list (`types.ts` PROFILES) — data written into the
  *   estimate document, not UI copy.
