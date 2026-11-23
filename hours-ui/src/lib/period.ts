@@ -14,6 +14,7 @@
  * server's 400 is not how the person finds out — and to the floor of 2000-01-01 (`MIN_DAY`, plan "A day"),
  * which catches a mistyped year the same way.
  */
+import { dayMs } from './day'
 
 export const PERIODS = ['thisWeek', 'lastWeek', 'thisMonth', 'lastMonth', 'thisYear', 'custom'] as const
 export type Period = (typeof PERIODS)[number]
@@ -41,20 +42,13 @@ export const MIN_DAY = '2000-01-01'
 const DAY_MS = 86_400_000
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 
-/** Midnight UTC of a `YYYY-MM-DD`, or `null` when the text is not a day on the calendar (30 February). */
-const dayOf = (text: string): number | null => {
-  const parts = ISO_DATE.exec(text)
-  if (!parts) return null
-  const ms = Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
-  return isoOf(ms) === text ? ms : null
-}
 
 const isoOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
 
 /** The days of a range, both ends included (one day is a span of 1). Both dates must be valid. */
 export const spanDays = (from: string, to: string): number => {
-  const start = dayOf(from)
-  const end = dayOf(to)
+  const start = dayMs(from)
+  const end = dayMs(to)
   if (start === null || end === null) throw new TypeError(`spanDays: expected two YYYY-MM-DD days, got ${from}, ${to}`)
   return Math.round((end - start) / DAY_MS) + 1
 }
@@ -63,7 +57,7 @@ const rangeBetween = (start: number, end: number): DateRange => ({ from: isoOf(s
 
 /** A preset as `from`/`to`; `today` is a `YYYY-MM-DD` (hours-ui passes `todayZurich()`). */
 export const presetRange = (period: PresetPeriod, today: string): DateRange => {
-  const now = dayOf(today)
+  const now = dayMs(today)
   if (now === null) throw new TypeError(`presetRange: expected a YYYY-MM-DD day, got ${today}`)
   const date = new Date(now)
   const year = date.getUTCFullYear()
@@ -94,7 +88,7 @@ export const presetRange = (period: PresetPeriod, today: string): DateRange => {
 const dayError = (text: string): 'required' | 'too-early' | null => {
   if (!ISO_DATE.test(text)) return 'required'
   if (text < MIN_DAY) return 'too-early'
-  return dayOf(text) === null ? 'required' : null
+  return dayMs(text) === null ? 'required' : null
 }
 
 /**
@@ -109,8 +103,8 @@ export const rangeErrors = (from: string, to: string): RangeErrors => {
   if (fromError !== null) errors.from = fromError
   if (toError !== null) errors.to = toError
   if (fromError === null && toError === null) {
-    const start = dayOf(from)!
-    const end = dayOf(to)!
+    const start = dayMs(from)!
+    const end = dayMs(to)!
     if (end < start) errors.to = 'before-from'
     else if (spanDays(from, to) > MAX_SPAN_DAYS) errors.to = 'too-long'
   }

@@ -71,7 +71,13 @@ describe('RecordHoursAction', () => {
     render(<RecordHoursAction {...PAGE} />)
     await screen.findByText('widget')
     expect(seam.received).toHaveLength(1)
-    expect(seam.received[0]).toEqual({ name: 'hours.recordHours', props: PAGE, fallback: expect.anything() })
+    // The reset key names who is recorded on, never the names shown: a rename does not remount the widget.
+    expect(seam.received[0]).toEqual({
+      name: 'hours.recordHours',
+      props: PAGE,
+      fallback: expect.anything(),
+      resetKey: JSON.stringify(['project', 'p-1', '']),
+    })
     expect(seam.received[0]).not.toHaveProperty('loading')
     // The link is the widget's fallback only: a ready widget shows no link beside it.
     expect(link()).toBeNull()

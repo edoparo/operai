@@ -33,8 +33,6 @@ export type ActivityFieldProps = {
    * nothing and cannot be changed.
    */
   lock?: 'hidden' | 'fixed'
-  /** @deprecated `lock="hidden"`: kept so a caller written before `lock` existed (and its tests) keeps working. */
-  locked?: boolean
   testId?: string
 }
 
@@ -64,10 +62,9 @@ export default function ActivityField({
   error = null,
   disabled = false,
   lock,
-  locked = false,
   testId = 'hours-activity',
 }: ActivityFieldProps) {
-  const mode = lock ?? (locked ? 'hidden' : undefined)
+  const mode = lock
   const [attempt, setAttempt] = useState(0)
   const [answer, setAnswer] = useState<Answer | null>(null)
   const selectRef = useRef<HTMLSelectElement>(null)

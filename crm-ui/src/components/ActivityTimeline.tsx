@@ -40,10 +40,11 @@ export default function ActivityTimeline({
       listActivities(JSON.parse(key) as ActivityTarget, { page, pageSize: PAGE_SIZE }, { signal }),
     [key, page],
   )
-  // A write in the card re-reads the list behind the rows on screen (`cacheKey`, as the Tasks page does): a row the
-  // re-read still lists keeps its element, so the success message of hours-ui's Record hours, which lives in the row,
-  // stays until the person dismisses it, saves again or leaves (specs/20261116-record-hours-in-place, design S3, G1).
-  const activities = useResource(load, { cacheKey: `crm-activities:${JSON.stringify([key, page])}` })
+  // A write in the card re-reads the list behind the rows on screen (`keepDataOnRetry`): a row the re-read still lists
+  // keeps its element, so the success message of hours-ui's Record hours, which lives in the row, stays until the
+  // person dismisses it, saves again or leaves (specs/20261116-record-hours-in-place, design S3, G1). Nothing is cached
+  // across visits.
+  const activities = useResource(load, { keepDataOnRetry: true })
 
   const changed = (message: string) => {
     setSaved(message)

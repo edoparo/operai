@@ -15,6 +15,7 @@
  * `todayZurich()`. A caller bug (a `monday` that is not a Monday, a `today` that is not a day, a fractional `n`) is a
  * `TypeError`, as in `week.ts`.
  */
+import { isCalendarDay } from './day'
 import { MIN_DAY } from './period'
 import { monthDays, monthFirstDay, monthLastDay, monthOf, shiftMonth } from './month'
 import { mondayOf, shiftWeek, weekDays } from './week'
@@ -149,16 +150,6 @@ export const pickBounds = (kind: TablePeriodKind, today: string): { min: string;
   if (kind === 'month') return { min: monthFirstDay(monthOf(MIN_DAY)), max: today }
   const monday = mondayOf(MIN_DAY)
   return { min: monday >= MIN_DAY ? monday : shiftWeek(monday, 1), max: today }
-}
-
-const DAY_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/
-
-/** Whether `text` is a day on the calendar, written `YYYY-MM-DD` with a four-digit year (30 February is not). */
-const isCalendarDay = (text: string): boolean => {
-  const parts = DAY_TEXT.exec(text)
-  if (!parts) return false
-  const ms = Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
-  return new Date(ms).toISOString().slice(0, 10) === text
 }
 
 /**

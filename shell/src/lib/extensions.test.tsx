@@ -13,6 +13,7 @@
 
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import type { ComponentType } from 'react'
 import type { ExtensionProps } from './extensions'
 
@@ -263,6 +264,39 @@ describe('HostExtension — a new entity gets a fresh panel', () => {
     await flush()
 
     expect(screen.getByTestId('panel').textContent).toBe('ok good')
+  })
+
+  it('with a resetKey, a change of the other props keeps the same panel mounted (its state survives a rename)', async () => {
+    let mounts = 0
+    mockPanel((props) => {
+      const [first] = useState(() => {
+        mounts += 1
+        return props.entityId
+      })
+      return <p data-testid="panel">{first}</p>
+    })
+    const { HostExtension } = await loadHostExtension()
+
+    const { rerender } = render(
+      <HostExtension name="meetings.hostMeetings" props={PROPS} fallback={fallback} resetKey="deal-1" />,
+    )
+    await flush()
+    rerender(
+      <HostExtension
+        name="meetings.hostMeetings"
+        props={{ ...PROPS, entityType: 'renamed' }}
+        fallback={fallback}
+        resetKey="deal-1"
+      />,
+    )
+    await flush()
+    expect(mounts).toBe(1)
+
+    rerender(
+      <HostExtension name="meetings.hostMeetings" props={{ ...PROPS, entityId: 'deal-2' }} fallback={fallback} resetKey="deal-2" />,
+    )
+    await flush()
+    expect(mounts).toBe(2)
   })
 })
 

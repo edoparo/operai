@@ -86,3 +86,10 @@ export const mayRecordOnTask = (task: MyTask, me: string | null): boolean =>
   me !== null &&
   me !== '' &&
   (task.task.assignee?.id === me || (task.participants ?? []).some((participant) => participant.id === me))
+
+/**
+ * Who a Record hours widget records on — never the names it shows. The boundary around the widget (and the shell's)
+ * is reset only when this changes, so a rename does not remount it and lose its open dialog or its message.
+ */
+export const recordHoursResetKey = ({ on, targetId, activityId }: RecordHoursProps): string =>
+  JSON.stringify([on, targetId, activityId])

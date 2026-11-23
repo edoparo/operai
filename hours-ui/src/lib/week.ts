@@ -8,23 +8,16 @@
  * change cannot move a day, and "today" is never read here: the caller passes `todayZurich()` (the day
  * hours-api itself uses for `future_day`), so a test can name the day.
  */
+import { dayMs } from './day'
 import { MIN_DAY } from './period'
 
 const DAY_MS = 86_400_000
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 
 const isoOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
 
-/** Midnight UTC of a `YYYY-MM-DD`, or `null` when the text is not a day on the calendar (30 February). */
-const dayOf = (text: string): number | null => {
-  const parts = ISO_DATE.exec(text)
-  if (!parts) return null
-  const ms = Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
-  return isoOf(ms) === text ? ms : null
-}
 
 const requireDay = (name: string, text: string): number => {
-  const ms = dayOf(text)
+  const ms = dayMs(text)
   if (ms === null) throw new TypeError(`${name}: expected a YYYY-MM-DD day, got ${text}`)
   return ms
 }
@@ -32,7 +25,7 @@ const requireDay = (name: string, text: string): number => {
 /** The day `days` after `ms`, as text; `null` outside the calendar the format writes (years 100 to 9999). */
 const addDays = (ms: number, days: number): string | null => {
   const text = isoOf(ms + days * DAY_MS)
-  return dayOf(text) === null ? null : text
+  return dayMs(text) === null ? null : text
 }
 
 /** Monday is 0: JavaScript counts Sunday as 0, so a Sunday is the last day of the week that began six days ago. */
@@ -75,9 +68,9 @@ export const shiftWeek = (monday: string, weeks: number): string => {
 export const readWeekParam = (search: Record<string, unknown>, today: string): string => {
   const thisWeek = mondayOf(today)
   const named = search['week']
-  if (typeof named !== 'string' || dayOf(named) === null) return thisWeek
+  if (typeof named !== 'string' || dayMs(named) === null) return thisWeek
   const monday = mondayOf(named)
-  return monday >= MIN_DAY && monday <= thisWeek && addDays(dayOf(monday)!, 6) !== null ? monday : thisWeek
+  return monday >= MIN_DAY && monday <= thisWeek && addDays(dayMs(monday)!, 6) !== null ? monday : thisWeek
 }
 
 /** The seven days of the week that begins on `monday`, Monday first, Sunday last (AC-5.3). */

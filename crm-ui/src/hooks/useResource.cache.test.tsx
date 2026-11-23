@@ -59,3 +59,31 @@ describe('useResource with a cacheKey', () => {
     expect(result.current.status).toBe('loading')
   })
 })
+
+describe('useResource with keepDataOnRetry', () => {
+  it('keeps the data on screen during a retry, marked as refreshing', async () => {
+    let next = deferred<string>()
+    const fetcher = () => next.promise
+    const { result } = renderHook(() => useResource(fetcher, { keepDataOnRetry: true }))
+    expect(result.current.status).toBe('loading')
+    await act(async () => next.resolve('first'))
+    await waitFor(() => expect(result.current.data).toBe('first'))
+
+    next = deferred<string>()
+    act(() => result.current.retry())
+    expect(result.current).toMatchObject({ status: 'ready', data: 'first', refreshing: true })
+    await act(async () => next.resolve('second'))
+    await waitFor(() => expect(result.current).toMatchObject({ status: 'ready', data: 'second', refreshing: false }))
+  })
+
+  it('remembers nothing across mounts: a new visit loads', async () => {
+    const seen = async () => 'seen'
+    const first = renderHook(() => useResource(seen, { keepDataOnRetry: true }))
+    await waitFor(() => expect(first.result.current.data).toBe('seen'))
+    first.unmount()
+
+    const never = () => new Promise<string>(() => {})
+    const again = renderHook(() => useResource(never, { keepDataOnRetry: true }))
+    expect(again.result.current).toMatchObject({ status: 'loading', data: null })
+  })
+})

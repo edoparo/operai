@@ -26,6 +26,12 @@ export type ResourceOptions = {
    * fresh load after a 409): there a retry still goes through `loading`.
    */
   cacheKey?: string
+  /**
+   * Keeps what is on screen through a `retry` of the same fetcher (status `ready`, `refreshing` true) instead of going
+   * through `loading`, with nothing remembered beyond this component: no cache shared across visits. For a list
+   * re-read after a write, whose rows must stay mounted (what a row's widget holds survives the re-read).
+   */
+  keepDataOnRetry?: boolean
 }
 
 type Outcome<T> =
@@ -50,7 +56,7 @@ export const clearResourceCache = (): void => cache.clear()
  * reload is still an `error`.
  */
 export function useResource<T>(fetcher: Fetcher<T>, options: ResourceOptions = {}): ResourceState<T> {
-  const { cacheKey } = options
+  const { cacheKey, keepDataOnRetry = false } = options
   const [attempt, setAttempt] = useState(0)
   const [outcome, setOutcome] = useState<Outcome<T> | null>(null)
 
@@ -92,13 +98,11 @@ export function useResource<T>(fetcher: Fetcher<T>, options: ResourceOptions = {
 
   // Loading. Show what is already known for the same thing instead of a skeleton.
   const stale =
-    cacheKey === undefined
-      ? null
-      : outcome !== null && outcome.ok && outcome.fetcher === fetcher
-        ? { data: outcome.data }
-        : cache.has(cacheKey)
-          ? { data: cache.get(cacheKey) as T }
-          : null
+    (cacheKey !== undefined || keepDataOnRetry) && outcome !== null && outcome.ok && outcome.fetcher === fetcher
+      ? { data: outcome.data }
+      : cacheKey !== undefined && cache.has(cacheKey)
+        ? { data: cache.get(cacheKey) as T }
+        : null
   return stale !== null
     ? { status: 'ready', data: stale.data, refreshing: true, error: null, retry, replace }
     : { status: 'loading', data: null, refreshing: false, error: null, retry, replace }

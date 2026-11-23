@@ -259,8 +259,8 @@ export default function MyHoursPage() {
   // What the view reads is named by one key, so a Retry is remembered as the read it was made for.
   const readKey = tableShown ? tableKey : filterKey
 
-  const retryAll = () => {
-    retryFor.current = readKey
+  /** Reads what the view shows again: the table's one read, or the List's three. */
+  const readAgain = () => {
     if (tableShown) {
       tableRead.reload()
       return
@@ -268,6 +268,11 @@ export default function MyHoursPage() {
     entries.reload()
     days.reload()
     totals.reload()
+  }
+
+  const retryAll = () => {
+    retryFor.current = readKey
+    readAgain()
   }
 
   // After a Retry of the blocked state, or of a period that could not be read, once every read has settled: focus goes
@@ -372,16 +377,6 @@ export default function MyHoursPage() {
 
   // Every write that changed what the page shows asks again, with the same filters, for what is on screen: the
   // three reads of the List, or the table's one.
-  const readAgain = () => {
-    if (tableShown) {
-      tableRead.reload()
-      return
-    }
-    entries.reload()
-    days.reload()
-    totals.reload()
-  }
-
   // The table is replaced by a skeleton while it is read again after a write, so the control that had focus is gone:
   // once the new grid is there, focus goes to the cell that was acted on if it is still a control, else to the card's
   // heading — never to the page body (design S7 "Focus after a write"). The request waits for the read to settle and is

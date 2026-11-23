@@ -1,59 +1,8 @@
-import { Component, useEffect, useState } from 'react'
-import type { ComponentType, ErrorInfo, ReactNode } from 'react'
 import type { RecordHoursProps } from '../lib/recordHours'
+import { recordHoursResetKey } from '../lib/recordHours'
+import { useExtensionSeam } from '../lib/extensionSeam'
+import ExtensionContain from './ExtensionContain'
 import { strings } from '../strings'
-
-type HostExtensionComponent = typeof import('shell/extensions').HostExtension
-
-type Seam = { status: 'loading' } | { status: 'ready'; HostExtension: HostExtensionComponent } | { status: 'failed' }
-
-const LOADING: Seam = { status: 'loading' }
-
-/**
- * The outcome of importing `shell/extensions`, kept for the life of the page: a list of tasks mounts one of these per
- * row the person may record on, and they must share one import, not repeat it (plan R1). A failed import is kept too:
- * the browser caches it, so a retry would only fail again and the fallback link is the whole offer (the
- * `MeetingsSection` posture).
- */
-let loaded: Seam | null = null
-let loading: Promise<Seam> | null = null
-
-function loadSeam(): Promise<Seam> {
-  loading ??= import('shell/extensions')
-    .then(
-      (module): Seam => {
-        try {
-          // Reading the export is inside the try: a module namespace can throw on access.
-          const HostExtension = (module as { HostExtension?: ComponentType<never> }).HostExtension
-          return typeof HostExtension === 'function'
-            ? { status: 'ready', HostExtension: HostExtension as unknown as HostExtensionComponent }
-            : { status: 'failed' }
-        } catch {
-          return { status: 'failed' }
-        }
-      },
-      (): Seam => ({ status: 'failed' }),
-    )
-    .then((seam) => {
-      loaded = seam
-      return seam
-    })
-  return loading
-}
-
-function useSeam(): Seam {
-  const [seam, setSeam] = useState<Seam>(loaded ?? LOADING)
-  useEffect(() => {
-    let live = true
-    void loadSeam().then((next) => {
-      if (live) setSeam(next)
-    })
-    return () => {
-      live = false
-    }
-  }, [])
-  return seam
-}
 
 /**
  * The host's own fallback (design S5): a plain link to My hours where the button would have been. A real anchor, so it
@@ -70,27 +19,6 @@ function FallbackLink({ placement }: { placement: RecordHoursProps['placement'] 
       {strings.recordHours.fallbackLink}
     </a>
   )
-}
-
-/**
- * `shell/extensions` promises never to throw (ADR 20260803-suite-version-generated-file-federated-export), but this seam runs
- * across a deploy boundary, so the page does not rely on it: a render-time throw anywhere under the widget is contained
- * to the link that takes its place.
- */
-class Contain extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
-  override state = { failed: false }
-
-  static getDerivedStateFromError() {
-    return { failed: true }
-  }
-
-  override componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.warn('crm-ui: Record hours failed to render', error, info.componentStack)
-  }
-
-  override render() {
-    return this.state.failed ? this.props.fallback : this.props.children
-  }
 }
 
 /**
@@ -115,16 +43,18 @@ export default function RecordHoursAction({
   activityName,
   placement,
 }: RecordHoursProps) {
-  const seam = useSeam()
+  const seam = useExtensionSeam()
   if (seam.status === 'loading') return null
   const fallback = <FallbackLink placement={placement} />
   if (seam.status === 'failed') return fallback
   const { HostExtension } = seam
   const props: RecordHoursProps = { on, targetId, targetName, activityId, activityName, placement }
+  // Reset by WHO is recorded on, never by the names shown: a rename (the deal's title, a task's subject) must not
+  // remount the widget and throw away its open dialog or its message; a throw for one target still does not blank the next.
+  const resetKey = recordHoursResetKey(props)
   return (
-    // Keyed like the shell keys its own boundary: a throw for one target must not blank the next one.
-    <Contain key={JSON.stringify(props)} fallback={fallback}>
-      <HostExtension name="hours.recordHours" props={props} fallback={fallback} />
-    </Contain>
+    <ExtensionContain widget="Record hours" resetKey={resetKey} fallback={fallback}>
+      <HostExtension name="hours.recordHours" props={props} fallback={fallback} resetKey={resetKey} />
+    </ExtensionContain>
   )
 }

@@ -75,6 +75,8 @@ declare module 'shell/extensions' {
     props: ExtensionProps[K]
     fallback: ReactNode
     loading?: ReactNode
+    /** Who the panel is about (an id): the shell resets its boundary only when this changes. A shell before it ignores it. */
+    resetKey?: string
   }): JSX.Element
 }
 

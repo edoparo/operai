@@ -58,11 +58,12 @@ export function mayRecordOnTask(activity: Activity, me: string | null): boolean 
  *   a project or a deal, and the entry carries no link to the company, the contact or the task (AC-3.4, AC-3.5). The
  *   subject still goes across, to name the button "Record hours on <subject>" and nothing else (G3).
  *
- * Null for an activity that is not a task. It does not read `completedAt` (AC-3.6).
+ * Null for an activity that is not a task. It does not read `completedAt` (AC-3.6). A deal with no id counts as no deal.
  */
 export function recordHoursPropsOf(activity: Activity): RecordHoursProps | null {
   if (activity.task === null) return null
-  if (activity.deal) {
+  // A deal with no id is a task with no deal, as in projects-ui: the widget refuses an empty target id.
+  if (activity.deal && activity.deal.id !== '') {
     return {
       on: 'deal',
       targetId: activity.deal.id,
@@ -81,3 +82,10 @@ export function recordHoursPropsOf(activity: Activity): RecordHoursProps | null 
     placement: 'row',
   }
 }
+
+/**
+ * Who a Record hours widget records on — never the names it shows. The boundary around the widget (and the shell's)
+ * is reset only when this changes, so a rename does not remount it and lose its open dialog or its message.
+ */
+export const recordHoursResetKey = ({ on, targetId, activityId }: RecordHoursProps): string =>
+  JSON.stringify([on, targetId, activityId])

@@ -199,6 +199,18 @@ describe('mayRecordOnTask (AC-3.1, AC-3.6)', () => {
 })
 
 describe('recordHoursPropsOf (AC-3.3, AC-3.4, AC-3.5, plan R10, G3)', () => {
+  it('treats a deal with no id as no deal: other work, as projects-ui does (the widget refuses an empty target)', () => {
+    const task = activity({ id: 't9', subject: 'Write the offer', deal: { id: '', title: 'Alpenstrom portal' } })
+    expect(recordHoursPropsOf(task)).toEqual({
+      on: 'none',
+      targetId: '',
+      targetName: '',
+      activityId: '',
+      activityName: 'Write the offer',
+      placement: 'row',
+    })
+  })
+
   it('gives a task about a deal as {on:deal, the deal, the task} on a row (AC-3.3)', () => {
     const task = activity({ id: 't9', subject: 'Write the offer', deal: { id: 'd7', title: 'Alpenstrom portal' } })
     expect(recordHoursPropsOf(task)).toEqual({

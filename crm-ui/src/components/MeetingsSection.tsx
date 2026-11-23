@@ -1,12 +1,10 @@
-import { Component, useEffect, useState } from 'react'
-import type { ComponentType, ErrorInfo, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Banner, Card } from '@operai/ui'
 import { strings } from '../strings'
 import { Loading } from './LoadState'
+import { useExtensionSeam } from '../lib/extensionSeam'
+import ExtensionContain from './ExtensionContain'
 
-type HostExtensionComponent = typeof import('shell/extensions').HostExtension
-
-type Seam = { status: 'loading' } | { status: 'ready'; HostExtension: HostExtensionComponent } | { status: 'failed' }
 
 /** The host's own card: the section keeps its heading whatever happens to the remote (AC-11.6). */
 function MeetingsCard({ children }: { children: ReactNode }) {
@@ -32,27 +30,6 @@ const loadingCard = (
 )
 
 /**
- * `shell/extensions` promises never to throw (ADR 20260803-suite-version-generated-file-federated-export), but this seam runs
- * across a deploy boundary, so the deal page does not rely on it: a render-time
- * throw anywhere under the panel is contained to the Meetings card.
- */
-class Contain extends Component<{ children: ReactNode }, { failed: boolean }> {
-  override state = { failed: false }
-
-  static getDerivedStateFromError() {
-    return { failed: true }
-  }
-
-  override componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.warn('crm-ui: the Meetings section failed to render', error, info.componentStack)
-  }
-
-  override render() {
-    return this.state.failed ? unavailable : this.props.children
-  }
-}
-
-/**
  * MeetingsSection — the "Meetings" card of the deal page (specs/20261104-meetings AC-11.2).
  * The panel is Meetings' own, a federated component loaded through the shell's
  * `shell/extensions` seam with `{hostApp:'crm', entityType:'deal', entityId}`
@@ -65,45 +42,19 @@ class Contain extends Component<{ children: ReactNode }, { failed: boolean }> {
  * Deals only: the company page rolls up no meetings in this release (AC-11.7).
  */
 export default function MeetingsSection({ dealId }: { dealId: string }) {
-  const [seam, setSeam] = useState<Seam>({ status: 'loading' })
-
-  useEffect(() => {
-    let live = true
-    import('shell/extensions').then(
-      (module) => {
-        if (!live) return
-        try {
-          // Reading the export is inside the try: a module namespace can throw on access.
-          const HostExtension = (module as { HostExtension?: ComponentType<never> }).HostExtension
-          setSeam(
-            typeof HostExtension === 'function'
-              ? { status: 'ready', HostExtension: HostExtension as unknown as HostExtensionComponent }
-              : { status: 'failed' },
-          )
-        } catch {
-          setSeam({ status: 'failed' })
-        }
-      },
-      () => {
-        if (live) setSeam({ status: 'failed' })
-      },
-    )
-    return () => {
-      live = false
-    }
-  }, [])
+  const seam = useExtensionSeam()
 
   if (seam.status === 'loading') return loadingCard
   if (seam.status === 'failed') return unavailable
   const { HostExtension } = seam
   return (
-    <Contain>
+    <ExtensionContain widget="the Meetings section" resetKey={dealId} fallback={unavailable}>
       <HostExtension
         name="meetings.hostMeetings"
         props={{ hostApp: 'crm', entityType: 'deal', entityId: dealId }}
         fallback={unavailable}
         loading={loadingCard}
       />
-    </Contain>
+    </ExtensionContain>
   )
 }

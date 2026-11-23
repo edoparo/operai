@@ -12,10 +12,10 @@
  * It does not import `week.ts` or `tablePeriod.ts`: `tablePeriod.ts` is built on both, and the week's own reading of an
  * address (`readWeekParam`) cannot depend on a module that depends on it.
  */
+import { isCalendarDay } from './day'
 import { MIN_DAY } from './period'
 
 const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 
 /** The first month hours-api answers for: the month of `MIN_DAY`. The format is fixed-width, so months compare as text. */
 export const MIN_MONTH = MIN_DAY.slice(0, 7)
@@ -25,12 +25,6 @@ const LAST_YEAR = 9999
 
 const isoOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
 
-/** Whether `text` is a day on the calendar (30 February is not), in a year the format writes. */
-const isDay = (text: string): boolean => {
-  const parts = ISO_DATE.exec(text)
-  if (!parts) return false
-  return isoOf(Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))) === text
-}
 
 /** `[year, month 1–12]` of a `YYYY-MM`; a caller bug is a `TypeError`, a year the format cannot hold a `RangeError`. */
 const partsOf = (name: string, month: string): [number, number] => {
@@ -46,7 +40,7 @@ const keyOf = (year: number, monthNumber: number): string =>
 
 /** The month holding `day` (AC-5.30). */
 export const monthOf = (day: string): string => {
-  if (!isDay(day)) throw new TypeError(`monthOf: expected a YYYY-MM-DD day, got ${day}`)
+  if (!isCalendarDay(day)) throw new TypeError(`monthOf: expected a YYYY-MM-DD day, got ${day}`)
   return day.slice(0, 7)
 }
 

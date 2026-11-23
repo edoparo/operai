@@ -4,7 +4,7 @@
  * ActivityField `lock` (specs/20261116-record-hours-in-place T1; design S4 "The fixed task"; AC-3.2, AC-3.3).
  * `fixed` is the variant of a dialog opened from a task: the activity is a fact the page chose, shown with its own
  * words, not a control and never read. `hidden` is the "not visible" variant of specs/20261112-time-tracking T28
- * under its new name (`ActivityField.locked.test.tsx` keeps testing it through the old one).
+ * under its new name (`ActivityField.locked.test.tsx` covers the hidden mode).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
@@ -94,14 +94,5 @@ describe('lock="hidden"', () => {
     expect(select.selectedOptions[0]?.textContent).toBe('Not visible to you')
     expect(description()).toBe(strings.activity.locked.project)
     expect(requests(apiFetch)).toEqual([])
-  })
-
-  it('is the same field the old `locked` prop made', () => {
-    const asLock = renderField({ lock: 'hidden', current: HIDDEN_POINTER, value: 'a-secret', targetId: 'p-secret' })
-    const hidden = asLock.container.innerHTML
-    asLock.unmount()
-    const asLocked = renderField({ locked: true, current: HIDDEN_POINTER, value: 'a-secret', targetId: 'p-secret' })
-
-    expect(asLocked.container.innerHTML.replace(/_r_\w+_/g, 'id')).toBe(hidden.replace(/_r_\w+_/g, 'id'))
   })
 })

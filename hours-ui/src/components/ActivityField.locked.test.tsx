@@ -65,14 +65,14 @@ afterEach(() => cleanup())
 
 describe('locked: the author cannot read the target', () => {
   it('reads nothing from activities-api, however long it stays', async () => {
-    render(<Harness locked current={HIDDEN_POINTER} initialValue="a-secret" />)
+    render(<Harness lock="hidden" current={HIDDEN_POINTER} initialValue="a-secret" />)
     await new Promise((resolve) => setTimeout(resolve, 30))
     expect(requests(apiFetch, 'GET /activities')).toEqual([])
     expect(requests(apiFetch)).toEqual([])
   })
 
   it('shows the entry’s pointer as "Not visible to you" and is aria-disabled, so a keyboard user learns why', () => {
-    render(<Harness locked current={HIDDEN_POINTER} initialValue="a-secret" />)
+    render(<Harness lock="hidden" current={HIDDEN_POINTER} initialValue="a-secret" />)
     expect(field().getAttribute('aria-disabled')).toBe('true')
     expect(field().disabled).toBe(false)
     expect(optionTexts()).toEqual(['No activity', 'Not visible to you'])
@@ -80,36 +80,36 @@ describe('locked: the author cannot read the target', () => {
   })
 
   it('never draws the id of the pointer it cannot name: not as text, not as an option value', () => {
-    render(<Harness locked current={HIDDEN_POINTER} initialValue="a-secret" />)
+    render(<Harness lock="hidden" current={HIDDEN_POINTER} initialValue="a-secret" />)
     expect(screen.getByTestId('hours-activity').innerHTML).not.toContain('a-secret')
     // …and the field still reports the pointer as the same entry's (a pick of it would be the id, not a token).
     expect(field().selectedOptions[0]?.textContent).toBe('Not visible to you')
   })
 
   it('an entry that points at no activity shows "No activity"', () => {
-    render(<Harness locked current={null} initialValue={null} />)
+    render(<Harness lock="hidden" current={null} initialValue={null} />)
     expect(optionTexts()).toEqual(['No activity'])
     expect(field().value).toBe('')
   })
 
   it('says why it cannot be edited, for a project and for a deal', () => {
-    const { unmount } = render(<Harness locked current={HIDDEN_POINTER} initialValue="a-secret" />)
+    const { unmount } = render(<Harness lock="hidden" current={HIDDEN_POINTER} initialValue="a-secret" />)
     expect(description()).toBe(strings.activity.locked.project)
     unmount()
-    render(<Harness locked targetType="deal" targetId="d-secret" current={HIDDEN_POINTER} initialValue="a-secret" />)
+    render(<Harness lock="hidden" targetType="deal" targetId="d-secret" current={HIDDEN_POINTER} initialValue="a-secret" />)
     expect(description()).toBe(strings.activity.locked.deal)
   })
 
   it('ignores a pick: the pointer stays what it was', async () => {
     const onChange = vi.fn()
-    render(<Harness locked current={HIDDEN_POINTER} initialValue="a-secret" onChange={onChange} />)
+    render(<Harness lock="hidden" current={HIDDEN_POINTER} initialValue="a-secret" onChange={onChange} />)
     await userEvent.selectOptions(field(), '')
     expect(onChange).not.toHaveBeenCalled()
     expect(field().selectedOptions[0]?.textContent).toBe('Not visible to you')
   })
 
   it('has no retry button and nothing in it is an alert: the field is optional', () => {
-    render(<Harness locked current={HIDDEN_POINTER} initialValue="a-secret" />)
+    render(<Harness lock="hidden" current={HIDDEN_POINTER} initialValue="a-secret" />)
     expect(screen.queryByRole('button', { name: strings.common.tryAgain })).toBeNull()
     expect(screen.queryByRole('alert')).toBeNull()
   })
@@ -117,7 +117,7 @@ describe('locked: the author cannot read the target', () => {
 
 describe('no longer locked: another target was picked', () => {
   it('becomes a normal field and reads the new target’s activities as the person', async () => {
-    const view = render(<Harness locked current={HIDDEN_POINTER} initialValue="a-secret" />)
+    const view = render(<Harness lock="hidden" current={HIDDEN_POINTER} initialValue="a-secret" />)
     expect(requests(apiFetch, 'GET /activities')).toEqual([])
 
     view.rerender(<Harness targetId="p1" current={null} initialValue={null} />)

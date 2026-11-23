@@ -75,12 +75,11 @@ export default function TasksCard({
     (signal: AbortSignal) => listProjectTasks(project.id, { status: view, page, pageSize: PAGE_SIZE }, { signal }),
     [project.id, view, page],
   )
-  // Remembered under everything the read depends on, so a re-read after a write keeps the rows on screen (status
-  // `ready`, `refreshing`) instead of going through `loading`: a row the list still holds stays mounted, and with it
-  // the Record hours widget's message, which has no timer and goes only by × or by leaving the page (specs/20261116-
-  // record-hours-in-place design S3, plan G1). A row the re-read no longer holds goes; the first read, a failed one
-  // and the empty list are as before. The key is the whole of the fetcher's inputs, as `MyTasksPage`'s is.
-  const tasks = useResource(load, { cacheKey: `project-tasks:${JSON.stringify([project.id, view, page])}` })
+  // A re-read after a write keeps the rows on screen (status `ready`, `refreshing`) instead of going through `loading`:
+  // a row the list still holds stays mounted, and with it the Record hours widget's message, which has no timer and goes
+  // only by × or by leaving the page (specs/20261116-record-hours-in-place design S3, plan G1). Nothing is cached across
+  // visits: a new visit, another project, tab or page reads afresh.
+  const tasks = useResource(load, { keepDataOnRetry: true })
 
   /** Where focus rests when a row leaves the view: the selected tab is stable and visible. */
   const focusTab = () => document.getElementById(`${TABS_ID}-tab-${view}`)?.focus()

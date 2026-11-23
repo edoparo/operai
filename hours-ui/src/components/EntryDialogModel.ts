@@ -4,6 +4,7 @@
  * a save sends and where each refusal of hours-api lands. A component file may export only components
  * (`react-refresh`), so this is its sibling.
  */
+import { isCalendarDay } from '../lib/day'
 import { formatDate, formatDuration } from '@operai/ui'
 import { readDuration } from '../lib/duration'
 import { codeOf, statusOf } from '../lib/errors'
@@ -133,7 +134,6 @@ export const applies = (field: FieldName, kind: EntryKind | null): boolean => {
 /** The earliest day an entry can be on (plan § Entries "A day"): the product's floor, not the database's. */
 export const EARLIEST_DAY = '2000-01-01'
 
-const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
 
 /**
  * A real calendar day: exactly `YYYY-MM-DD` in ASCII digits that comes back unchanged through `Date.UTC`
@@ -141,12 +141,7 @@ const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
  * is 2 March) and the years 0–99, which `Date.UTC` reads as 1900–1999. The same rule as the server's, so the
  * 400 it would answer is reached only through a client bug. (`lib/period.ts` holds the same check, private.)
  */
-export const isRealDay = (text: string): boolean => {
-  const parts = ISO_DAY.exec(text)
-  if (!parts) return false
-  const ms = Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
-  return new Date(ms).toISOString().slice(0, 10) === text
-}
+export const isRealDay = isCalendarDay
 
 /**
  * What the rules need beyond the values: today, the categories the dialog offers (never a retired one, except

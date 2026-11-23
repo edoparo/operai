@@ -75,6 +75,12 @@ export interface HostExtensionProps<K extends ExtensionName> {
   fallback: ReactNode
   /** Shown while the remote loads; nothing when omitted. */
   loading?: ReactNode
+  /**
+   * Who the panel is about, when that is less than all of `props` (an id, never a display name). The error boundary is
+   * reset — and the panel remounted — only when it changes, so a host that renames its entity does not throw away what
+   * the panel holds (an open dialog, a message). Omitted: every change of `props` resets it (the panel is about all of them).
+   */
+  resetKey?: string
 }
 
 /** A usable component: a function, or an object (memo / forwardRef / lazy). */
@@ -93,6 +99,7 @@ function HostExtensionLoader<K extends ExtensionName>({
   props,
   fallback,
   loading,
+  resetKey,
 }: HostExtensionProps<K>): JSX.Element {
   const [state, setState] = useState<LoadState<K>>(null)
 
@@ -152,7 +159,7 @@ function HostExtensionLoader<K extends ExtensionName>({
   return (
     // Reset the boundary when the entity changes: a throw for one deal must not
     // blank the panel for the next one the host navigates to.
-    <ExtensionErrorBoundary key={JSON.stringify(props)} name={name} fallback={fallback}>
+    <ExtensionErrorBoundary key={resetKey ?? JSON.stringify(props)} name={name} fallback={fallback}>
       <Panel {...props} />
     </ExtensionErrorBoundary>
   )
