@@ -1,5 +1,12 @@
 # @operai/projects-ui
 
+## 0.5.0
+
+### Minor Changes
+
+- 1071511: A meeting can be started from a project or a project task: Projects is a meeting host (a project's Meetings card, "Start a meeting" on a task, linked to the task's project with its title), and the creator may let the project's team read it.
+- 57ab20d: A task can now be marked "In progress", in the CRM and in Projects. Whoever can mark a task done can start it and stop it again; a task waiting on other tasks cannot be started until they are done. Done is still one click away from Open, and reopening a done task makes it open. The task lists' "Open" view includes tasks in progress (with an "In progress" badge), and a new "In progress" view shows only those. The task shows who started it and when.
+
 ## 0.4.1
 
 ### Patch Changes

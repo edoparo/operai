@@ -1,5 +1,13 @@
 # @operai/meetings-api
 
+## 0.5.0
+
+### Minor Changes
+
+- 2b3d2fe: `GET /meetings` accepts `ids` (at most 25, comma-separated): among those meetings, only the ones the caller created or was added to as an Operai participant come back, so a meeting readable only through its host and one that does not exist look the same. Time tracking uses it to check that a person may record hours on a meeting.
+- 2b3d2fe: New service-only route `GET /system/meetings/hosts` (`?ids=` up to 100, or `?dealId=`): which deal each meeting is currently linked to, answering the link and nothing else, to the time-tracking service behind the new scope `meetings.hosts.read`. It needs the new variable `SERVICE_AUDIENCE`; without it the route answers 401 to everyone.
+- 1071511: A meeting can be started from a project or a project task: Projects is a meeting host (a project's Meetings card, "Start a meeting" on a task, linked to the task's project with its title), and the creator may let the project's team read it.
+
 ## 0.4.0
 
 ### Minor Changes

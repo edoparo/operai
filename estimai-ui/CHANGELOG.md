@@ -1,5 +1,14 @@
 # @operai/estimai-ui
 
+## 0.2.0
+
+### Minor Changes
+
+- cbda68a: The estimate editor has Export JSON: it downloads the estimate as the file the list's Import JSON reads back.
+- d0fdeb2: An open estimate can import a JSON file (the Export JSON format): its parameters, releases and activities replace the estimate's, the file's name and author are ignored, and replacing existing activities asks first.
+- 704a9c1: The estimates list can be filtered by owner (Everyone, You, or another owner), kept in the URL like the other filters.
+- 4d92d39: The estimate exports are removed: Export for client, Export PDF and Export Excel are gone from the editor, with the libraries they used (exceljs, xlsx, jspdf, jspdf-autotable).
+
 ## 0.1.2
 
 ### Patch Changes

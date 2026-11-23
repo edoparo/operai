@@ -1,5 +1,12 @@
 # @operai/crm-ui
 
+## 0.8.0
+
+### Minor Changes
+
+- e8abc17: The pipeline now opens on your own deals: the Owner filter starts on "Mine" for anyone who manages deals, and the counts and totals follow it. Choose "Everyone" or a colleague to see more. People who cannot own a deal (technical staff) still open on everyone's deals.
+- 57ab20d: A task can now be marked "In progress", in the CRM and in Projects. Whoever can mark a task done can start it and stop it again; a task waiting on other tasks cannot be started until they are done. Done is still one click away from Open, and reopening a done task makes it open. The task lists' "Open" view includes tasks in progress (with an "In progress" badge), and a new "In progress" view shows only those. The task shows who started it and when.
+
 ## 0.7.0
 
 ### Minor Changes

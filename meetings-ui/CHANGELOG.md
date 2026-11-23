@@ -1,5 +1,12 @@
 # @operai/meetings-ui
 
+## 0.4.0
+
+### Minor Changes
+
+- 1071511: A meeting can be started from a project or a project task: Projects is a meeting host (a project's Meetings card, "Start a meeting" on a task, linked to the task's project with its title), and the creator may let the project's team read it.
+- 38ad9f3: Recording an online meeting now shares the computer's audio: the picker opens on the entire screen with "Share system audio", so a meeting in any app is recorded; a tab with its audio stays a fallback.
+
 ## 0.3.0
 
 ### Minor Changes

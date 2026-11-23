@@ -1,5 +1,20 @@
 # @operai/ui
 
+## 0.7.0
+
+### Minor Changes
+
+- 2b3d2fe: The design system gains `ExportButton`, the download button of Inventory's year export as a
+  shared component: busy without being disabled, a "preparing" then "ready" status, a message
+  when the file has a caveat, and an alert with a retry when it fails.
+- 2b3d2fe: `formatDuration` gains a `short` style ("2 h 30", "2 h", "30 min") for lists and totals of
+  hours worked.
+- 2b3d2fe: The design system gains `SearchPicker`, a field for picking a record out of a search the server
+  answers (a project, a deal, a company): it waits for the typing to settle, drops answers to an
+  older text, never reports free text, and says whether the list is searching, empty, not allowed
+  or unavailable.
+- 57ab20d: A task can now be marked "In progress", in the CRM and in Projects. Whoever can mark a task done can start it and stop it again; a task waiting on other tasks cannot be started until they are done. Done is still one click away from Open, and reopening a done task makes it open. The task lists' "Open" view includes tasks in progress (with an "In progress" badge), and a new "In progress" view shows only those. The task shows who started it and when.
+
 ## 0.6.0
 
 ### Minor Changes

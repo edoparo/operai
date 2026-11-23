@@ -1,5 +1,12 @@
 # @operai/auth
 
+## 0.9.0
+
+### Minor Changes
+
+- 2b3d2fe: Add the `hours` permission catalog for time tracking (specs/20261112-time-tracking, ADR 20261112-hours-api-time-entries-own-service-hours-catalog): `time-entry:read-all` (see everyone's hours) and `time-list:manage` (the categories and work types), both unconditioned, seeded to `admin` only and registered by the deploy-time seed. The catalog has no `access` resource, because every signed-in user records and sees their own hours, so `hours` is a declared catalog but not one of the apps `admin` is granted `access` to. An admin can grant either permission to another role through the roles screen.
+- 2b3d2fe: Add the service scope `meetings.hosts.read` and document the `hours-api` service client (specs/20261112-time-tracking, ADR 20261112-time-bookability-asked-of-owners-meeting-hosts-system-route). `hours-api` holds only this scope: it asks meetings-api which deal a meeting is linked to, and everything else it asks of the other services is asked as the caller. The scope is a deliberate addition to the allowlist, so in production the `hours-api` entry of `SERVICE_CLIENTS` must be added only after this version of auth is live; an unknown scope stops auth at startup.
+
 ## 0.8.0
 
 ### Minor Changes
