@@ -19,6 +19,7 @@ done: 2026-11-09
   default list for everyone (US-2). Who may close, read-only while closed and the CRM notice
   are unchanged. Archiving is the same thing as closing (owner, 2026-11-08); there is no
   separate archived status.
+- **2026-11-23 (owner):** US-4 adds an **Owner** filter to the list.
 
 ## Problem
 
@@ -98,6 +99,25 @@ deal, so that I know which ones somebody is waiting for.
   the feature is live, with no action by their users.
 - AC-3.8: Given EstimAI cannot be told about a CRM change at that moment, then the CRM change
   itself still succeeds; the badge may lag (see Open questions).
+
+### US-4: Filter the list by owner
+*Added 2026-11-23 (owner: "EstimAI: devo poter filtrare per owner").*
+
+As anyone looking at a long list (an admin under **All**, or a person with many shared
+estimates), I want to see only one owner's estimates, so that I find theirs without scrolling.
+
+**Acceptance criteria:**
+- AC-4.1: Given the listed estimates (current Whose + Status) have more than one owner, then the
+  filters show **Owner**: Everyone (default), You (when one of the caller's own estimates is
+  listed), then the other owners by name. With a single owner and nothing chosen it is not shown.
+- AC-4.2: Given an owner is chosen, then only that owner's estimates are listed. The choice is
+  in the URL (`owner=me` or the owner's display name, absent = Everyone) and restored like the
+  other filters (AC-2.6).
+- AC-4.3: An owner is matched by what the row shows: every former member under one entry, every
+  unresolved one under another, two people with the same name under one entry. The API still
+  never sends an owner's id; the filter applies to the loaded list and adds no request.
+- AC-4.4: Given the chosen owner has no estimate under the current Whose + Status, then the list
+  says so and offers **Show every owner**; the other filters keep their values.
 
 ## Non-goals
 

@@ -1,7 +1,7 @@
 ---
 spec: 20261108
 generated: 2026-11-09
-synced: 2026-11-09
+synced: 2026-11-23
 ---
 
 # Tasks: EstimAI list — every estimate for admins, closed estimates out of the way, the deal at a glance
@@ -54,3 +54,7 @@ synced: 2026-11-09
 - [x] T12: estimai-api — security-review hardening (2026-11-09, 4 low findings): cache only a refusal so a revocation applies on the next request even on an old-epoch token; refuse a notice `at` more than 5 minutes ahead (400); warn in the log when `whose=all` returns > 500 rows (ADR 20261108-estimai-oversight-permission-amends-0036's revisit trigger); log only the error name when `auth` fails — refs: AC-1.6, AC-1.7, AC-3.6 — deps: T3, T4
   - touch: `estimai-api/src/estimates/oversight.ts`, `estimai-api/src/estimates/dealLinkNotices.routes.ts`, `estimai-api/src/estimates/estimates.routes.ts`, `estimai-api/src/estimates/*.test.ts`, `docs/adr/0075-*.md`, `specs/20261108-estimate-list-oversight/plan.md`
   - done when: estimai-api `bun test` on `estimai_test` is green with tests for same-token revocation, refusal caching and the future-`at` 400; `tsc --noEmit` clean
+
+- [x] T13: estimai-ui — Owner filter (2026-11-23): options from the loaded rows, client-side filter, `owner` search param + sessionStorage, empty state with Show every owner — refs: US-4, AC-4.1, AC-4.2, AC-4.3, AC-4.4 — deps: T7
+  - touch: `estimai-ui/src/lib/listFilters.ts`, `estimai-ui/src/lib/listFilters.test.ts`, `estimai-ui/src/lib/ownerFilter.ts`, `estimai-ui/src/lib/ownerFilter.test.ts`, `estimai-ui/src/components/EstimateFilters.tsx`, `estimai-ui/src/components/EstimateFilters.test.tsx`, `estimai-ui/src/pages/EstimatesPage.tsx`, `estimai-ui/src/pages/EstimatesPage.test.tsx`, `estimai-ui/src/strings/estimates.ts`
+  - done when: estimai-ui lint, build and vitest green with tests for the options, the filtering, the URL and the owner empty state

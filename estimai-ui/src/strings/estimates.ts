@@ -38,6 +38,9 @@ export const enList = {
     all: 'All',
     open: 'Open',
     closed: 'Closed',
+    owner: 'Owner',
+    everyone: 'Everyone',
+    ownerMe: 'You',
   },
   loadedContext: (scope: 'mine' | 'all', status: 'open' | 'closed', n: number) =>
     `Showing ${scope === 'all' ? 'all' : 'your'} ${status} estimates, ${n} loaded`,
@@ -72,6 +75,11 @@ export const enList = {
     allClosed: {
       heading: 'No closed estimates',
       body: 'No estimate in EstimAI has been closed yet.',
+    },
+    owner: {
+      heading: 'No estimates of this owner',
+      body: 'None of the estimates listed here belongs to this owner. Choose another owner, or Everyone.',
+      action: 'Show every owner',
     },
   },
   routeError: {
@@ -119,6 +127,9 @@ export const itList: typeof enList = {
     all: 'Tutte',
     open: 'Aperte',
     closed: 'Chiuse',
+    owner: 'Proprietario',
+    everyone: 'Tutti',
+    ownerMe: 'Tu',
   },
   loadedContext: (scope, status, n) =>
     `${scope === 'all' ? 'Tutte le stime' : 'Le mie stime'} ${status === 'open' ? 'aperte' : 'chiuse'}: ${n} caricate`,
@@ -153,6 +164,11 @@ export const itList: typeof enList = {
     allClosed: {
       heading: 'Nessuna stima chiusa',
       body: 'In EstimAI nessuna stima è stata ancora chiusa.',
+    },
+    owner: {
+      heading: 'Nessuna stima di questo proprietario',
+      body: 'Nessuna delle stime elencate qui appartiene a questo proprietario. Sceglierne un altro, oppure Tutti.',
+      action: 'Mostra tutti i proprietari',
     },
   },
   routeError: {

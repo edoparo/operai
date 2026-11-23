@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { usePermissions } from 'shell/session'
 import { importProjectFromJson, uid, DEF_PARAMS } from '../lib/projects'
 import { TEMPLATES } from '../lib/templates'
-import type { EstimateIdentity, EstimateListItem } from '../lib/estimatesApi'
+import type { EstimateListItem } from '../lib/estimatesApi'
 import * as estimatesApi from '../lib/estimatesApi'
 import ImportOfferModal from '../components/ImportOfferModal'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
@@ -17,6 +17,7 @@ import {
 } from '../lib/listFilters'
 import type { ListFilters, StatusFilter, Whose } from '../lib/listFilters'
 import { formatIdentity } from '../lib/identity'
+import { byOwner, ownerIdentityOf, ownerOptions } from '../lib/ownerFilter'
 import { useImportOffer } from '../hooks/useImportOffer'
 import {
   Banner,
@@ -36,36 +37,6 @@ import {
 import { strings } from '../strings'
 
 const t = strings.estimatesList
-
-/**
- * Defensive fallback for a shared row whose `owner` came back `null` despite
- * `access !== 'owner'` — `EstimateListItem`'s contract (estimatesApi.ts) says
- * `owner` is populated whenever the row isn't the caller's own, but
- * `formatIdentity` must never be handed `null`; routing a contract-violating
- * response through the same "unknown" placeholder keeps AC-10.5's "never
- * blank, never a raw id, never an error" bar even then (T14's `formatIdentity`
- * is the one place that owns this decision — this fallback stays a plain
- * data object, not a second rendering rule).
- */
-const UNKNOWN_OWNER: EstimateIdentity = { status: 'unknown', name: null }
-
-/**
- * `formatIdentity` (T14, ../lib/identity.ts) is typed to take a full
- * `Identity` (id + status + name) — its own doc comment claims it "accepts
- * this shape too despite the missing id" for the id-less `EstimateIdentity`
- * embedded on `EstimateListItem.owner`, but the actual TS signature still
- * requires `id`, so a bare `EstimateIdentity` doesn't type-check at this call
- * site. `formatIdentity`'s implementation only ever reads `.status`/`.name`
- * (verified by reading it), so padding in the row's own id as a throwaway,
- * unused `id` is behaviorally inert — a narrow workaround kept local to this
- * file rather than widening `identity.ts`'s exported type, which is outside
- * this task's touch list (T23, specs/20260807-estimate-sharing/tasks.md). Flagged
- * back to the caller as a real (if small) T14/T23 contract gap.
- */
-const ownerIdentityFor = (item: EstimateListItem) => ({
-  id: item.id,
-  ...(item.owner ?? UNKNOWN_OWNER),
-})
 
 /** The row's date (INC-26): the suite's numeric dd.mm.yyyy; an unparseable value shows a dash. */
 const updatedOn = (iso: string): string => (Number.isNaN(Date.parse(iso)) ? '—' : formatDate(iso))
@@ -136,8 +107,9 @@ export default function EstimatesPage() {
   const filters: ListFilters = {
     whose: requested.whose === 'all' && canReadAll ? 'all' : 'mine',
     status: requested.status,
+    owner: requested.owner,
   }
-  const { whose, status } = filters
+  const { whose, status, owner } = filters
 
   const applyFilters = useCallback(
     (next: ListFilters) => {
@@ -151,14 +123,14 @@ export default function EstimatesPage() {
 
   useEffect(() => {
     if (requested.whose === 'all' && permissionsLoaded && !canReadAll) {
-      applyFilters({ whose: 'mine', status: requested.status })
+      applyFilters({ whose: 'mine', status: requested.status, owner: requested.owner })
     }
-  }, [requested.whose, requested.status, permissionsLoaded, canReadAll, applyFilters])
+  }, [requested.whose, requested.status, requested.owner, permissionsLoaded, canReadAll, applyFilters])
 
   useEffect(() => {
     if (!waitingForPermissions) writeStoredFilters(filters)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `filters` is rebuilt every render; its two fields are the deps
-  }, [whose, status, waitingForPermissions])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `filters` is rebuilt every render; its fields are the deps
+  }, [whose, status, owner, waitingForPermissions])
 
   // ---------------------------------------------------------------------------
   // Load list from API on mount and whenever a filter changes
@@ -361,7 +333,7 @@ export default function EstimatesPage() {
           focusOnMount
           testId="estimates-denied"
           action={
-            <Button variant="secondary" onClick={() => applyFilters({ whose: 'mine', status })}>
+            <Button variant="secondary" onClick={() => applyFilters({ whose: 'mine', status, owner })}>
               {t.denied.action}
             </Button>
           }
@@ -402,7 +374,24 @@ export default function EstimatesPage() {
       )
     }
 
-    const { items } = listState
+    const items = byOwner(listState.items, owner)
+
+    // Estimates exist under Whose + Status, but none of the chosen owner's (US-4).
+    if (items.length === 0 && listState.items.length > 0) {
+      return (
+        <StatePanel
+          title={t.empty.owner.heading}
+          testId="estimates-empty-owner"
+          action={
+            <Button variant="secondary" onClick={() => applyFilters({ whose, status, owner: null })}>
+              {t.empty.owner.action}
+            </Button>
+          }
+        >
+          <p>{t.empty.owner.body}</p>
+        </StatePanel>
+      )
+    }
 
     if (items.length === 0) {
       // INC-22: a StatePanel (h3 under the PageHeader's h2). Open-empty no longer
@@ -491,7 +480,7 @@ export default function EstimatesPage() {
                       </>
                     ) : (
                       <>
-                        <span>{formatIdentity(ownerIdentityFor(p))}</span>
+                        <span>{formatIdentity(ownerIdentityOf(p))}</span>
                         {t.metaSeparator}
                         {updatedOn(p.updatedAt)}
                       </>
@@ -622,8 +611,11 @@ export default function EstimatesPage() {
           whose={whose}
           status={status}
           canChooseWhose={canReadAll}
-          onWhoseChange={(next: Whose) => applyFilters({ whose: next, status })}
-          onStatusChange={(next: StatusFilter) => applyFilters({ whose, status: next })}
+          onWhoseChange={(next: Whose) => applyFilters({ whose: next, status, owner })}
+          onStatusChange={(next: StatusFilter) => applyFilters({ whose, status: next, owner })}
+          owner={owner}
+          ownerOptions={listState.status === 'loaded' ? ownerOptions(listState.items, owner) : []}
+          onOwnerChange={(next) => applyFilters({ whose, status, owner: next })}
         />
 
         {renderListBody()}

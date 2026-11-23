@@ -556,6 +556,56 @@ describe('EstimatesPage', () => {
     crmDealId: null,
   }
 
+  describe('(K2) Owner filter — US-4', () => {
+    const annaRow: EstimateListItem = { ...stranger, id: 'est-anna', name: 'Anna Project', owner: { status: 'active', name: 'Anna Rossi' } }
+
+    it('is absent while every listed estimate has one owner', async () => {
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+      expect(screen.queryByLabelText(strings.estimatesList.filters.owner)).toBeNull()
+    })
+
+    it('lists the owners of the loaded estimates, narrows the list on the client and writes the URL', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA, stranger, annaRow])
+      render(<EstimatesPage />)
+      await screen.findByText('Stranger Project')
+
+      const owner = screen.getByLabelText(strings.estimatesList.filters.owner) as HTMLSelectElement
+      expect([...owner.options].map((o) => o.textContent)).toEqual([
+        strings.estimatesList.filters.everyone,
+        strings.estimatesList.filters.ownerMe,
+        'Anna Rossi',
+        'Luca Verdi',
+      ])
+      fireEvent.change(owner, { target: { value: 'Luca Verdi' } })
+      expect(navigateMock).toHaveBeenLastCalledWith({ to: '/estimates', search: { whose: 'all', owner: 'Luca Verdi' }, replace: true })
+      // The owner is not sent to the API: it filters the loaded list.
+      expect(vi.mocked(estimatesApi.list).mock.calls.every(([q]) => q === undefined || !('owner' in q))).toBe(true)
+    })
+
+    it('shows only the chosen owner\'s estimates from the search params', async () => {
+      grant(['estimate', 'read-all'])
+      vi.mocked(useSearch).mockReturnValue({ whose: 'all', owner: 'me' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA, stranger])
+      render(<EstimatesPage />)
+      await screen.findByText('Alpha Project')
+      expect(screen.queryByText('Stranger Project')).toBeNull()
+    })
+
+    it('says when the chosen owner has none here, and offers every owner back', async () => {
+      vi.mocked(useSearch).mockReturnValue({ owner: 'Carla Neri' } as never)
+      vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
+      render(<EstimatesPage />)
+      await screen.findByTestId('estimates-empty-owner')
+      expect(screen.queryByText('Alpha Project')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: strings.estimatesList.empty.owner.action }))
+      expect(navigateMock).toHaveBeenLastCalledWith({ to: '/estimates', search: {}, replace: true })
+    })
+  })
+
   describe('(K) Whose / Status filters — AC-1.1, AC-1.2, AC-2.1', () => {
     it('lists Mine + Open by default, always sending an explicit Whose and Status', async () => {
       vi.mocked(estimatesApi.list).mockResolvedValue([itemA])
