@@ -4,10 +4,12 @@ import { Badge, TaskRow, formatDate, listRowMetaClassName } from '@operai/ui'
 import { setTaskCompleted, startTask, stopTask } from '../lib/activitiesApi'
 import type { MyTask } from '../lib/activitiesApi'
 import { statusOf, codeOf, taskErrorMessage } from '../lib/errors'
+import { mayRecordOnTask, recordHoursPropsOf } from '../lib/recordHours'
 import { RichTextFilesView } from '@operai/ui/rich-text'
 import { openTaskFile, taskFileUrlResolver } from '../lib/taskFiles'
 import { newMeetingHref, useCanStartMeetings } from '../lib/meetings'
 import { strings } from '../strings'
+import RecordHoursAction from '../components/RecordHoursAction'
 import { TASK_STATE_MEANING, refName, taskState, taskStatus } from '../components/TaskModel'
 
 /** A refusal that means the row's buttons were stale: the list is read again to get fresh `may` flags. */
@@ -25,6 +27,11 @@ const staleFlags = (failure: unknown): boolean =>
  *
  * Every button follows the row's own `may.complete`; the page never infers it. The CRM link is a
  * plain anchor: `/crm/...` lies outside this router's `/projects` basepath, so the shell routes it.
+ *
+ * Record hours (specs/20261116-record-hours-in-place AC-3.1 – AC-3.4, AC-3.6, design S2) is hours-ui's widget, not a
+ * `may` flag: offered to the task's assignee and its participants (`mayRecordOnTask`), done rows included, as
+ * the last of the row's actions, on either kind of row. A project task records on its project, a pre-sales task
+ * on its deal, or as other work when it has none (`recordHoursPropsOf`); hours-api decides every save.
  */
 export default function MyTaskItem({
   task,
@@ -94,6 +101,31 @@ export default function MyTaskItem({
   ].filter((fact): fact is string => fact !== null)
 
   const participants = task.participants ?? []
+  // Only a row the person may record on mounts a widget, so a long list loads the seam once for the rows that use it (R1).
+  const recordHours = mayRecordOnTask(task, currentUserId) ? recordHoursPropsOf(task) : null
+  const companyLink =
+    task.kind === 'pre_sales' && task.company ? (
+      <a
+        className="link self-center text-sm"
+        href={`/crm/companies/${encodeURIComponent(task.company.id)}`}
+        aria-label={my.openInCrmFor(task.subject)}
+        data-testid={`my-task-${task.id}-crm`}
+      >
+        {my.openInCrm}
+      </a>
+    ) : null
+  const meetingLink =
+    task.kind === 'operational' && task.project !== null && canStartMeetings ? (
+      // specs/20261104-meetings A18: a meeting about a project task is linked to its project.
+      <a
+        className="link self-center text-sm"
+        href={newMeetingHref(task.project.id, task.subject)}
+        aria-label={t.startMeetingFor(task.subject)}
+        data-testid={`my-task-${task.id}-meeting`}
+      >
+        {t.startMeeting}
+      </a>
+    ) : null
   const where =
     task.kind === 'pre_sales' ? (
       <>
@@ -179,25 +211,13 @@ export default function MyTaskItem({
       completingLabel={t.completing}
       actionsLabel={t.actionsFor(task.subject)}
       actions={
-        task.kind === 'pre_sales' && task.company ? (
-          <a
-            className="link self-center text-sm"
-            href={`/crm/companies/${encodeURIComponent(task.company.id)}`}
-            aria-label={my.openInCrmFor(task.subject)}
-            data-testid={`my-task-${task.id}-crm`}
-          >
-            {my.openInCrm}
-          </a>
-        ) : task.kind === 'operational' && task.project !== null && canStartMeetings ? (
-          // specs/20261104-meetings A18: a meeting about a project task is linked to its project.
-          <a
-            className="link self-center text-sm"
-            href={newMeetingHref(task.project.id, task.subject)}
-            aria-label={t.startMeetingFor(task.subject)}
-            data-testid={`my-task-${task.id}-meeting`}
-          >
-            {t.startMeeting}
-          </a>
+        // `undefined`, not an empty fragment, when there is nothing to show: the row then draws no empty group.
+        companyLink || meetingLink || recordHours ? (
+          <>
+            {companyLink}
+            {meetingLink}
+            {recordHours && <RecordHoursAction {...recordHours} />}
+          </>
         ) : undefined
       }
       error={error}

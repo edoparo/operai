@@ -45,7 +45,7 @@ const setup = async (overrides: Record<string, unknown> = {}) => {
       ...overrides,
     }),
   )
-  const history = createMemoryHistory({ initialEntries: ['/hours'] })
+  const history = createMemoryHistory({ initialEntries: ['/hours?view=list'] })
   render(<RouterProvider router={createAppRouter('/hours', undefined, history)} />)
   await screen.findByTestId('hours-my-page')
   await screen.findByTestId('hours-day-list')

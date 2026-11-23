@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ConfirmDialog, formatDate, formatDuration } from '@operai/ui'
 import type { EntryOn, TimeEntryView } from '../lib/hoursApi.types'
 import { strings } from '../strings'
@@ -39,6 +39,19 @@ export default function DeleteEntryDialog({ entry, onConfirm, onCancel }: Delete
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Confirm is disabled while the request runs, and a browser takes focus off a control that stops being focusable: a
+  // delete that fails would leave the keyboard on <body> and the next Tab on the dialog's ×. So a failure asks for focus
+  // back on Confirm, once it is enabled again (an effect runs after that commit): where the person pressed, and where
+  // pressing it again is the retry (design S3, S8, § Accessibility; QE round 1, the class of D2). A counter, not a
+  // flag, so a second failure asks again. A delete that works asks for nothing: the dialog goes and the page places focus.
+  const body = useRef<HTMLDivElement>(null)
+  const [focusRequest, setFocusRequest] = useState(0)
+  useEffect(() => {
+    if (focusRequest === 0) return
+    // The library's `ConfirmDialog` owns the buttons and gives no ref to Confirm: it is the form's submit button.
+    body.current?.closest('form')?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus()
+  }, [focusRequest])
+
   const confirm = async () => {
     if (busy) return
     setBusy(true)
@@ -48,6 +61,7 @@ export default function DeleteEntryDialog({ entry, onConfirm, onCancel }: Delete
     } catch {
       setError(t.error)
       setBusy(false)
+      setFocusRequest((request) => request + 1)
     }
   }
 
@@ -65,7 +79,10 @@ export default function DeleteEntryDialog({ entry, onConfirm, onCancel }: Delete
       onCancel={onCancel}
       testIdPrefix="hours-entry-delete-dialog"
     >
-      {t.body(formatDuration(entry.minutes * 60_000, { style: 'short' }), named(entry.on), formatDate(entry.day))}
+      {/* The sentence names the record (up to 200 characters with no break in it): it wraps inside the dialog (QE pass 4 D1). */}
+      <div ref={body} className="break-words">
+        {t.body(formatDuration(entry.minutes * 60_000, { style: 'short' }), named(entry.on), formatDate(entry.day))}
+      </div>
     </ConfirmDialog>
   )
 }

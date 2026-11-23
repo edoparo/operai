@@ -10,7 +10,11 @@
  * - an answer (or failure) of a request that is no longer wanted is discarded however late it arrives
  *   (each outcome carries the request it answered, and the request is aborted as soon as it is
  *   superseded, when the key goes away and on unmount);
- * - `key === null` asks nothing and is `idle` (a Custom range that cannot be sent);
+ * - `key === null` asks nothing and is `idle` (a Custom range that cannot be sent, or a view that is not on screen);
+ * - an outcome is only ever shown under the request it answered, and is forgotten for good the moment that
+ *   request is no longer the one wanted — a key that goes away (`null`) or changes, then comes back with the same
+ *   request, is `loading` until the new answer, never the answer it had before it went (the same text names a
+ *   different request: what was true then may not be now);
  * - the same key does not ask again when `run` is a new function on every render, and the `run` used is
  *   the latest at the moment the key changed;
  * - `reload` asks again for the same key (a Retry, a refresh after a save), showing `loading` meanwhile.
@@ -40,6 +44,11 @@ export const useHoursQuery = <T>(
 
   // A reload is a new request for the same key.
   const request = key === null ? null : `${attempt}:${key}`
+
+  // An outcome answers one request and is dropped as soon as another (or none) is wanted. Matching it by the request's
+  // text alone would bring it back to life when the same text is asked again — after the key went `null` (the other
+  // view of a page) or changed and changed back — and show an answer that may be out of date as if it were fresh.
+  if (outcome !== null && outcome.request !== request) setOutcome(null)
 
   useEffect(() => {
     if (request === null) return

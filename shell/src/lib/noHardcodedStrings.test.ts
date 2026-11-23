@@ -139,6 +139,8 @@ const TECHNICAL = new Set([
   '/crm/$',
   // A host-extension name (lib/extensions.tsx): a dotted id, not copy.
   'meetings.hostMeetings',
+  // specs/20261116-record-hours-in-place: hours-ui's Record hours button, embedded by the project and deal pages and the task rows.
+  'hours.recordHours',
   // The floating slot (lib/floating.ts, FloatingHost): a widget id, a perimeter edge, a typeof check.
   'meetings.recorderDock',
   '/meetings/m/',

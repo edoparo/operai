@@ -32,7 +32,7 @@ afterEach(() => {
 })
 
 /** The page, its strings and its fake API, all imported after the language is set. */
-const setup = async (lang: 'it' | 'en', path = '/hours', overrides: Record<string, unknown> = {}) => {
+const setup = async (lang: 'it' | 'en', path = '/hours?view=list', overrides: Record<string, unknown> = {}) => {
   document.documentElement.setAttribute('lang', lang)
   const { dealItem, fakeApi, listsHandler, page } = await import('../test-support/fakeApi')
   const { LISTS } = await import('../test-support/fixtures/myHours')
@@ -127,7 +127,7 @@ describe('My hours in Italian', () => {
   })
 
   it('a category grouping keeps the typed name and says the rest in Italian', async () => {
-    await setup('it', '/hours?group=category')
+    await setup('it', '/hours?view=list&group=category')
     const table = await screen.findByRole('table', { name: 'Ore per categoria' })
     const names = within(table)
       .getAllByRole('row')
@@ -137,14 +137,14 @@ describe('My hours in Italian', () => {
   })
 
   it('months are written in Italian', async () => {
-    await setup('it', '/hours?group=month')
+    await setup('it', '/hours?view=list&group=month')
     const table = await screen.findByRole('table', { name: 'Ore per mese' })
     expect(within(table).getByText('novembre 2026')).not.toBeNull()
     expect(within(table).getByText('settembre 2026')).not.toBeNull()
   })
 
   it('the Custom range’s errors and the empty-period line are Italian', async () => {
-    await setup('it', '/hours?period=custom&from=2026-11-10&to=2026-11-01')
+    await setup('it', '/hours?view=list&period=custom&from=2026-11-10&to=2026-11-01')
     expect(await screen.findByText('La data di fine non può precedere quella di inizio.')).not.toBeNull()
     expect(screen.getByText('Scegli un periodo valido per vedere i totali.')).not.toBeNull()
 
@@ -154,7 +154,7 @@ describe('My hours in Italian', () => {
   })
 
   it('a Custom range before 01.01.2000 names the wrong field in Italian: "data di inizio" and "data di fine"', async () => {
-    await setup('it', '/hours?period=custom&from=1999-01-01&to=1999-12-31')
+    await setup('it', '/hours?view=list&period=custom&from=1999-01-01&to=1999-12-31')
     screen.getByLabelText('Dal').focus()
     await userEvent.tab() // leaves Dal
     await userEvent.tab() // leaves Al
@@ -213,7 +213,7 @@ describe('the entries by day in Italian (AC-5.5, AC-3.8, AC-4.10)', () => {
   })
 
   it('says the banners, the empty state and the failed load in Italian, and none of the English', async () => {
-    const strings = await setup('it', '/hours', {
+    const strings = await setup('it', '/hours?view=list', {
       'GET /time-entries': () => ({
         status: 200,
         body: { items: [], nextCursor: null, unavailable: ['projects', 'meeting-deals'] },
@@ -231,7 +231,7 @@ describe('the entries by day in Italian (AC-5.5, AC-3.8, AC-4.10)', () => {
   })
 
   it('says the deal-filter-unavailable state in Italian', async () => {
-    await setup('it', '/hours', {
+    await setup('it', '/hours?view=list', {
       'GET /time-entries': (url: URL) =>
         url.searchParams.has('dealId')
           ? {
@@ -320,7 +320,7 @@ describe('the entry dialog in Italian (AC-5.5, AC-3.8; specs/20261112-time-track
   })
 
   it('says the pickers and a refusal in Italian', async () => {
-    await setup('it', '/hours', {
+    await setup('it', '/hours?view=list', {
       'POST /time-entries': () => ({
         status: 403,
         body: { type: 'about:blank', title: 'Problem 403', status: 403, code: 'not_on_project' },

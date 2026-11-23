@@ -23,6 +23,8 @@ const AREAS = [
   'everyone',
   'export',
   'settings',
+  'table',
+  'recordHours',
 ]
 
 // Every `strings/<namespace>.ts` module, loaded as written: each exports `<namespace> = { en, it }`
@@ -128,5 +130,120 @@ describe('the date rules copy is the design table, word for word (design.md § D
     expect(errors.fromTooEarly(FLOOR)).toBe(from)
     expect(errors.toTooEarly(FLOOR)).toBe(to)
     expect(errors.fromTooEarly(FLOOR)).not.toBe(errors.toTooEarly(FLOOR))
+  })
+})
+
+/**
+ * design.md § Amendment 2026-11-19, "Copy": the table view's words, written out once in both languages (the screens'
+ * own tests read them through the catalog, which cannot tell a wrong sentence from a right one). The week and the month
+ * share one shape (`PeriodWords`), so a word the month lacks is a compile error; the second test makes it a runtime one
+ * too (AC-4.6).
+ */
+describe('the table view copy is the design table, word for word (design.md § Copy; AC-4.6)', () => {
+  it.each([
+    [
+      'en',
+      en.table,
+      {
+        views: ['View of your hours', 'Table', 'List'],
+        period: ['Period', 'Week', 'Month'],
+        week: [
+          'Week 16.11.2026 – 22.11.2026',
+          'Choose a week',
+          'Previous week',
+          'This week',
+          'Next week',
+          'Show the week of',
+          'Loading your week…',
+          'No hours recorded this week',
+          'Entry saved. 12.11.2026 is outside the week you are viewing.',
+          'Scroll sideways to see all seven days.',
+        ],
+        month: [
+          'November 2026',
+          'Choose a month',
+          'Previous month',
+          'This month',
+          'Next month',
+          'Show the month of',
+          'Loading your month…',
+          'No hours recorded this month',
+          'Entry saved. 12.11.2026 is outside the month you are viewing.',
+          'Scroll sideways to see every day of the month.',
+        ],
+      },
+    ],
+    [
+      'it',
+      italian.table,
+      {
+        views: ['Vista delle tue ore', 'Tabella', 'Elenco'],
+        period: ['Periodo', 'Settimana', 'Mese'],
+        week: [
+          'Settimana 16.11.2026 – 22.11.2026',
+          'Scegli una settimana',
+          'Settimana precedente',
+          'Questa settimana',
+          'Settimana successiva',
+          'Mostra la settimana del',
+          'Caricamento della tua settimana…',
+          'Nessuna ora registrata in questa settimana',
+          'Registrazione salvata. Il 12.11.2026 è fuori dalla settimana che stai guardando.',
+          'Scorri di lato per vedere tutti e sette i giorni.',
+        ],
+        month: [
+          'novembre 2026',
+          'Scegli un mese',
+          'Mese precedente',
+          'Questo mese',
+          'Mese successivo',
+          'Mostra il mese del',
+          'Caricamento del tuo mese…',
+          'Nessuna ora registrata in questo mese',
+          'Registrazione salvata. Il 12.11.2026 è fuori dal mese che stai guardando.',
+          'Scorri di lato per vedere tutti i giorni del mese.',
+        ],
+      },
+    ],
+  ] as const)('%s', (_language, table, words) => {
+    expect([table.view.label, table.view.table, table.view.list]).toEqual(words.views)
+    expect([table.period.label, table.period.week, table.period.month]).toEqual(words.period)
+    for (const [kind, label] of [
+      ['week', '16.11.2026 – 22.11.2026'],
+      ['month', words.month[0]],
+    ] as const) {
+      const period = table[kind]
+      expect(
+        [
+          period.title(label),
+          period.nav.label,
+          period.nav.previous,
+          period.nav.current,
+          period.nav.next,
+          period.pick.label,
+          period.loading,
+          period.empty.title,
+          period.savedOutside('12.11.2026'),
+          period.scrollHint,
+        ],
+        kind,
+      ).toEqual(words[kind])
+    }
+  })
+
+  it('the week and the month have the same words under the same keys, in English and in Italian', () => {
+    for (const catalog of [en.table, italian.table]) {
+      expect(Object.keys(catalog.month).sort()).toEqual(Object.keys(catalog.week).sort())
+      expect(Object.keys(catalog.month.nav).sort()).toEqual(Object.keys(catalog.week.nav).sort())
+    }
+  })
+
+  it('the old week-only words are gone: nothing of the table is worded for the week alone outside `table.week`', () => {
+    for (const catalog of [en.table, italian.table] as Record<string, unknown>[]) {
+      for (const gone of ['title', 'nav', 'loading', 'savedOutside', 'scrollHint', 'emptyFuture']) {
+        expect(catalog, gone).not.toHaveProperty(gone)
+      }
+      expect(catalog['cell']).not.toHaveProperty('record')
+    }
   })
 })

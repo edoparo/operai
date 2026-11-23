@@ -19,6 +19,7 @@ import { createAppRouter } from '../router'
 import { strings } from '../strings'
 import { deferred, entriesPage, fakeApi, listsHandler, requests, sequence } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
+import { afterAFrame, emulateFocusFixup } from '../test-support/focusFixup'
 import { ALPHA, HIDDEN_PROJECT, KICKOFF, TRAINING, totalsWithDays } from '../test-support/fixtures/entries'
 import { typeDuration } from '../test-support/typeDuration'
 import { DEAL_ROWS, EDIT_RETIRED_CATEGORY, ENTRY_LISTS, PROJECT_ROWS, refusal } from '../test-support/fixtures/entry'
@@ -48,7 +49,7 @@ const useApi = (overrides: Parameters<typeof fakeApi>[0] = {}) => {
   apiFetch.mockImplementation(api)
 }
 
-const renderPage = async (path = '/hours') => {
+const renderPage = async (path = '/hours?view=list') => {
   const history = createMemoryHistory({ initialEntries: [path] })
   render(<RouterProvider router={createAppRouter('/hours', undefined, history)} />)
   await screen.findByTestId('hours-my-page')
@@ -562,5 +563,34 @@ describe('Delete on a row (F3, S3; AC-1.5)', () => {
     await confirmDelete()
     expect((await inDelete().findByRole('alert')).textContent).toBe(e.delete.error)
     expect(screen.getByTestId('hours-entry-e-alpha')).not.toBeNull()
+  })
+})
+
+describe('where the keyboard is after a delete that failed (QE round 1; design S3 and § Accessibility)', () => {
+  // A request takes a frame or more, and a browser takes focus off the disabled Confirm in that time.
+  let stopFixup: () => void
+  beforeEach(() => {
+    stopFixup = emulateFocusFixup()
+  })
+  afterEach(() => stopFixup())
+
+  const confirmButton = () => inDelete().getByRole('button', { name: e.delete.confirm })
+
+  it('Confirm has it again, with the error shown, and Enter on it asks again', async () => {
+    useApi({
+      'DELETE /time-entries/:id': sequence(() => afterAFrame(refusal(503, 'host_unavailable')), (() => ({
+        status: 204,
+      })) as FakeHandler),
+    })
+    await renderPage()
+    await userEvent.click(deleteButton('e-alpha'))
+    await confirmDelete()
+
+    expect((await inDelete().findByRole('alert')).textContent).toBe(e.delete.error)
+    await waitFor(() => expect(document.activeElement).toBe(confirmButton()))
+
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(deleteCalls()).toHaveLength(2))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
   })
 })

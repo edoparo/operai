@@ -31,6 +31,14 @@ const en = {
       "You can't open this project, so its activities aren't listed. The activity stays as it is unless you choose another project.",
     deal: "You can't open this deal, so its activities aren't listed. The activity stays as it is unless you choose another deal.",
   },
+  /**
+   * The fixed variant (specs/20261116-record-hours-in-place, design S4): the dialog was opened from a task, so the
+   * activity is a fact the page chose, not a field. A task with no subject reads "This task".
+   */
+  fixed: {
+    hint: "Hours are recorded on this task. It can't be changed here.",
+    unnamed: 'This task',
+  },
   /** The activity types activities-api knows, as a prefix of an option. */
   type: {
     note: 'Note',
@@ -63,6 +71,10 @@ const it: typeof en = {
     project:
       "Non puoi aprire questo progetto, quindi le sue attività non sono elencate. L'attività resta com'è, a meno che tu non scelga un altro progetto.",
     deal: "Non puoi aprire questa opportunità, quindi le sue attività non sono elencate. L'attività resta com'è, a meno che tu non scelga un'altra opportunità.",
+  },
+  fixed: {
+    hint: 'Le ore vengono registrate su questa attività. Qui non si può cambiare.',
+    unnamed: 'Questa attività',
   },
   type: {
     note: 'Nota',

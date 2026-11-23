@@ -54,10 +54,16 @@ export const READ_ALL_HOLDER: FakePermissions = {
   ],
 }
 
-/** The exports hours-ui uses from `shell/session`, on top of the test's own `apiFetch`. */
+/**
+ * The exports hours-ui uses from `shell/session`, on top of the test's own `apiFetch`. `navigateSuite` (the Record hours
+ * message's link to My hours, specs/20261116-record-hours-in-place) is the test's own spy, or a no-op.
+ */
 export const shellSessionMock = (
   apiFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-  { permissions = EMPLOYEE }: { permissions?: FakePermissions } = {},
+  {
+    permissions = EMPLOYEE,
+    navigateSuite = () => {},
+  }: { permissions?: FakePermissions; navigateSuite?: (to: string) => void } = {},
 ) => ({
   apiFetch,
   getHoursApiBaseUrl: () => ORIGINS.hours,
@@ -66,4 +72,5 @@ export const shellSessionMock = (
   getMeetingsApiBaseUrl: () => ORIGINS.meetings,
   getActivitiesApiBaseUrl: () => ORIGINS.activities,
   usePermissions: () => permissions,
+  navigateSuite,
 })

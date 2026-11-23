@@ -192,6 +192,23 @@ declare module 'hours/App' {
   export default App
 }
 
+// specs/20261116-record-hours-in-place (ADR 20261116-record-hours-widget-through-the-host-extension-seam): the `hours` remote's
+// second entry, `./RecordHours` — the Record hours button other tools' pages embed through `shell/extensions`
+// (`hours.recordHours`). Its props are `ExtensionProps['hours.recordHours']` in lib/extensions.tsx: six plain strings.
+declare module 'hours/RecordHours' {
+  import type { ComponentType } from 'react'
+
+  const RecordHours: ComponentType<{
+    on: 'project' | 'deal' | 'none'
+    targetId: string
+    targetName: string
+    activityId: string
+    activityName: string
+    placement: 'page' | 'row'
+  }>
+  export default RecordHours
+}
+
 declare module 'hours/version' {
   export const REMOTE_VERSION: string
 }

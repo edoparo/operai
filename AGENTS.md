@@ -15,7 +15,7 @@ Module Federation shell (ADR 20260709-suite-frontend-module-federation):
 | **Projects** | `/projects` | The delivery work wellD runs — projects (type, state, project manager, team), their terms (per-type delivery terms) and, for a project made from a won deal, its purchase order (Bexio order id, referent, ops-manager); no money (specs/20261103-projects, 022, ADR 20261103-projects-tool-shape-and-authorization/0080/0093/0094) |
 | **Letterheads** | `/letterheads` | The letterheads and document layout of the suite, served by the Rust `letterhead-api` (specs/20261116-letterhead-service) |
 | **Accounting** | `/accounting` | The accounting reference data of each legal entity — ledger accounts, VAT codes and monthly average exchange rates — that other modules (Refund first) read live; reached through the derived `accounting` app of `/authz/me`, never an `access` permission (specs/20261119-accounting, ADR 20261119-accounting-reference-data-belongs-to-accounting-api-…) |
-| **Hours** | `/hours` | Time tracking — every employee records the hours spent on a project, a deal, a meeting or other work (a duration on a day, never a time of day) and reads their own; holders of `time-entry:read-all` also see everyone's, with totals and an XLSX export; ungated, so **not** a `TOOLS` entry; the admin lists (categories, work types) are its Settings tab, `/hours/settings`, for holders of `time-list:manage` (specs/20261112-time-tracking, ADR 20261112-hours-api-time-entries-own-service-hours-catalog to 20261112-hours-ui-ungated-remote) |
+| **Hours** | `/hours` | Time tracking — every employee records the hours spent on a project, a deal, a meeting or other work (a duration on a day, never a time of day) and reads their own, as a table (a week or a month) or a list; holders of `time-entry:read-all` also see everyone's, with totals and an XLSX export; the Projects and CRM pages and task rows offer Record hours in place; ungated, so **not** a `TOOLS` entry; the admin lists (categories, work types) are its Settings tab, `/hours/settings`, for holders of `time-list:manage` (specs/20261112-time-tracking, ADR 20261112-hours-api-time-entries-own-service-hours-catalog to 20261112-hours-ui-ungated-remote) |
 
 Those nine are the entries in `shell/src/lib/tools.ts` — access-gated remotes. The
 notification center (`notify-ui`) is a further remote but **not** a `TOOLS` entry: it mounts at
@@ -27,10 +27,26 @@ ADR 20261104-meetings-tool-shape-visibility-by-participation) and exposes a coar
 embeds through the shell's `HostExtension` seam with a timeout and an error boundary (ADR 20261104-host-extension-federated-panel-through-the-shell). It also exposes
 `./RecorderDock`, the recorder widget the shell shows in its floating slot while a recording runs and the person
 is elsewhere in Operai (ADR 20261110-shell-floating-slot-for-remote-widgets). `hours-ui` is a remote with **no gated half at all**: recording and reading your
-own hours is not a tool grant (AC-5.1), so the shell mounts its one entry, `./App`, at the ungated splat route
+own hours is not a tool grant (AC-5.1), so the shell mounts its one routed entry, `./App`, at the ungated splat route
 `/hours/$` (a child of `shellRoute`, no `beforeLoad`), reached from the user menu's **My hours** link and never from
 the sidebar (ADR 20261112-hours-ui-ungated-remote). Its second tab, Everyone's hours (`/hours/all`), is for holders of `time-entry:read-all`;
 its third tab, Settings (`/hours/settings`), holds the admin lists (categories, work types) for holders of `time-list:manage`.
+My hours is a **table view** or a List (a `Table | List` switch), and opens on the table: one Monday-to-Sunday week or one calendar month
+(a `Period` switch, `Week | Month`), a row per project, deal, meeting or kind of other work, a column per day, Previous / This week or month /
+Next and a date field that shows the week or month holding the day picked. `/hours` is the current week, `?week=<day>` another,
+`?view=month[&month=YYYY-MM]` a month and `?view=list` the List (the old `?view=week` is still read). A filled cell opens its
+entries; an empty cell offers nothing. The date field offers no day after today, Next stops at the current period and an address naming a
+later week or month shows the current one. A month scrolls sideways with its row-label and Total columns pinned (`@operai/ui`
+`DataTable`'s `pin`). Every hours page — My hours in either view and period, Everyone's hours, Settings — takes the full width
+(`ToolLayout` `wide`, as EstimAI's), so switching view, period or tab never resizes the page. The table view's figures are folded in the
+browser from ONE complete, all-or-nothing read of the period (`readAllEntries`, the export's walk), so a failed page is an error, never a
+partial grid (specs/20261116-record-hours-in-place, ADR 20261116-week-view-sums-a-complete-read-in-the-browser). `hours-ui` also exposes
+`./RecordHours`, not a route but a widget: a button that opens My hours' own entry dialog on a project, a deal or a task and records as
+the person through the unchanged `POST /time-entries`. Hosts embed it through the shell's `HostExtension` seam as the extension
+**`hours.recordHours`** (six plain strings in, nothing back, the same 5 s timeout and error boundary, and the host's own fallback, a link
+to My hours): projects-ui's project page and task rows (the Tasks card, My tasks; beside the Meetings panel it already embeds) and
+crm-ui's deal page and task rows (the Tasks page, every activity timeline). A host decides only whether to show it, from what it already
+shows; hours-api still decides every save as the caller (ADR 20261116-record-hours-widget-through-the-host-extension-seam).
 
 Backed by eleven Bun services: `auth` (identity + authorization), `estimai-api`,
 `notify-api`, `refund-api`, `inventory-api`, `crm-api`, `meetings-api`, `projects-api`,
@@ -88,7 +104,9 @@ operai/
 ├── shell/               # Suite host (Module Federation) — shared chrome + session; mounts remotes (specs/20260709-suite-shell, ADR 20260709-suite-frontend-module-federation).
 │   │                    # Also owns identity-scoped non-tool screens: /account (ADR 20260804-shell-identity-scoped-non-tool-screens-account-route), /notify (ADR 20260713-notification-center-standalone-service-shell-seam),
 │   │                    # the notification bell + SSE manager + ToastHost, the About modal (ADR 20260803-suite-version-generated-file-federated-export), the
-│   │                    # floating slot (`openFloating`/`closeFloating` in shell/session, FloatingHost; ADR 20261110-shell-floating-slot-for-remote-widgets) and
+│   │                    # floating slot (`openFloating`/`closeFloating` in shell/session, FloatingHost; ADR 20261110-shell-floating-slot-for-remote-widgets), the
+│   │                    # host-extension seam (`shell/extensions`: `meetings.hostMeetings`, `meetings.recorderDock`, and `hours.recordHours`, hours-ui's Record hours button
+│   │                    # embedded by projects-ui and crm-ui, specs/20261116-record-hours-in-place) and
 │   │                    # desktop push: the `/push-sw.js` service worker and the My profile push section (specs/20261111-push-notifications).
 │   └── e2e/             # Playwright e2e for the WHOLE suite — every remote's journeys run through the
 │                        # host, since a remote has no standalone authed bootstrap (specs/20260709-suite-shell retired
@@ -110,7 +128,8 @@ operai/
 │                        # (ungated, /devices; ADR 20261006-ungated-second-federated-entry-of-a-gated-remote) and ./version; calls inventory-api and auth's user directory
 │                        # through shell/session (no VITE_* of its own) (specs/20261006-hardware-inventory)
 ├── crm-ui/              # CRM tool — federated remote (port 5179): exposes ./App (gated, /crm) and ./version; calls
-│                        # crm-api, activities-api and auth's user directory through shell/session (specs/20261101-crm, ADR 20261101-crm-tool-shape-and-authorization/0053, 028)
+│                        # crm-api, activities-api and auth's user directory through shell/session (specs/20261101-crm, ADR 20261101-crm-tool-shape-and-authorization/0053, 028);
+│                        # embeds hours-ui's Record hours (`hours.recordHours` via shell/extensions) on the deal page and the task rows (specs/20261116-record-hours-in-place)
 ├── meetings-ui/         # Meetings tool — federated remote (port 5180): exposes ./App (gated, /meetings), ./MyMeetings
 │                        # (ungated, /my-meetings; ADR 20261104-meetings-tool-shape-visibility-by-participation), ./HostMeetings (panel embedded by hosts via shell/extensions,
 │                        # ADR 20261104-host-extension-federated-panel-through-the-shell), ./RecorderDock (the shell's floating recorder widget, ADR 20261110-shell-floating-slot-for-remote-widgets) and ./version;
@@ -118,7 +137,9 @@ operai/
 │                        # (specs/20261104-meetings)
 ├── projects-ui/         # Projects tool — federated remote (port 5181): exposes ./App (gated, /projects) and ./version; calls
 │                        # projects-api, activities-api (project tasks, My tasks) and auth's user directory through
-│                        # shell/session (specs/20261103-projects, 028, ADR 20261103-projects-tool-shape-and-authorization)
+│                        # shell/session (specs/20261103-projects, 028, ADR 20261103-projects-tool-shape-and-authorization); embeds through
+│                        # shell/extensions Meetings' panel (`meetings.hostMeetings`) on the project page (specs/20261104-meetings A18) and
+│                        # hours-ui's Record hours (`hours.recordHours`) on the project page and the task rows (specs/20261116-record-hours-in-place)
 ├── accounting-ui/       # Accounting tool — federated remote (port 5183; 5185 in the e2e preview): exposes ./App (gated, /accounting) and ./version; calls
 │                        # accounting-api through shell/session (`VITE_ACCOUNTING_API_URL` is the shell's, no VITE_* of its own). Routes `/accounting/ledger-accounts`,
 │                        # `/accounting/vat-codes`, `/accounting/exchange-rates`, each with `?entity=` (a person sees only the entities their grant covers; the switcher
@@ -126,9 +147,11 @@ operai/
 │                        # `/v1/me` `canManage`, never `usePermissions()` (specs/20261119-accounting, ADR 20261119-accounting-reference-data-belongs-to-accounting-api-…).
 │                        # Moved from refund-ui with `git mv`
 ├── hours-ui/            # Hours (time tracking) — federated remote (port 5184): exposes ./App (UNGATED, mounted at the shell's
-│                        # `/hours/$`, NOT a TOOLS entry; My hours, plus Everyone's hours for `time-entry:read-all`, ADR 20261112-hours-ui-ungated-remote) and
-│                        # ./version; calls hours-api through shell/session (`getHoursApiBaseUrl()`, `VITE_HOURS_API_URL` is the
-│                        # shell's) and, as the person, projects-api, crm-api, meetings-api and activities-api for its pickers (specs/20261112-time-tracking)
+│                        # `/hours/$`, NOT a TOOLS entry; My hours as a table view, week or month (`/hours`, `?view=month`), or a List (`?view=list`), plus Everyone's hours for `time-entry:read-all`, ADR 20261112-hours-ui-ungated-remote),
+│                        # ./RecordHours (a widget, not a route: the Record hours button other tools embed through shell/extensions `hours.recordHours`,
+│                        # ADR 20261116-record-hours-widget-through-the-host-extension-seam) and ./version; calls hours-api through shell/session
+│                        # (`getHoursApiBaseUrl()`, `VITE_HOURS_API_URL` is the shell's) and, as the person, projects-api, crm-api, meetings-api and
+│                        # activities-api for its pickers (specs/20261112-time-tracking, specs/20261116-record-hours-in-place)
 ├── operai-ui/           # @operai/ui — the DESIGN SYSTEM (ADR 20261031-shared-ui-library-consumed-as-source): tokens/themes/fonts + component classes
 │                        # (src/styles/tokens.css, re-exported by shell/tokens.css), React components (src/components),
 │                        # Storybook (`mise run ui:storybook`), rules in docs/. NOT an app: never built or deployed;
@@ -289,7 +312,11 @@ degrades silently when the key is absent (ADR 20260804-google-places-browser-dir
 hours-ui additionally builds its XLSX export in the browser (`exceljs`, lazy-loaded, from every page of
 `GET /time-entries` — hours-api never builds a file) and uses the `@operai/ui` components and formatters added
 for it: `SearchPicker` (a server-side search in a `Field`-wrapped `Combobox`), `ExportButton`, and
-`formatDuration`'s `short` style ("2 h 30") and `formatMonth` (specs/20261112-time-tracking).
+`formatDuration`'s `short` style ("2 h 30") and `formatMonth` (specs/20261112-time-tracking), and, for the month, `DataTable`'s column
+`pin` (a remote on a shell that predates it shows the month unpinned). Its table view (`/hours`, a week or a month) is the one view that sums
+its own figures in the browser, over one complete read of the period through the same walk
+(ADR 20261116-week-view-sums-a-complete-read-in-the-browser, amended 2026-11-19, specs/20261116-record-hours-in-place); its `./RecordHours` entry imports
+only the entry dialog, `hoursApi` and the pickers, never `exceljs`, the pages or hours-ui's router, because it renders in a host's tree.
 
 ### Auth service (auth)
 - **Runtime:** Bun (`bun run --hot` for dev)
@@ -1187,6 +1214,8 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - [20261116] A stored record that promises to reproduce must name the code that produces it, and a guard nobody runs is not a guard — each letterhead version stores a `layout_version` (template + Typst version + fonts pinned by SHA-256), a render always uses the version's own layout (read as well as write; unknown layout refuses), old layouts stay compiled in (newer Typst as a renamed Cargo dependency), and a per-layout golden corpus runs in `.github/workflows/letterhead-api.yml`, a deliberate exception to "no CI runs service tests"; never edit an existing layout to fix a drift (see docs/adr/20261116-a-letterhead-version-pins-its-layout-and-old-layouts-stay-compiled-in.md)
 - [20261116] A preview must be made by the same engine as the thing it previews, and a restricted service is reached through the party that holds its credential — the letterhead preview is the PDF's own compile rasterised to 64-colour PNG pages (1.5 px/pt, ~65 KiB a page) plus page text, never SVG/HTML (browser fonts break AC-1.3); crm-ui calls crm-api `POST /deals/{id}/offer-draft/preview` (unsaved draft body), which calls letterhead-api with a service token, never the browser; at the `LETTERHEAD_SERVICE_ENABLED` switch this supersedes 20261115-paginated-preview-one-flow-float-rail and 20261115-letterhead-preview-pdfjs-main-thread-in-the-remote (those files are deliberately not edited) (see docs/adr/20261116-the-preview-is-the-pdfs-own-compile-as-palette-png-pages-and-the-crm-wizard-reaches-it-through-crm-api.md)
 - [20261116] A record promised permanent must be protected at the database, not by the absence of a route, and its references must be permanent too — `letterhead_version`, `letterhead_version_asset`, `letterhead_change` and any referenced `letterhead_asset` have `BEFORE UPDATE OR DELETE` triggers that raise (Tier 1, as refund), FKs are `ON DELETE RESTRICT`, actor columns carry no FK (an FK `SET NULL` is an UPDATE), restore creates a new version, only unreferenced uploads older than 24 h are swept; any new history or version-dependent table gets the same triggers and a real-Postgres UPDATE/DELETE refusal test (see docs/adr/20261116-letterhead-versions-assets-and-change-record-are-immutable-in-the-database.md)
+- [20261116] A view may sum its own figures in the browser only over one complete, all-or-nothing read of a bounded span — the Week view of My hours folds one week from the export's full walk, so every cell, row, day and week agrees, and a failed page is an error, never a partial grid; sums over loaded pages, a second server grid or a totals `groupBy=day` beside browser cells are rejected, and the time-tracking "no figure computed in the browser" convention narrows for that view only; amended 2026-11-19: the table view of My hours, week or month, folds a calendar month from the same complete walk (see docs/adr/20261116-week-view-sums-a-complete-read-in-the-browser.md)
+- [20261116] A host embeds another tool's write as that tool's widget through the shell seam — plain strings in, nothing back; the host decides only whether to show the offer, never whether the person is allowed, because an affordance copied from the owner's rule stands in for asking the owner (hours-api decides each save as the caller; no copy of the dialog, no prefilled link, no callback) (see docs/adr/20261116-record-hours-widget-through-the-host-extension-seam.md)
 - [20261117] Context a person attaches is kept as long as the raw material it explains, and reaches a model unparsed — meeting attachments (files and links, specs/20261104-meetings US-15, A14) live in the meetings bucket under `meetings/<id>/attachments/<uuid>` (presigned POST pinned to an allowlisted type and the exact size, ≤ 20 MiB, 10 files + 10 links per meeting, confirmed by HEAD) and are deleted by the bucket's 29-day rule like the audio (`expired` derived on read); deleting the recording keeps them (`Storage.deleteAudio`), deleting the meeting removes them; editors are the agenda's (`assertMeetingEditor`, host reader 403 `attachment_editors_only`), readers everyone who can open the meeting, downloads a 60 s GET forcing `attachment`; a link is `http(s)` without credentials and NEVER fetched, only its label reaches a model; the fourth byte reader is bounded (PDF/PNG/JPEG/WebP/text only, ≤ 5 MiB each, ≤ 8 MiB total, oldest first, one `aiContextOf` for page and models, signature check only) and forwards bytes UNPARSED to Gemini (transcription) and Claude (summaries, Q&A) on Vertex `eu` — no parser in our process, Office files stored but never read; attachments are quoted data, never instructions, never cited, never evidence; best effort, and a refused request is retried once without them; amends ADR 20261104-audio-retention-bucket-lifecycle-verified-at-startup ("audio only") and ADR 20261104-meetings-api-reads-audio-bytes-third-reader; rejected: a dedicated non-expiring bucket, fetching links, parsing in process, Office to the AI, bytea in Postgres (see docs/adr/20261117-meeting-attachments-in-the-audio-bucket-forwarded-unparsed.md)
 - [20261118] Something the system must do on a schedule runs in the service that owns the record, claimed before it acts — inventory-api reminds an employee to confirm a pending assignment 24 h after the offer, then every 7 days until answered (specs/20261006-hardware-inventory US-15): an in-process 15-minute tick (`startReminderScheduler`, off in tests and with `ASSIGNMENT_REMINDERS=off`), the due rule derived from `lastReminderAt` (pure `reminderClock.ts`, shared with the asset view), each reminder claimed by a CAS on `lastReminderAt` before the push and given back when notify-api does not take it or the history write fails; the push is a notify-api email notice (`email: true`), so inventory-api's service client holds `emails.send` too (grant it in `auth` `SERVICE_CLIENTS` before deploying); `POST /assignments/{id}/remind` forces one (`asset:manage`, 409 `reminder_too_soon` within the hour, 502 `reminder_not_sent`); a reminder is an action, not derived state, so ADR 20260714-invitation-lifecycle-derived-expiry-state still holds; rejected: a Railway cron service, jobs queued at offer time, send-without-claim, notify-api scheduling (see docs/adr/20261118-assignment-reminders-in-process-scheduler-claimed-by-cas.md)
 - [20261117] A record people rely on to prove what was true must be protected at the database, and its history must not be rebuilt from a weaker record; and two resources must not get names a reader can swap — the legal-entity registry is `legal_entity_version` in auth, append-only (current = highest, no mutable row, a restore inserts n+1), `BEFORE UPDATE OR DELETE` and `BEFORE TRUNCATE` triggers raise (the first Tier 1 table in auth; `audit_log` stays Tier 2), actor columns carry no FK (an FK `SET NULL` is an UPDATE), tests run in a rolled-back transaction, never by deleting rows; read by any signed-in person and by services through `legal-entities:read` (one serializer, two routes); a scope for a suite resource hosted by auth has no service prefix and uses the colon form, in the resource's own word (never `companies:read` beside `crm.companies.read`) (see docs/adr/20261117-legal-entity-registry-in-auth-is-append-only-versions-immutable-in-the-database.md)

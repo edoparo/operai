@@ -98,7 +98,15 @@ test.describe("specs/20261112-time-tracking T35: my hours, the time lists, every
     // Only My hours: nothing to switch to, so no tab bar at all.
     await expect(page.getByRole('navigation', { name: 'Hours sections' })).toHaveCount(0)
 
-    // The designed empty state of a person who has recorded nothing.
+    // My hours opens on the table view, at the current week (AC-5.1 reversed 2026-11-19, AC-5.4): a person who has
+    // recorded nothing sees the week's designed empty state, with the List one tab away.
+    await expect(page.getByRole('tab', { name: 'Table' })).toHaveAttribute('aria-selected', 'true', { timeout: 30_000 })
+    await expect(page.getByTestId('hours-table-empty')).toContainText('No hours recorded this week', {
+      timeout: 30_000,
+    })
+
+    // The day headings and the Totals are the List's: switch to it, a view of the same page.
+    await page.getByRole('tab', { name: 'List' }).click()
     await expect(page.getByTestId('hours-entries-empty')).toContainText('No hours recorded in this period', {
       timeout: 30_000,
     })
@@ -392,7 +400,8 @@ test.describe("specs/20261112-time-tracking T35: my hours, the time lists, every
       const personCtx = await browser.newContext({ locale: words.locale })
       await signInContext(personCtx, employee)
       const mine = await personCtx.newPage()
-      await mine.goto('/hours')
+      // The Period and Custom range controls are the List's: `?view=list` (T19, AC-5.1 reversed).
+      await mine.goto('/hours?view=list')
       await expect(mine.locator('html')).toHaveAttribute('lang', words.lang)
       await expect(mine.getByTestId('hours-my-page')).toBeVisible({ timeout: 30_000 })
 
