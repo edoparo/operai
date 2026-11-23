@@ -3,6 +3,7 @@ import type { Activity, Parameters, Release, ReleaseSummary, Totals } from '../t
 import { PROFILES } from '../types'
 import { deriveOP, useEstimator } from '../hooks/useEstimator'
 import { DEF_PARAMS, uid } from '../lib/projects'
+import type { ProjectJsonContent } from '../lib/projects'
 import * as estimatesApi from '../lib/estimatesApi'
 import type { EstimateAccess, EstimateContent, EstimateFull, EstimateIdentity } from '../lib/estimatesApi'
 import type { Template } from '../lib/templates'
@@ -62,6 +63,8 @@ export type EstimatorContextValue = {
   delRel: (id: string) => void
   updP: (k: keyof Parameters, v: string) => void
   loadTemplate: (t: Template) => void
+  /** Replace the parameters, releases and activities (an imported JSON file); name and author stay. */
+  replaceContent: (content: ProjectJsonContent) => void
   saveStatus: SaveStatus
   saveError: string | null
   clearSaveError: () => void
@@ -566,6 +569,12 @@ export function EstimatorProvider({
     setActs(newActs)
   }, [])
 
+  const replaceContent = useCallback((content: ProjectJsonContent) => {
+    setParams(content.params)
+    setRels(content.releases)
+    setActs(content.acts)
+  }, [])
+
   const value = useMemo<EstimatorContextValue>(
     () => ({
       projectId: estimateId,
@@ -588,6 +597,7 @@ export function EstimatorProvider({
       delRel,
       updP,
       loadTemplate,
+      replaceContent,
       saveStatus,
       saveError,
       clearSaveError,
@@ -627,6 +637,7 @@ export function EstimatorProvider({
       delRel,
       updP,
       loadTemplate,
+      replaceContent,
       saveStatus,
       saveError,
       clearSaveError,

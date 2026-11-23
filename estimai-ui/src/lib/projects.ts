@@ -100,8 +100,14 @@ export function projectJsonFileName(name: string): string {
   return `${stem || 'estimate'}.json`
 }
 
-/** Parse and import a JSON file. Returns the new project id, or throws on invalid input. */
-export function importProjectFromJson(raw: string): string {
+/** What an estimate JSON file brings into an estimate: its content, never its name or author. */
+export type ProjectJsonContent = Pick<ProjectData, 'params' | 'releases' | 'acts'>
+
+/**
+ * Parse an estimate JSON file (the editor's Export JSON, or an older EstimAI export). Throws an
+ * error whose message is the UI copy when the text is not JSON or not an estimate.
+ */
+export function parseProjectJson(raw: string): ProjectData {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -113,11 +119,31 @@ export function importProjectFromJson(raw: string): string {
     parsed === null ||
     !Array.isArray((parsed as ProjectData).acts) ||
     !Array.isArray((parsed as ProjectData).releases) ||
-    typeof (parsed as ProjectData).params !== 'object'
+    typeof (parsed as ProjectData).params !== 'object' ||
+    (parsed as ProjectData).params === null
   ) {
     throw new Error(strings.estimatesList.importNotAnEstimate)
   }
-  const data = parsed as ProjectData
+  return parsed as ProjectData
+}
+
+/**
+ * The content of an estimate JSON file, to replace an open estimate's (2026-11-23): parameters (any
+ * missing one takes its default), releases and activities with fresh ids. The file's `name` and
+ * `author` are ignored: the estimate keeps its own.
+ */
+export function contentFromProjectJson(raw: string): ProjectJsonContent {
+  const data = parseProjectJson(raw)
+  return {
+    params: { ...DEF_PARAMS, ...data.params },
+    releases: data.releases.map((release) => ({ ...release, id: uid() })),
+    acts: data.acts.map((activity) => ({ ...activity, id: uid() })),
+  }
+}
+
+/** Parse and import a JSON file. Returns the new project id, or throws on invalid input. */
+export function importProjectFromJson(raw: string): string {
+  const data = parseProjectJson(raw)
   const newId = uid()
   saveProjectData({ ...data, id: newId })
   return newId

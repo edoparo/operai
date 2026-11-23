@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import Header from './components/Header'
 import { authClient } from './lib/authClient'
@@ -7,7 +7,8 @@ import ActivityTable from './components/ActivityTable'
 import SummaryTable from './components/SummaryTable'
 import ParametersPanel from './components/ParametersPanel'
 import { useEstimatorContext } from './context/EstimatorContext'
-import { exportProjectToJson, projectJsonFileName } from './lib/projects'
+import { contentFromProjectJson, exportProjectToJson, projectJsonFileName } from './lib/projects'
+import type { ProjectJsonContent } from './lib/projects'
 import { strings } from './strings'
 import { computeHealthWarnings } from './lib/healthWarnings'
 import ShortcutsModal from './components/ShortcutsModal'
@@ -125,6 +126,7 @@ export default function EstimatorApp() {
     delRel,
     updP,
     loadTemplate,
+    replaceContent,
     canEdit,
     conflict,
     access,
@@ -253,6 +255,43 @@ export default function EstimatorApp() {
   }, [releaseToDelete, releases, acts])
 
   const warnings = useMemo(() => computeHealthWarnings(acts, releases, summary), [acts, releases, summary])
+
+  // Import JSON into THIS estimate (2026-11-23): the file's parameters, releases and activities replace
+  // the current ones; its name and author are ignored. Asks first when there are activities to lose.
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const [pendingImport, setPendingImport] = useState<ProjectJsonContent | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importedNotice, setImportedNotice] = useState(false)
+  const applyImport = useCallback(
+    (content: ProjectJsonContent) => {
+      replaceContent(content)
+      setPendingImport(null)
+      setImportedNotice(true)
+    },
+    [replaceContent],
+  )
+  const handleImportFile = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+      if (!file) return
+      setImportError(null)
+      setImportedNotice(false)
+      file.text().then(
+        (raw) => {
+          try {
+            const content = contentFromProjectJson(raw)
+            if (acts.length > 0) setPendingImport(content)
+            else applyImport(content)
+          } catch (err) {
+            setImportError(err instanceof Error && err.message ? err.message : strings.estimatesList.importFailed)
+          }
+        },
+        () => setImportError(strings.estimatesList.importReadFailed),
+      )
+    },
+    [acts.length, applyImport],
+  )
 
   // The estimate as a JSON file the list's Import JSON reads back (2026-11-23). Available in every
   // access mode: whoever can open an estimate can read everything the file holds.
@@ -398,6 +437,26 @@ export default function EstimatorApp() {
               </Button>
             ))}
           <div className="w-px h-4 bg-rule mx-0.5" />
+          {canEdit && (
+            <>
+              <Button
+                size="sm"
+                onClick={() => importInputRef.current?.click()}
+                title={strings.editor.importJsonTitle}
+                data-testid="import-json-button"
+              >
+                {strings.editor.importJson}
+              </Button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={handleImportFile}
+                data-testid="import-json-input"
+              />
+            </>
+          )}
           <Button size="sm" onClick={exportJson} title={strings.editor.exportJsonTitle} data-testid="export-json-button">
             {strings.editor.exportJson}
           </Button>
@@ -448,6 +507,31 @@ export default function EstimatorApp() {
               : strings.lifecycle.closedOn(formatDate(closedAt))}{' '}
             {canChangeLifecycle ? strings.lifecycle.closedReadOnly : strings.lifecycle.closedReadOnlyViewer}
           </span>
+        </Banner>
+      )}
+      {importError && (
+        <Banner
+          tone="danger"
+          compact
+          className="mx-5.5 mt-2"
+          onDismiss={() => setImportError(null)}
+          dismissLabel={strings.editor.dismiss}
+          data-testid="estimate-import-error"
+        >
+          {importError}
+        </Banner>
+      )}
+      {importedNotice && (
+        <Banner
+          tone="success"
+          compact
+          autoDismiss
+          className="mx-5.5 mt-2"
+          onDismiss={() => setImportedNotice(false)}
+          dismissLabel={strings.editor.dismiss}
+          data-testid="estimate-imported-notice"
+        >
+          {strings.editor.imported}
         </Banner>
       )}
       {lifecycleError && (
@@ -628,6 +712,22 @@ export default function EstimatorApp() {
           testIdPrefix="release-delete"
         >
           <p>{releaseDeleteBody}</p>
+        </ConfirmDialog>
+      )}
+      {pendingImport !== null && (
+        <ConfirmDialog
+          title={strings.editor.importReplaceTitle}
+          confirmLabel={strings.editor.importReplaceConfirm}
+          busyLabel={strings.editor.importReplaceBusy}
+          cancelLabel={strings.confirmDelete.cancel}
+          closeLabel={strings.confirmDelete.close}
+          busy={false}
+          error={null}
+          onConfirm={() => applyImport(pendingImport)}
+          onCancel={() => setPendingImport(null)}
+          testIdPrefix="import-replace"
+        >
+          <p>{strings.editor.importReplaceBody(acts.length)}</p>
         </ConfirmDialog>
       )}
       {showCloseConfirm && (

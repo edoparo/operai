@@ -254,7 +254,9 @@ estimai-ui additionally uses:
 - **Export:** none. The XLSX, client XLSX and PDF exports were removed on 2026-11-23
   (owner: they no longer worked and nobody needed them), with `exceljs`, `xlsx`, `jspdf`
   and `jspdf-autotable`. What stays is the estimate as JSON: the editor's Export JSON
-  (`lib/projects.ts` `exportProjectToJson`) writes the file the list's Import JSON reads back.
+  (`lib/projects.ts` `exportProjectToJson`) writes the file the list's Import JSON reads back, and
+  the editor's Import JSON replaces an open estimate's parameters, releases and activities with a
+  file's (its `name` and `author` ignored; asks first when activities would be lost; editors only).
 - **Sharing:** account-based collaborators only (specs/20260807-estimate-sharing). The anonymous
   link share (`lz-string` payload in a URL fragment + `qrcode`) was removed on
   2026-08-09 — an estimate is never viewable without an Operai account.
