@@ -61,6 +61,7 @@ async function toViews(c: HeaderSource, rows: readonly CompanyRow[]) {
       status: effectiveStatus(facts, now),
       // True when `status` reads `former` because the relationship lapsed (specs/20261101-crm AC-1.9).
       statusLapsed: isLapsed(facts, now),
+      kind: row.kind,
       entity: row.entity,
       industry: row.industry,
       city: row.city,
@@ -239,12 +240,13 @@ companiesRouter.openapi(ownersRoute, async (c) => {
 });
 
 companiesRouter.openapi(listRoute, async (c) => {
-  const { q, status, archived, ownerId, sort, order, page, pageSize } = c.req.valid("query");
+  const { q, status, archived, ownerId, kind, sort, order, page, pageSize } = c.req.valid("query");
   const where: Prisma.CompanyWhereInput = {
     ...archivedWhere(archived),
     // The filter matches the EFFECTIVE status, so a lapsed customer lists as former.
     AND: status ? [statusWhere(status, new Date())] : [],
     ...(ownerId ? { ownerUserId: ownerId } : {}),
+    ...(kind ? { kind } : {}),
     ...(q?.trim() ? { name: { contains: q.trim(), mode: "insensitive" } } : {}),
   };
   const [total, rows] = await Promise.all([
@@ -288,6 +290,7 @@ companiesRouter.openapi(createCompanyRoute, async (c) => {
         notes: body.notes ?? null,
         source: body.source ?? null,
         sourceDetail: body.source ? (body.sourceDetail ?? null) : null,
+        kind: body.kind ?? "client",
         ownerUserId,
         createdBy: userId,
         updatedBy: userId,

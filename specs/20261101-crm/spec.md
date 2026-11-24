@@ -232,6 +232,12 @@ funded calls are tracked in the CRM instead of GitLab.
 - AC-10.1 A deal is either a standard deal or a **tender**. A tender's company is the body
   that issues it (e.g. "Chips Joint Undertaking"): a deal still always has a company (the
   owner's decision, 2026-11-24: activities, offers and the project hand-off all need one).
+- AC-10.6 *(added 2026-11-24, owner)* A company is a **client** (every existing one) or a
+  **funding body**: the issuer of public tenders, never invoiced. A funding body is marked
+  "Funding body" in the companies list and on its page, the list filters by type, and
+  winning its tender never makes it a customer (AC-1.8 does not apply). Offers are unchanged:
+  a tender's response dossier is usually prepared outside the CRM (fixed formats, Drive), and
+  a CRM offer stays possible when one is wanted.
 - AC-10.2 A tender may carry a **submission deadline** (a date). Only a tender has one: a
   deadline on a standard deal is refused (422 `deadline_only_on_tenders`), and a tender made
   standard again loses its deadline. Every deal existing before this is standard.

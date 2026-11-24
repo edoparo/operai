@@ -14,7 +14,14 @@ import {
 } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import ActivityTimeline from '../components/ActivityTimeline'
-import { ArchivedBadge, CompanyStatusBadge, DealStageBadge, EntityBadge, TenderBadge } from '../components/Badges'
+import {
+  ArchivedBadge,
+  CompanyStatusBadge,
+  DealStageBadge,
+  EntityBadge,
+  FundingBodyBadge,
+  TenderBadge,
+} from '../components/Badges'
 import CompanyFormDialog from '../components/CompanyFormDialog'
 import ContactFormDialog from '../components/ContactFormDialog'
 import DealFormDialog from '../components/DealFormDialog'
@@ -25,7 +32,7 @@ import { getCompany, getContact, listContacts, listDeals, setCompanyArchived } f
 import { errorMessage, statusOf } from '../lib/errors'
 import { dealAmount } from '../lib/money'
 import { contactName, personName } from '../lib/people'
-import { kindOf } from '../lib/types'
+import { companyKindOf, kindOf } from '../lib/types'
 import type { Company, Contact, ContactSummary, DealSummary } from '../lib/types'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
@@ -119,6 +126,7 @@ export default function CompanyDetailPage() {
         status={
           <span className="flex gap-2">
             <CompanyStatusBadge status={current.status} />
+            {companyKindOf(current) === 'funding_body' && <FundingBodyBadge testId="crm-company-funding-body" />}
             {current.archived && <ArchivedBadge />}
           </span>
         }

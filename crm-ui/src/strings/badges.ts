@@ -1,5 +1,5 @@
 /** Labels of every badge: statuses, stages, entities, activity types. */
-import type { ActivityType, CompanyStatus, DealStage, Entity, EstimateState } from '../lib/types'
+import type { ActivityType, CompanyKind, CompanyStatus, DealStage, Entity, EstimateState } from '../lib/types'
 import type { TaskState } from '../lib/statusMeanings'
 
 const en = {
@@ -21,6 +21,7 @@ const en = {
   estimateState: { requested: 'Requested', ready: 'Ready' } as Record<EstimateState, string>,
   archived: 'Archived',
   tender: 'Tender',
+  companyKind: { client: 'Client', funding_body: 'Funding body' } as Record<CompanyKind, string>,
 }
 
 const it: typeof en = {
@@ -39,6 +40,7 @@ const it: typeof en = {
   estimateState: { requested: 'Richiesta', ready: 'Pronta' },
   archived: 'Archiviato',
   tender: 'Bando',
+  companyKind: { client: 'Cliente', funding_body: 'Ente finanziatore' },
 }
 
 export const badges = { en, it }

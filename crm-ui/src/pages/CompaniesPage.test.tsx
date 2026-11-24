@@ -362,5 +362,63 @@ describe('CompaniesPage', () => {
     fireEvent.change(select, { target: { value: 'u-ada' } })
     await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('ownerId')).toBe('u-ada'))
   })
-})
 
+  describe('company kind (2026-11-24)', () => {
+    it('a funding body carries its badge in the list; a client and a company from an older server carry none', async () => {
+      await renderAt({
+        'GET /companies': () => ({
+          status: 200,
+          body: page([
+            companySummary({ id: 'c1', name: 'Chips JU', kind: 'funding_body' }),
+            companySummary({ id: 'c2', name: 'Acme SA', kind: 'client' }),
+            companySummary({ id: 'c3', name: 'Globex AG' }),
+          ]),
+        }),
+      })
+      const badge = await screen.findByTestId('crm-company-funding-body-c1')
+      expect(badge.textContent).toBe('Funding body')
+      expect(screen.queryByTestId('crm-company-funding-body-c2')).toBeNull()
+      expect(screen.queryByTestId('crm-company-funding-body-c3')).toBeNull()
+    })
+
+    it('the type filter adds kind= to the query, and All removes it', async () => {
+      await renderAt({ 'GET /companies': () => ({ status: 200, body: page([]) }) })
+      await screen.findByText('No companies yet')
+      expect(companiesUrls()[0]!.searchParams.has('kind')).toBe(false)
+      const select = screen.getByTestId('crm-companies-kind').querySelector('select')!
+      expect(Array.from(select.options).map((option) => option.text)).toEqual(['All', 'Clients', 'Funding bodies'])
+      fireEvent.change(select, { target: { value: 'funding_body' } })
+      await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('kind')).toBe('funding_body'))
+      expect(await screen.findByText('No companies match these filters')).not.toBeNull()
+      fireEvent.change(select, { target: { value: 'client' } })
+      await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.get('kind')).toBe('client'))
+      fireEvent.change(select, { target: { value: '' } })
+      await waitFor(() => expect(companiesUrls().at(-1)!.searchParams.has('kind')).toBe(false))
+    })
+
+    it('a funding body carries its badge in the company page header', async () => {
+      apiFetch.mockImplementation(
+        fakeApi({
+          'GET /companies/c1': () => ({
+            status: 200,
+            body: {
+              ...companySummary({ kind: 'funding_body', status: 'prospect' }),
+              website: null,
+              legalName: null,
+              street: null,
+              postalCode: null,
+              notes: null,
+              version: 1,
+              createdAt: '2025-01-01T00:00:00.000Z',
+            },
+          }),
+          'GET /contacts': () => ({ status: 200, body: page([]) }),
+          'GET /deals': () => ({ status: 200, body: page([]) }),
+        }),
+      )
+      window.history.pushState(null, '', '/companies/c1')
+      render(<RouterProvider router={createAppRouter()} />)
+      expect((await screen.findByTestId('crm-company-funding-body')).textContent).toBe('Funding body')
+    })
+  })
+})

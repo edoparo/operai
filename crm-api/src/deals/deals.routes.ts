@@ -718,10 +718,11 @@ dealsRouter.openapi(stageRoute, async (c) => {
     return stageTransition(stage, lostReason, new Date(), current);
   });
   // specs/20261101-crm AC-1.8: winning a deal makes a prospect or former client a customer. Its own
-  // write, after the deal's CAS; idempotent, so a retry of the move cannot double it.
+  // write, after the deal's CAS; idempotent, so a retry of the move cannot double it. A funding body (US-10) is never
+  // a customer: winning its tender leaves it as it is.
   if (previousStage !== row.stage && row.stage === "won") {
     await db.company.updateMany({
-      where: { id: row.companyId, status: { in: [...PROMOTED_ON_WIN] } },
+      where: { id: row.companyId, kind: "client", status: { in: [...PROMOTED_ON_WIN] } },
       data: { status: "customer", version: { increment: 1 }, updatedBy: c.get("userId") },
     });
   }

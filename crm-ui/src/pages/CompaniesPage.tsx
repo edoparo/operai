@@ -2,14 +2,14 @@ import { useCallback, useId, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Button, Card, DataTable, Field, PageHeader, Pagination, StatePanel } from '@operai/ui'
 import type { DataTableColumn, DataTableSort } from '@operai/ui'
-import { ArchivedBadge, CompanyStatusBadge, EntityBadge } from '../components/Badges'
+import { ArchivedBadge, CompanyStatusBadge, EntityBadge, FundingBodyBadge } from '../components/Badges'
 import CompanyFormDialog from '../components/CompanyFormDialog'
 import { LoadFailure, Loading } from '../components/LoadState'
 import { listCompanies, listCompanyOwners } from '../lib/crmApi'
 import type { CompanySort } from '../lib/crmApi'
 import { personName } from '../lib/people'
-import { COMPANY_STATUSES } from '../lib/types'
-import type { CompanyStatus, CompanySummary } from '../lib/types'
+import { COMPANY_STATUSES, companyKindOf } from '../lib/types'
+import type { CompanyKind, CompanyStatus, CompanySummary } from '../lib/types'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
@@ -21,7 +21,7 @@ const SORTABLE: readonly CompanySort[] = ['name', 'status', 'entity', 'industry'
 
 /**
  * CompaniesPage — the shared companies list (US-1, AC-1.1/1.2, US-9): filters
- * in a Card (name search, status, owner, show archived), a DataTable sorted by
+ * in a Card (name search, status, type, owner, show archived), a DataTable sorted by
  * the server on the column the person picks (name first), offset Pagination. "New company" opens CompanyFormDialog; a created
  * company opens on its own page (the destination confirms it).
  */
@@ -32,19 +32,21 @@ export default function CompaniesPage() {
   const currentUserId = useCurrentUserId()
   const [q, setQ] = useState('')
   const [status, setStatus] = useState<CompanyStatus | ''>('')
+  const [kind, setKind] = useState<CompanyKind | ''>('')
   const [ownerId, setOwnerId] = useState('')
   const [sort, setSort] = useState<DataTableSort>({ columnId: 'name', direction: 'asc' })
   const [showArchived, setShowArchived] = useState(false)
   const [page, setPage] = useState(1)
   const [creating, setCreating] = useState(false)
 
-  const filtered = q.trim() !== '' || status !== '' || ownerId !== '' || showArchived
+  const filtered = q.trim() !== '' || status !== '' || kind !== '' || ownerId !== '' || showArchived
   const load = useCallback(
     (signal: AbortSignal) =>
       listCompanies(
         {
           q: q.trim(),
           status,
+          ...(kind ? { kind } : {}),
           ...(ownerId ? { ownerId } : {}),
           archived: showArchived ? 'all' : 'false',
           sort: sort.columnId as CompanySort,
@@ -54,10 +56,10 @@ export default function CompaniesPage() {
         },
         { signal },
       ),
-    [q, status, ownerId, showArchived, sort, page],
+    [q, status, kind, ownerId, showArchived, sort, page],
   )
   const companies = useResource(load, {
-    cacheKey: `companies:${JSON.stringify([q.trim(), status, ownerId, showArchived, sort, page])}`,
+    cacheKey: `companies:${JSON.stringify([q.trim(), status, kind, ownerId, showArchived, sort, page])}`,
   })
   const loadOwners = useCallback((signal: AbortSignal) => listCompanyOwners({ signal }), [])
   // The owner filter's choices; if they fail to load, the filter offers "Mine" only.
@@ -74,6 +76,9 @@ export default function CompaniesPage() {
           <Link to="/companies/$id" params={{ id: company.id }} className="link">
             {company.name}
           </Link>
+          {companyKindOf(company) === 'funding_body' && (
+            <FundingBodyBadge testId={`crm-company-funding-body-${company.id}`} />
+          )}
           {company.archived && <ArchivedBadge />}
         </span>
       ),
@@ -152,7 +157,7 @@ export default function CompaniesPage() {
       />
       <div className="flex flex-col gap-4">
         <Card title={t.list.filters}>
-          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Field label={strings.common.search} hint={t.list.searchHint} testId="crm-companies-search">
               {(control) => (
                 <input
@@ -182,6 +187,22 @@ export default function CompaniesPage() {
                       {strings.badges.companyStatus[option]}
                     </option>
                   ))}
+                </select>
+              )}
+            </Field>
+            <Field label={t.list.kind} testId="crm-companies-kind">
+              {(control) => (
+                <select
+                  {...control}
+                  value={kind}
+                  onChange={(event) => {
+                    setKind(event.target.value as CompanyKind | '')
+                    setPage(1)
+                  }}
+                >
+                  <option value="">{t.list.kindAll}</option>
+                  <option value="client">{t.list.kindClients}</option>
+                  <option value="funding_body">{t.list.kindFundingBodies}</option>
                 </select>
               )}
             </Field>

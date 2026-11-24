@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Field, FormDialog, focusFirstInvalid } from '@operai/ui'
+import { Field, FormDialog, RadioGroupField, focusFirstInvalid } from '@operai/ui'
 import { ApiError, isStaleWrite } from '../lib/api'
 import { createCompany, updateCompany } from '../lib/crmApi'
 import type { CompanyInput } from '../lib/crmApi'
 import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { focusRefusal } from '../lib/focusRefusal'
 import { personName } from '../lib/people'
-import { COMPANY_STATUSES, ENTITIES } from '../lib/types'
-import type { Company, CompanyStatus, Entity, LeadSource } from '../lib/types'
+import { COMPANY_KINDS, COMPANY_STATUSES, ENTITIES, companyKindOf } from '../lib/types'
+import type { Company, CompanyKind, CompanyStatus, Entity, LeadSource } from '../lib/types'
 import { country, first, hasErrors, maxLength, optional, required, url } from '../lib/validate'
 import type { Errors } from '../lib/validate'
 import { strings } from '../strings'
@@ -31,6 +31,7 @@ type FieldName =
   | 'street'
   | 'postalCode'
   | 'sourceDetail'
+  | 'kind'
 
 type Draft = {
   name: string
@@ -46,6 +47,7 @@ type Draft = {
   postalCode: string
   source: LeadSource | ''
   sourceDetail: string
+  kind: CompanyKind
 }
 
 const fromCompany = (company: Company | undefined): Draft => ({
@@ -62,7 +64,17 @@ const fromCompany = (company: Company | undefined): Draft => ({
   postalCode: company?.postalCode ?? '',
   source: company?.source ?? '',
   sourceDetail: company?.sourceDetail ?? '',
+  kind: company ? companyKindOf(company) : 'client',
 })
+
+/**
+ * What to send about the kind (2026-11-24). A create sends it only for a funding body, so a client create reads exactly
+ * as before; an edit sends it only when it changed, and only to a server that sent the company's kind (`showKind`).
+ */
+function kindChange(company: Company | undefined, kind: CompanyKind): { kind?: CompanyKind } {
+  if (!company) return kind === 'funding_body' ? { kind } : {}
+  return kind !== companyKindOf(company) ? { kind } : {}
+}
 
 const validate = (draft: Draft): Errors<FieldName> => ({
   name: first(required(draft.name), maxLength(draft.name, 200)) ?? undefined,
@@ -118,6 +130,10 @@ export default function CompanyFormDialog({
     if (refusedAt > 0) focusRefusal(fieldsRef.current?.closest('form'))
   }, [refusedAt])
 
+  // The kind (2026-11-24): always offered on a create; on an edit only when the server sent the company's kind, so an
+  // edit never sends a field an older server does not know.
+  const showKind = company === undefined || company.kind !== undefined
+
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
 
   const submit = () => {
@@ -141,6 +157,7 @@ export default function CompanyFormDialog({
       street: optional(draft.street),
       postalCode: optional(draft.postalCode),
       ...sourceInput(draft.source, draft.sourceDetail),
+      ...(showKind ? kindChange(company, draft.kind) : {}),
       ...(owner !== null && owner.id !== company?.owner.id ? { ownerUserId: owner.id } : {}),
     }
     setBusy(true)
@@ -245,6 +262,23 @@ export default function CompanyFormDialog({
             </select>
           )}
         </Field>
+        {showKind && (
+          <RadioGroupField label={t.kind} hint={t.kindHint} error={errors.kind} testId="crm-company-form-kind">
+            {COMPANY_KINDS.map((option) => (
+              <label key={option}>
+                <input
+                  type="radio"
+                  name="crm-company-form-kind"
+                  value={option}
+                  checked={draft.kind === option}
+                  onChange={() => set('kind', option)}
+                  data-testid={`crm-company-form-kind-${option}`}
+                />
+                {strings.badges.companyKind[option]}
+              </label>
+            ))}
+          </RadioGroupField>
+        )}
         <SourceFields
           source={draft.source}
           detail={draft.sourceDetail}

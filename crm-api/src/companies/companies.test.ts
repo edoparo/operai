@@ -180,6 +180,27 @@ describe("company status automations (specs/20261101-crm AC-1.8, AC-1.9)", () =>
     }
   });
 
+  it("a funding body is never made a customer by winning its tender (US-10)", async () => {
+    const body = await makeCompany({ status: "prospect", kind: "funding_body", name: "Chips Joint Undertaking" });
+    expect(body).toMatchObject({ kind: "funding_body" });
+    await winDeal(body.id);
+    const read = await call("GET", `/companies/${body.id}`);
+    expect(read.json).toMatchObject({ kind: "funding_body", status: "prospect", version: 1 });
+  });
+
+  it("the kind defaults to client, can be changed, and filters the list (US-10)", async () => {
+    const client = await makeCompany({ name: "Client SA" });
+    expect(client).toMatchObject({ kind: "client" });
+    const changed = await call("PATCH", `/companies/${client.id}`, { ifMatch: 1, body: { kind: "funding_body" } });
+    expect(changed.json.kind).toBe("funding_body");
+    const other = await makeCompany({ name: "Other SA" });
+    const bodies = await call("GET", "/companies?kind=funding_body");
+    expect(bodies.json.items.map((c: { id: string }) => c.id)).toEqual([client.id]);
+    const clients = await call("GET", "/companies?kind=client");
+    expect(clients.json.items.map((c: { id: string }) => c.id)).toContain(other.id);
+    expect((await call("POST", "/companies", { body: { name: "X", status: "prospect", entity: "welld_ch", kind: "bank" } })).status).toBe(422);
+  });
+
   it("winning a deal leaves a customer's record untouched", async () => {
     const company = await makeCompany({ status: "customer" });
     await winDeal(company.id);

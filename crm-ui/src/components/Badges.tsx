@@ -40,6 +40,18 @@ export function TenderBadge({ testId }: { testId?: string }) {
   )
 }
 
+/**
+ * A funding body (2026-11-24) is a kind of company, not a status: neutral metadata (design-system § Data). A client is
+ * the default and carries no badge.
+ */
+export function FundingBodyBadge({ testId }: { testId?: string }) {
+  return (
+    <Badge tone="neutral" data-testid={testId}>
+      {strings.badges.companyKind.funding_body}
+    </Badge>
+  )
+}
+
 export function EstimateStateBadge({ state }: { state: EstimateState }) {
   return <StatusBadge status={ESTIMATE_STATE_MEANING[state]}>{strings.badges.estimateState[state]}</StatusBadge>
 }

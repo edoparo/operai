@@ -23,6 +23,12 @@ enum Entity {
   welld_it
 }
 
+/// specs/20261101-crm US-10: a funding body issues public tenders; it is never invoiced and never becomes a customer.
+enum CompanyKind {
+  client
+  funding_body
+}
+
 enum CompanyStatus {
   prospect
   customer
@@ -62,6 +68,8 @@ model Company {
   id          String        @id @default(cuid())
   name        String
   status      CompanyStatus
+  /// US-10: `funding_body` for the issuer of public tenders (never a customer, never invoiced).
+  kind        CompanyKind   @default(client)
   entity      Entity
   website     String?
   industry    String?

@@ -10,6 +10,7 @@ import type { WizardAnswers } from './offerEngine/answers'
 import { offerIncompleteOf } from './offerErrors'
 import type {
   Company,
+  CompanyKind,
   CompanyStatus,
   CompanySummary,
   Contact,
@@ -66,6 +67,8 @@ export type CompanyListQuery = PageQuery &
   ListOrder<CompanySort> & {
     q?: string
     status?: CompanyStatus | ''
+    /** Absent = both kinds. */
+    kind?: CompanyKind | ''
     archived?: ArchivedFilter
     ownerId?: string
   }
@@ -85,6 +88,8 @@ export type CompanyInput = {
   /** specs/20261101-crm US-7. */
   source?: LeadSource | null
   sourceDetail?: string | null
+  /** Sent only when it is not the default (create) or changed (edit): an older server does not know it. */
+  kind?: CompanyKind
   ownerUserId?: string
 }
 

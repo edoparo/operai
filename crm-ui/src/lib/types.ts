@@ -15,6 +15,8 @@ export type CompanyStatus = 'prospect' | 'customer' | 'former'
 export type DealStage = 'lead' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost'
 /** A public tender ("bando di gara", 2026-11-24) or any other deal. */
 export type DealKind = 'standard' | 'tender'
+/** A client (default) or a funding body: the body that issues public tenders, never invoiced (2026-11-24). */
+export type CompanyKind = 'client' | 'funding_body'
 export type ActivityType = 'note' | 'call' | 'meeting' | 'email' | 'task'
 /** Where a company or a lead came from (specs/20261101-crm US-7). */
 export type LeadSource = 'inbound' | 'outbound' | 'event' | 'referral' | 'other'
@@ -22,6 +24,7 @@ export type LeadSource = 'inbound' | 'outbound' | 'event' | 'referral' | 'other'
 export const ENTITIES: readonly Entity[] = ['welld_ch', 'welld_it']
 export const CURRENCIES: readonly Currency[] = ['CHF', 'EUR']
 export const COMPANY_STATUSES: readonly CompanyStatus[] = ['prospect', 'customer', 'former']
+export const COMPANY_KINDS: readonly CompanyKind[] = ['client', 'funding_body']
 export const DEAL_STAGES: readonly DealStage[] = ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost']
 export const OPEN_STAGES: readonly DealStage[] = ['lead', 'qualified', 'proposal', 'negotiation']
 /** A new deal starts here only: proposal and later need a ready estimate (specs/20261101-crm-sales-flow AC-3.4). */
@@ -73,6 +76,8 @@ export type CompanySummary = {
   /** specs/20261101-crm US-7. Absent from an older server. */
   source?: LeadSource | null
   sourceDetail?: string | null
+  /** Client or funding body. Absent from an older server = `client`. */
+  kind?: CompanyKind
   updatedAt: string
 }
 
@@ -486,3 +491,5 @@ export type TemplateProblem = Problem
 
 /** A deal's kind; a server that predates it sends none, and every deal it knows is standard. */
 export const kindOf = (deal: { kind?: DealKind }): DealKind => deal.kind ?? 'standard'
+/** A company's kind; absent from an older server = `client`. */
+export const companyKindOf = (company: { kind?: CompanyKind }): CompanyKind => company.kind ?? 'client'

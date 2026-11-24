@@ -15,6 +15,8 @@ import {
 
 export const COMPANY_STATUSES = ["prospect", "customer", "former"] as const;
 export const CompanyStatusSchema = z.enum(COMPANY_STATUSES);
+/** US-10: a client, or a funding body (the issuer of public tenders: never a customer, never invoiced). */
+export const CompanyKindSchema = z.enum(["client", "funding_body"]);
 
 /** http(s) only: a `javascript:` website rendered as a link would be an XSS vector. */
 const WebsiteSchema = z
@@ -51,6 +53,7 @@ const editable = {
   source: LeadSourceSchema.nullable().optional(),
   sourceDetail: optionalText(200),
   ownerUserId: idText(),
+  kind: CompanyKindSchema.optional(),
 };
 
 export const CreateCompanySchema = z
@@ -73,6 +76,7 @@ export const UpdateCompanySchema = z
     source: editable.source,
     sourceDetail: editable.sourceDetail,
     ownerUserId: editable.ownerUserId.optional(),
+    kind: editable.kind,
   })
   .strict();
 
@@ -84,6 +88,7 @@ export const ListCompaniesQuery = z.object({
   status: CompanyStatusSchema.optional(),
   archived: ArchivedFilterSchema,
   ownerId: idText(64, 0).optional(),
+  kind: CompanyKindSchema.optional(),
   ...sortQuery(COMPANY_SORTS),
   ...pageQuery(),
 });
@@ -95,6 +100,7 @@ export const CompanySummarySchema = z.object({
   status: CompanyStatusSchema,
   /** True when `status` is `former` only because the relationship lapsed. */
   statusLapsed: z.boolean(),
+  kind: CompanyKindSchema,
   entity: EntitySchema,
   industry: z.string().nullable(),
   city: z.string().nullable(),
