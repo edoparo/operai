@@ -189,3 +189,12 @@ Mutations (all restored, `git diff` clean on production code):
 4. I-9 (`assertLocalDatabase` allows everything): 3 of 6 `e2eGlobalSetup` tests FAIL.
 
 Commands: `scratch-test.sh <WT> refund_rn_qe3` (prisma generate and migrate included), `bunx tsc --noEmit` in refund-api; auth `bunx prisma migrate deploy`, `bun test src/authz`, `bun run typecheck` on `auth_rn_qe3`; shell `pnpm exec vitest run src/e2eGlobalSetup.test.ts`, `pnpm exec tsc -p tsconfig.e2e.json --noEmit`, `pnpm exec playwright test --list`; refund-ui `pnpm exec vitest run`, `pnpm exec tsc -b`, `pnpm lint`. Only `*_rn_*` databases; no production, Railway, Vercel or env file touched. Not re-run (no change since the first verdict): refund-ui build, changeset check. The live e2e stays PENDING (T32). OWASP: T28 already covered these fixes; no further pass needed.
+
+## Live e2e (T32, 2026-11-24, owner-requested run on the Mac Studio)
+
+Stack: auth, notify-api, refund-api, accounting-api on the shared dev Postgres (:5435, migration `20261124090000_receipt_numbers_from_register` applied, auth seeded with `+ receipt-code grants`), the compose `minio`, frontends built and served by Playwright, Chromium.
+
+- First run at `cfab4120`: 26 passed, 2 failed, 2 not run. Both failures were axe `label-content-name-mismatch` (WCAG 2.5.3): the receipt codes card's Set code button ("Set a receipt code for X") and the batch page's Download PDF button ("Download compiled PDF for batch …", pre-existing, reached now that the stack has object storage). Fixed in `1e28a399` ("Set code for X", "Download PDF of compiled batch …", en and it; refund-ui 1441 tests green).
+- After the fix: `pnpm e2e e2e/refund-accounting.spec e2e/refund-receipt-codes` 4 passed, then `pnpm e2e e2e/refund- e2e/accounting` **30 passed**, every `refund-*.spec.ts` and `accounting*.spec.ts` included, browser axe at every checkpoint (the receipt codes card in light and dark, the dialog with the 409, the history drawer).
+- Not exercised live: the global setup's three-step release on a database not yet released (the dev database was already released, so it exited 0 at step 0, as designed). The manual browser pass (design § Accessibility hotspots 1-5, 320 px reflow) is not done: T32 stays open for it.
+

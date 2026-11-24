@@ -474,6 +474,7 @@ Derived from these committed files:
     at step 0. The browser pass covers design § Accessibility hotspots 1–5 in light and dark, and the
     320 px reflow of the card.
   - done when: `cd $WT/shell && pnpm e2e e2e/refund-` passes, every existing `refund-*.spec.ts` included; the browser pass is recorded in design.md ("Browser accessibility pass"); the result is noted in qe-report.md.
+  - progress 2026-11-24: the live e2e part is green after `1e28a399` (30/30 `refund-*` and `accounting*`, qe-report.md § Live e2e); still open: the manual browser pass recorded in design.md.
 
 - [ ] T33: [OWNER] Accounting decisions for the release: the open questions of spec.md answered or their fallbacks accepted; the receipt-code holders (LCM/LCP, FRO/FRI, the test account's code); the pairing file decided (workers mapped, the test account `excluded`, every doubtful line decided, malformed and worker-less rows acknowledged, every record `confirmed`) — refs: AC-1.3, AC-1.4, AC-1.10, AC-1.11, AC-1.13, AC-1.14, AC-1.15, AC-4.11 (decisions) — deps: T31
   - touch: `specs/20261124-receipt-numbers-from-the-register/spec.md` (only to record answers to open questions)
