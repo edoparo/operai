@@ -337,3 +337,26 @@ Resolved in plan.md § Design sync (2026-11-24): gap Gn is DS-n there (G1–G9 �
 | G7 | The PDF's receipt-number column width and the journal's cell widths are in refund-api and were not read here. | AC-4.8 | QE check with `LCX26/1000` in the batch PDF; no UI work. |
 | G8 (resolved: DS-8, badge with or without a code) | `sharesPrefix` is defined for an employee with a code too ("another employee's code/initials/issued prefix equals `prefix`"). A code cannot equal another's code (unique) but can equal another employee's **initials or issued prefix**; the plan's D13 flags "no code" only and AC-4.3 forbids it for other **issued** prefixes, not for another employee's derived initials with no number yet. | plan § API vs § D8 | Confirm the badge rule here (flag only when no code). If a code equal to someone else's derived initials is possible, that case is a shared prefix **caused by** the code and deserves a flag too. |
 | G9 | The list shows "Last number" as issued, but a code change does not alter it, so after a change the column still shows the old prefix until the next numbered line. This is correct (AC-4.4) and confusing at a glance. | S2 | The dialog description says so; no extra UI. If accountants ask, add a "Next number will start with" line (derived: prefix + year). |
+
+## Browser accessibility pass (2026-11-24, T32)
+
+Run by the orchestrator on the owner's request against the real stack (shell host + refund-ui remote at `1e28a399`, auth,
+refund-api, accounting-api, notify-api on the shared dev Postgres), Chromium through Playwright, as a scripted walk of this
+section's checks; screenshots looked at by hand. Results:
+
+| Check | Result |
+|---|---|
+| Browser axe (wcag2a/aa, contrast on) on the loaded card: light and dark × en-US and it-IT | 0 violations in all four |
+| Hotspot 1, focus after Clear | lands on the row header (`th scope="row"`); the success line is `role="status"` ("Receipt code for … cleared. New numbers use EE.") |
+| Hotspot 2, 422 and 409 | focus stays on the field, `aria-invalid="true"`, the hint and the error in `aria-describedby`, the error `<p role="alert">`; axe on the dialog with the 409: 0 |
+| Hotspot 3, only-capability user | the view on first render, no tablist, no 403 response |
+| Hotspot 4, names | every action button is named after the employee ("Set code for …", "Change the receipt code of …", "Show the receipt code history of …"); `aria-describedby` targets resolve; the table is a focusable region named "Receipt codes by employee". Duplicate names appear only for dev-database test users that share a display name; two real employees with the same full name would get identical button names (low, not fixed). |
+| Hotspot 5, dialog focus on open | the field is focused |
+| Clear confirmation | `alertdialog` named "Clear the code of …", first focus on Cancel, the action button "Clear code" |
+| History drawer | focus to the heading on open, back to History on close; table with caption, row headers `<time>`; "None" as text; axe 0; reduced motion emulated: opens and closes |
+| Focus visibility | 2 px solid outline (rgb 61 76 224) on the focused control |
+| Reflow at 320 px | **fails, suite-wide**: no page-level horizontal scroll and the card's table keeps its focusable scroll region, but the shell's sidebar stays expanded at 320 px, so `main` is 91 px wide (content one word per line, scrolled horizontally inside `main`). The dialog keeps its footer visible at 320 px. This is the shell layout (every tool), not this view: follow-up **A11Y-F1** (shell: collapse the sidebar under a narrow breakpoint), outside this feature. |
+| Screen reader | not run with a real screen reader; the ARIA snapshots of the dialog, the confirmation, the drawer and a row read as specified (names, roles, described-by). |
+
+Minor, library-wide (not fixed here): the dialogs' close icon is named "Cancel", so a dialog exposes two "Cancel" buttons.
+

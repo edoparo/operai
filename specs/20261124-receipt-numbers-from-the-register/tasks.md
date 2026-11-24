@@ -466,7 +466,7 @@ Derived from these committed files:
     feature it still refuses is a new task for the XLSX track.
   - done when: exit 0; the report's counts are close to the 2026-11-24 facts (77 exact, 8 amount differs, 3 unmatched over 88 lines of 9 employees) or every difference is explained; the report shows no name, email or worker text; the result (counts only) is noted in `qe-report.md` by the owner.
 
-- [ ] T32: [OWNER] Live e2e and the manual browser accessibility pass — refs: AC-4.1, AC-4.3, AC-4.7, AC-4.9, AC-2.8 (live evidence) — deps: T22, T23
+- [x] T32: [OWNER] Live e2e and the manual browser accessibility pass — refs: AC-4.1, AC-4.3, AC-4.7, AC-4.9, AC-2.8 (live evidence) — deps: T22, T23
   - touch: `specs/20261124-receipt-numbers-from-the-register/qe-report.md`, `specs/20261124-receipt-numbers-from-the-register/design.md`
   - agent: owner
   - Details: on the e2e stack (shared dev Postgres), with `mise run dev`. The global setup's
@@ -474,7 +474,7 @@ Derived from these committed files:
     at step 0. The browser pass covers design § Accessibility hotspots 1–5 in light and dark, and the
     320 px reflow of the card.
   - done when: `cd $WT/shell && pnpm e2e e2e/refund-` passes, every existing `refund-*.spec.ts` included; the browser pass is recorded in design.md ("Browser accessibility pass"); the result is noted in qe-report.md.
-  - progress 2026-11-24: the live e2e part is green after `1e28a399` (30/30 `refund-*` and `accounting*`, qe-report.md § Live e2e); still open: the manual browser pass recorded in design.md.
+  - evidence 2026-11-24 (run by the orchestrator on the owner's request): live e2e 30/30 after `1e28a399` (qe-report.md § Live e2e); browser pass recorded in design.md § Browser accessibility pass: every check of this view passes; one suite-wide finding outside this feature, A11Y-F1 (the shell sidebar does not collapse at 320 px, WCAG 1.4.10), left to the owner.
 
 - [ ] T33: [OWNER] Accounting decisions for the release: the open questions of spec.md answered or their fallbacks accepted; the receipt-code holders (LCM/LCP, FRO/FRI, the test account's code); the pairing file decided (workers mapped, the test account `excluded`, every doubtful line decided, malformed and worker-less rows acknowledged, every record `confirmed`) — refs: AC-1.3, AC-1.4, AC-1.10, AC-1.11, AC-1.13, AC-1.14, AC-1.15, AC-4.11 (decisions) — deps: T31
   - touch: `specs/20261124-receipt-numbers-from-the-register/spec.md` (only to record answers to open questions)
