@@ -53,9 +53,9 @@ describe("REFUND_CATALOG (T2, AC-1.1/5.4/7.5/8.2)", () => {
     }
   });
 
-  test("declares exactly four resources — app access, `request`, `rate`, and `settings` — nothing else", () => {
+  test("declares exactly five resources — app access, `request`, `rate`, `settings`, and `receipt-code` — nothing else", () => {
     expect(REFUND_CATALOG.resources.map((r) => r.key).sort()).toEqual(
-      ["rate", "refund", "request", "settings"].sort(),
+      ["rate", "receipt-code", "refund", "request", "settings"].sort(),
     );
   });
 });
@@ -149,5 +149,12 @@ describe("REFUND_CATALOG `settings` resource (T1, specs/20260722-refund-settings
       (r) => r.key === "settings",
     ).length;
     expect(settingsResourceCount).toBe(1);
+  });
+
+  test("declares `receipt-code` with a single `manage` action and no conditions (T1, specs/20261124-receipt-numbers-from-the-register, AC-4.9)", () => {
+    const resource = REFUND_CATALOG.resources.find((r) => r.key === "receipt-code");
+    expect(resource).toBeDefined();
+    expect(resource?.label).toBe("Receipt code");
+    expect(resource?.actions).toEqual([{ key: "manage", label: "Manage", supportedConditions: [] }]);
   });
 });

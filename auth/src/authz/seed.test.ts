@@ -83,6 +83,7 @@ import {
   seedProjectsCatalog,
   seedProjectsGrants,
   seedRateAdminGrants,
+  seedReceiptCodeGrants,
   seedRefundAdminRole,
   seedRefundCatalog,
   seedSettingsAdminGrants,
@@ -1892,5 +1893,64 @@ describe("seedHoursGrants (specs/20261112-time-tracking — AC-5.2, AC-3.3, AC-4
     const catalog = await getAppCatalog(HOURS_APP_ID);
     expect(catalog.resources.map((r) => r.key).sort()).toEqual(["time-entry", "time-list"]);
     expect((await hoursRules()).map((r) => r.grant)).toEqual(["time-entry:read-all", "time-list:manage"]);
+  });
+});
+
+// ─── specs/20261124-receipt-numbers-from-the-register T1 (AC-4.9) ───────────────────
+
+describe("seedReceiptCodeGrants (T1, specs/20261124-receipt-numbers-from-the-register, AC-4.9)", () => {
+  test("seed() grants receipt-code:manage, unconditioned, to `accounting` and `admin` ONLY; a second seed() changes nothing", async () => {
+    await seed();
+    const snapshot = async () =>
+      (
+        await db.permissionRule.findMany({
+          where: { resource: "receipt-code" },
+          select: { id: true, roleId: true, action: true, conditions: true, role: { select: { name: true } } },
+        })
+      ).sort((a, b) => a.id.localeCompare(b.id));
+
+    const first = await snapshot();
+    expect(first.map((r) => r.role.name).sort()).toEqual([ACCOUNTING_ROLE_NAME, ADMIN_ROLE_NAME].sort());
+    for (const rule of first) {
+      expect(rule.action).toBe("manage");
+      expect(rule.conditions).toBeNull();
+    }
+
+    await seed();
+    expect(await snapshot()).toEqual(first);
+  });
+
+  test("no other role holds it: not employee, hr, refund-admin", async () => {
+    await seed();
+    const holders = await db.permissionRule.findMany({
+      where: { resource: "receipt-code" },
+      select: { role: { select: { name: true } } },
+    });
+    const names = holders.map((r) => r.role.name);
+    for (const other of [EMPLOYEE_ROLE_NAME, "hr", REFUND_ADMIN_ROLE_NAME]) {
+      expect(names).not.toContain(other);
+    }
+  });
+
+  test("never overwrites an existing grant (a conditioned rule is left as is)", async () => {
+    await seedSystemRoles();
+    const role = await db.role.findUniqueOrThrow({ where: { name: ACCOUNTING_ROLE_NAME } });
+    await db.permissionRule.deleteMany({ where: { roleId: role.id, resource: "receipt-code" } });
+    const kept = await db.permissionRule.create({
+      data: {
+        roleId: role.id,
+        resource: "receipt-code",
+        action: "manage",
+        conditions: [{ key: "entity", match: "user" }],
+      },
+    });
+    await seedReceiptCodeGrants();
+    const rows = await db.permissionRule.findMany({ where: { roleId: role.id, resource: "receipt-code" } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(kept.id);
+    expect(rows[0]?.conditions).not.toBeNull();
+    // restore the canonical state for any later test
+    await db.permissionRule.delete({ where: { id: kept.id } });
+    await seedReceiptCodeGrants();
   });
 });

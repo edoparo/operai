@@ -628,6 +628,25 @@ export async function seedSettingsAdminGrants(): Promise<void> {
   }
 }
 
+/** The system roles granted `receipt-code:manage` (T1, specs/20261124-receipt-numbers-from-the-register, AC-4.9). */
+const RECEIPT_CODE_ROLE_NAMES = [ACCOUNTING_ROLE_NAME, ADMIN_ROLE_NAME] as const;
+
+/**
+ * Grants `receipt-code:manage` (unconditioned) to `accounting` and `admin` ONLY (AC-4.9 "no other
+ * role": not `refund-admin`, not `employee`). Idempotent and non-destructive through
+ * {@link ensureGrant}. Logged by `seed()` as `+ receipt-code grants`.
+ */
+export async function seedReceiptCodeGrants(): Promise<void> {
+  for (const roleName of RECEIPT_CODE_ROLE_NAMES) {
+    const role = await db.role.upsert({
+      where: { name: roleName },
+      update: {},
+      create: { name: roleName, isSystem: true },
+    });
+    await ensureGrant(role.id, "receipt-code", "manage");
+  }
+}
+
 /** Creates the (role, resource, action) grant only when absent — never overwrites an existing one. */
 async function ensureGrant(
   roleId: string,
@@ -1107,6 +1126,7 @@ export async function seed(): Promise<void> {
   await seedRefundAdminRole();
   await seedRateAdminGrants();
   await seedSettingsAdminGrants();
+  await seedReceiptCodeGrants();
   await seedInventoryGrants();
   await seedCrmGrants();
   await seedMeetingsGrants();
@@ -1194,7 +1214,7 @@ if (import.meta.main) {
       console.log(
         "Seeded system roles + suite app-access catalog + EstimAI catalog + refund catalog " +
           "+ admin app-access grants + accounting refund grants + refund-admin role + " +
-          "rate admin grants + settings admin grants + inventory catalog + inventory grants " +
+          "rate admin grants + settings admin grants + receipt-code grants + inventory catalog + inventory grants " +
           "+ CRM catalog + CRM grants + projects catalog + projects grants " +
           "+ letterheads catalog + letterheads grants " +
           "+ admin catalog + legal-entity grants " +

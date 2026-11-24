@@ -71,7 +71,7 @@ Derived from these committed files:
 
 ## AUTH — auth
 
-- [ ] T1: auth — refund catalog resource `receipt-code` (action `manage`, no conditions) and `seedReceiptCodeGrants()` for `accounting` and `admin` only — refs: AC-4.9 — deps: none
+- [x] T1: auth — refund catalog resource `receipt-code` (action `manage`, no conditions) and `seedReceiptCodeGrants()` for `accounting` and `admin` only — refs: AC-4.9 — deps: none
   - touch: `auth/src/authz/catalogs/refund.ts`, `auth/src/authz/catalogs/refund.test.ts`, `auth/src/authz/seed.ts`, `auth/src/authz/seed.test.ts`
   - agent: backend-dev · auth
   - Details:

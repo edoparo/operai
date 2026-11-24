@@ -166,5 +166,12 @@ export const REFUND_CATALOG: AppCatalogInput = {
         { key: "manage", label: "Manage", supportedConditions: [] },
       ],
     },
+    {
+      // specs/20261124-receipt-numbers-from-the-register T1 (plan D12, AC-4.9): the per-employee
+      // receipt code. Global and unconditioned like `rate`/`settings` — a code is not entity-scoped.
+      key: "receipt-code",
+      label: "Receipt code",
+      actions: [{ key: "manage", label: "Manage", supportedConditions: [] }],
+    },
   ],
 };
