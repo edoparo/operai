@@ -18,9 +18,10 @@ describe("notify-api web push env", () => {
     expect(isSecretVar("VAPID_SUBJECT")).toBe(false);
   });
 
-  test("the production template ships push off and holds the private key only as a 1Password reference", () => {
+  // Push was enabled in production on 2026-11-13 (go-live sign-off of ADR 20261111-web-push-encrypted-payloads-not-fcm).
+  test("the production template ships push on and holds the private key only as a 1Password reference", () => {
     const t = readFileSync(resolve(import.meta.dir, "templates/production/notify-api.env"), "utf8");
-    expect(t).toMatch(/^PUSH_ENABLED=false$/m);
+    expect(t).toMatch(/^PUSH_ENABLED=true$/m);
     const priv = t.split("\n").filter((l) => l.includes("VAPID_PRIVATE_KEY="));
     expect(priv.length).toBeGreaterThan(0);
     for (const l of priv) expect(l).toMatch(/\$\{OP:/);
