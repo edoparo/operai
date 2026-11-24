@@ -411,7 +411,7 @@ Derived from these committed files:
 
 ## CLOSE — QE, security, eval, closing (the gate)
 
-- [ ] T27: QE pass over all 52 ACs — refs: all ACs (nominal) — deps: T1, T14, T15, T21, T23, T24, T25, T26
+- [x] T27: QE pass over all 52 ACs — refs: all ACs (nominal) — deps: T1, T14, T15, T21, T23, T24, T25, T26
   - touch: `specs/20261124-receipt-numbers-from-the-register/qe-report.md`
   - agent: qe · close
   - Details: every AC has a named, executed test (§ Coverage). Re-run each done-when on fresh scratch
@@ -420,6 +420,7 @@ Derived from these committed files:
     by eye once. The manual browser accessibility pass and the live e2e are listed under T32, not run
     here.
   - done when: `qe-report.md` has verdict PASS; green: `$ST $WT refund_rn_qe` (whole refund-api suite), `cd $WT/refund-api && bun run typecheck`, auth `bun test src/authz` and `bun run typecheck`, `cd $WT/refund-ui && pnpm exec vitest run && pnpm exec tsc -b && pnpm lint && pnpm build`, the shell e2e static checks of T22/T23, `mise run changeset:check`. The live e2e is PENDING (T32), not a failure.
+  - evidence: `qe-report.md` verdict PASS: refund-api 2331 pass / 0 fail (94 files) + tsc clean, auth `src/authz` 332 pass + typecheck clean, refund-ui 1440 pass + tsc + lint + build clean, shell e2e static clean (273 tests listed), changeset check OK against origin/main; 32 mutants, 3 real test gaps closed by 4 new tests, no product defect; environment faults E-1 to E-3 (stale Prisma client, estimai-ui without node_modules, changeset base) listed in the report; live e2e PENDING (T32).
 
 - [ ] T28: OWASP review (plan § Security, standard tier), in parallel with QE — refs: all ACs (nominal) — deps: T1, T14, T15, T21, T23, T24, T25, T26
   - touch: `specs/20261124-receipt-numbers-from-the-register/security-review.md`
