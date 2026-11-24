@@ -363,7 +363,7 @@ Derived from these committed files:
 
 ## E2E — shell
 
-- [ ] T22: e2e — global setup runs the three-step release on the committed header-only fixture — refs: AC-2.8, AC-5.3 — deps: T7, T13
+- [x] T22: e2e — global setup runs the three-step release on the committed header-only fixture — refs: AC-2.8, AC-5.3 — deps: T7, T13
   - touch: `shell/e2e/global-setup.ts`
   - agent: qe · e2e
   - Details: plan § e2e and local: propose into a 0700 temp dir; "already completed" in the output →
@@ -372,6 +372,7 @@ Derived from these committed files:
     outcome. The failure message names exits 5–9 instead of exit 3. `E2E_SKIP_REFUND_ACCOUNTING_RELEASE`
     unchanged.
   - done when: `cd $WT/shell && pnpm exec tsc -p tsconfig.e2e.json --noEmit && pnpm exec eslint e2e/global-setup.ts && pnpm exec playwright test --list` is clean (the live run is T32).
+  - evidence: `tsc -p tsconfig.e2e.json --noEmit` clean, `eslint e2e/global-setup.ts` clean, `playwright test --list` 270 tests in 57 files; `confirmProposedPairing` output byte-identical to refund-api's `confirmProposed` on a BOM/CRLF/quoted sample and throws naming `line L1` on an `unresolved` record (run with bun); the live run (propose, confirm, run on the dev stack) is T32. The setup passes no `--offsets`: the header-only workbook is the statement "no hand-issued number".
 
 - [ ] T23: e2e — `refund-receipt-codes.spec.ts`: accounting user sets, changes (409 shown), clears a code and reads the history by keyboard; a non-holder sees no Settings entry for it; browser axe at the card, the dialog with a 409 and the drawer — refs: AC-4.1, AC-4.3, AC-4.7, AC-4.9 — deps: T1, T5, T21, T22
   - touch: `shell/e2e/refund-receipt-codes.spec.ts`, `shell/e2e/helpers/refundFixtures.ts`

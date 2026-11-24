@@ -28,19 +28,21 @@
  *      journey) would fail for the wrong reason. Skipped only when both steps below are skipped.
  *   2. SEED: `direnv exec . bun run seed:welld-ch` in `accounting-api/` loads WellD CH's signed-off list of accounts and VAT codes.
  *      Idempotent (a second run adds nothing, and never touches an entry that exists). `E2E_SKIP_ACCOUNTING_SEED=1` skips it.
- *   3. RELEASE: `direnv exec . bun run accounting:release --offsets <file>` in `refund-api/`. It READS Accounting first (the seed
- *      above, through refund-api's own `ACCOUNTING_INTERNAL_URL`, which must name the same accounting-api as step 1), seeds
- *      Refund's fourteen type defaults (accounts only) from `scripts/data/accounting-defaults.welld-ch.json` (its `--defaults`
- *      flag defaults to that file; the old `--seed` is gone), numbers and classifies what exists, and writes the release
- *      marker. Idempotent. `E2E_SKIP_REFUND_ACCOUNTING_RELEASE=1` skips it, for a run of specs that never approve a refund request.
- *
- *      `--offsets` IS REQUIRED since the 2026-11-19 sign-off (20261118 SO-13, AC-7.4): the list of the last receipt numbers
- *      issued by hand in the 2026 register, and without it the release writes nothing and exits 3. The e2e has no hand-issued
- *      numbers: every receipt number a journey sees starts at 001. So the setup passes a file that holds ONLY THE HEADER LINE
- *      (`email,year,lastIssuedSeq`), which the release reads as the explicit statement "no employee has a hand-issued 2026
- *      number". The file is written to a directory of its own under the OS temp directory (mode 0700, never inside the
- *      repository, where the release script would warn that a file naming employees may be committed) and removed when the
- *      step ends, whatever its outcome. It names nobody.
+ *   3. RELEASE: the three-step release of specs/20261124-receipt-numbers-from-the-register (plan § e2e and local), in `refund-api/`,
+ *      under `direnv exec`. It READS Accounting first (the seed above, through refund-api's own `ACCOUNTING_INTERNAL_URL`, which
+ *      must name the same accounting-api as step 1), and seeds Refund's fourteen type defaults from
+ *      `scripts/data/accounting-defaults.welld-ch.json`. Idempotent: on a database already released, step (a) prints "already
+ *      completed" and the setup stops there, having written nothing. `E2E_SKIP_REFUND_ACCOUNTING_RELEASE=1` skips it, for a run of
+ *      specs that never approve a refund request.
+ *        (a) PROPOSE   `accounting:release --dry-run --register <committed header-only workbook> --propose <tmp>/pairing.csv`;
+ *        (b) CONFIRM   in this file's own code, every `proposed` worker / line / row record becomes `confirmed` (a row is
+ *                      `acknowledged`). An `unresolved` record fails the run, naming the command that shows it: the dev database
+ *                      holds lines or employees that need a person's decision, and no default is guessed;
+ *        (c) RUN       `accounting:release --register <same workbook> --pairing <tmp>/pairing.csv`.
+ *      The workbook is `refund-api/scripts/fixtures/synthetic-register-header-only.xlsx`: committed, the header row only, no data,
+ *      so the release reads it as "no employee has a hand-issued 2026 number" and every receipt number a journey sees starts at 001.
+ *      The pairing file names employees: it lives in a directory of its own under the OS temp directory (mode 0700, never inside
+ *      the repository), the file is mode 0600, and the directory is removed when the step ends, whatever its outcome.
  *
  * WHICH DATABASE THE SCRIPTS WRITE TO. Both run under `direnv exec`, the way `mise run dev` starts those services, so each reaches
  * the database its own `.envrc` names: that is the shared dev Postgres, whatever a `DATABASE_URL` already in your shell says
@@ -56,7 +58,7 @@
  * and the legal-entity import) keep following their own `.envrc`.
  */
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -110,19 +112,85 @@ function runUnderDirenv(dir: string, script: string, override: string | undefine
   })
 }
 
-/** The header line of the offsets file the release reads (`email,year,lastIssuedSeq`): on its own it says "no hand-issued number". */
-export const BASELINE_HEADER = 'email,year,lastIssuedSeq'
+/** The committed workbook the release reads: the header row of the register and no data (refund-api/scripts/fixtures). */
+const HEADER_ONLY_REGISTER = path.join(REFUND_API_DIR, 'scripts', 'fixtures', 'synthetic-register-header-only.xlsx')
+
+/** What a successful propose run prints when the marker is already there (`formatReport`, refund-api/scripts/accounting-release.ts). */
+const ALREADY_COMPLETED = /already completed/i
 
 /**
- * Writes the e2e's baseline list, a file with the header line and no row, to a new directory under the OS temp directory, and
- * returns its path and a function that removes the directory. `mkdtemp` creates it with mode 0700 and a name nobody can guess; the
- * file is mode 0600. Only what this function created is removed.
+ * A private directory for the pairing file: `mkdtemp` creates it under the OS temp directory with mode 0700 and a name nobody can
+ * guess. Only what this function created is removed.
  */
-function writeHeaderOnlyBaseline(): { file: string; remove: () => void } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'operai-e2e-baseline-'))
-  const file = path.join(dir, 'receipt-baseline.csv')
-  writeFileSync(file, `${BASELINE_HEADER}\n`, { encoding: 'utf-8', mode: 0o600 })
-  return { file, remove: () => rmSync(dir, { recursive: true, force: true }) }
+function makePrivateDir(): { dir: string; remove: () => void } {
+  const dir = mkdtempSync(path.join(tmpdir(), 'operai-e2e-release-'))
+  return { dir, remove: () => rmSync(dir, { recursive: true, force: true }) }
+}
+
+/** Splits CSV text into rows of cells (RFC 4180 quoting; a leading BOM is dropped). */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let quoted = false
+  const input = text.replace(/^\uFEFF/, '')
+  for (let i = 0; i < input.length; i++) {
+    const c = input[i]!
+    if (quoted) {
+      if (c === '"' && input[i + 1] === '"') {
+        cell += '"'
+        i++
+      } else if (c === '"') quoted = false
+      else cell += c
+    } else if (c === '"') quoted = true
+    else if (c === ',') {
+      row.push(cell)
+      cell = ''
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && input[i + 1] === '\n') i++
+      row.push(cell)
+      cell = ''
+      if (row.some((x) => x !== '')) rows.push(row)
+      row = []
+    } else cell += c
+  }
+  row.push(cell)
+  if (row.some((x) => x !== '')) rows.push(row)
+  return rows
+}
+
+const csvCell = (cell: string): string => (/[",\r\n]|^\s|\s$/.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell)
+
+/** Thrown when the proposed pairing file holds records only a person can decide. */
+class PairingNeedsDecision extends Error {}
+
+/**
+ * The text of the proposed pairing file with every `proposed` worker, line and row record set to `confirmed` (a row is also
+ * `acknowledged`): what the operator does with a file that has nothing to decide. Throws {@link PairingNeedsDecision}, naming the
+ * record kinds and ids (never a person), when a record is `unresolved`.
+ */
+export function confirmProposedPairing(csv: string): string {
+  const rows = parseCsv(csv)
+  const header = (rows[0] ?? []).map((c) => c.trim())
+  const [kind, id, state, decision] = ['record', 'id', 'state', 'decision'].map((name) => header.indexOf(name)) as [number, number, number, number]
+  if (kind < 0 || id < 0 || state < 0 || decision < 0) throw new Error('the proposed pairing file has no header with record, id, state and decision')
+  const open: string[] = []
+  const rewritten = rows.map((row, index) => {
+    if (index === 0) return row
+    const cells = [...row]
+    const type = cells[kind]
+    if (type !== 'worker' && type !== 'line' && type !== 'row') return cells
+    const current = cells[state]?.trim().toLowerCase()
+    if (current === 'unresolved') {
+      open.push(`${type} ${cells[id]}`)
+      return cells
+    }
+    if (current === 'proposed') cells[state] = 'confirmed'
+    if (type === 'row') cells[decision] = 'acknowledged'
+    return cells
+  })
+  if (open.length > 0) throw new PairingNeedsDecision(`records to decide: ${open.join(', ')}`)
+  return `\uFEFF${rewritten.map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`
 }
 
 /** The last line of a script's report (counts, never an employee), or `''`. */
@@ -185,30 +253,59 @@ function seedAccounting(): void {
   }
 }
 
-/** Runs refund-api's release script once; the marker it writes is what lets approvals through. It reads Accounting first. */
+/**
+ * Runs refund-api's release once, in its three steps (see the header): propose, confirm `proposed` records, real run. The marker it
+ * writes is what lets approvals through. It reads Accounting first.
+ */
 function releaseRefundAccounting(): void {
   if (skipRelease()) {
     console.error('[global-setup] E2E_SKIP_REFUND_ACCOUNTING_RELEASE=1: refund accounting is NOT released, approvals will answer 409')
     return
   }
   const override = databaseOverride(REFUND_DATABASE_OVERRIDE)
-  const baseline = writeHeaderOnlyBaseline()
+  const where = override ? ` (database from ${REFUND_DATABASE_OVERRIDE})` : ''
+  const inspect =
+    'Run `cd refund-api && direnv exec . bun run accounting:release --dry-run --register scripts/fixtures/synthetic-register-header-only.xlsx ' +
+    '--propose <new file outside the repository>` against the database refund-api uses and read its report'
+  const failures =
+    'exit 2 means Accounting could not be read (ACCOUNTING_INTERNAL_URL must name the accounting-api that is running), exit 4 that auth ' +
+    'could not be read for the names, exit 5 that an input was not given, exit 6 that an input could not be read, exit 7 that the lines ' +
+    'changed since the pairing file was written, exit 8 that the pairing is not fully decided, exit 9 that a new number would go to an ' +
+    'employee who shares a prefix and has no receipt code'
+  const tmp = makePrivateDir()
+  const pairing = path.join(tmp.dir, 'pairing.csv')
+  let step = 'propose'
   try {
-    const output = runUnderDirenv(REFUND_API_DIR, 'accounting:release', override, ['--offsets', baseline.file])
+    const proposed = runUnderDirenv(REFUND_API_DIR, 'accounting:release', override, [
+      '--dry-run', '--register', HEADER_ONLY_REGISTER, '--propose', pairing,
+    ])
+    if (ALREADY_COMPLETED.test(proposed)) {
+      console.log(`[global-setup] refund accounting was already released: nothing to do${where}`)
+      return
+    }
+    step = 'confirm'
+    if (!existsSync(pairing)) throw new Error('the propose step wrote no pairing file')
+    writeFileSync(pairing, confirmProposedPairing(readFileSync(pairing, 'utf-8')), { encoding: 'utf-8', mode: 0o600 })
+    step = 'run'
+    const output = runUnderDirenv(REFUND_API_DIR, 'accounting:release', override, ['--register', HEADER_ONLY_REGISTER, '--pairing', pairing])
     // the script's report names counts, never an employee: print its last line only
     const last = lastLine(output)
-    console.log(`[global-setup] refund accounting released${override ? ` (database from ${REFUND_DATABASE_OVERRIDE})` : ''}${last ? ` (${last})` : ''}`)
+    console.log(`[global-setup] refund accounting released${where}${last ? ` (${last})` : ''}`)
   } catch (error) {
+    if (error instanceof PairingNeedsDecision) {
+      throw new Error(
+        `[global-setup] refund accounting could not be released: the development database holds lines or employees that need a person's decision (${error.message}). ` +
+          `${inspect}, decide there, or set E2E_SKIP_REFUND_ACCOUNTING_RELEASE=1 for specs that never approve a refund request.`,
+      )
+    }
+    const reason = error instanceof Error && !('status' in error) ? scrub(error.message) : describeFailure(error)
     throw new Error(
-      `[global-setup] refund accounting could not be released: ${describeFailure(error)}\n` +
-        'Run `cd refund-api && direnv exec . bun run accounting:release --dry-run --offsets <file>` (a file holding only the header line ' +
-        `"${BASELINE_HEADER}") against the database refund-api uses (its migrations applied: ` +
-        '`bun run db:deploy`; ACCOUNTING_INTERNAL_URL naming the accounting-api that is running; exit 2 means Accounting could not be read, ' +
-        'exit 3 that the baseline list was not given or not read), ' +
+      `[global-setup] refund accounting could not be released (step: ${step}): ${reason}\n` +
+        `${inspect} (its migrations applied: \`bun run db:deploy\`; ${failures}), ` +
         'or set E2E_SKIP_REFUND_ACCOUNTING_RELEASE=1 for specs that never approve a refund request.',
     )
   } finally {
-    baseline.remove()
+    tmp.remove()
   }
 }
 
