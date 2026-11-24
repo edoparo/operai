@@ -74,6 +74,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
  *   through meetings-api's `GET /system/meetings/hosts` (specs/20261112-time-tracking, ADR 20261112-time-bookability-asked-of-owners-meeting-hosts-system-route). Only hours-api
  *   holds it; meetings-api's sub allowlist names `system:hours-api`. It answers `{id, host}` and
  *   nothing else — no title, participant or duration.
+ * - `meeting-hours-notices.send`: tell hours-api the current hours facts of a meeting (start, duration,
+ *   creator, Operai participants) through `POST /system/meeting-hours/v1/notices` (specs/20261112-meeting-hours).
+ *   Only meetings-api holds it; hours-api's sub allowlist names `system:meetings-api`.
  */
 export const KNOWN_SERVICE_SCOPES = [
   "notifications.push",
@@ -92,6 +95,7 @@ export const KNOWN_SERVICE_SCOPES = [
   "legal-entities:read",
   "accounting.reference.read",
   "meetings.hosts.read",
+  "meeting-hours-notices.send",
 ] as const;
 
 /**
@@ -100,7 +104,9 @@ export const KNOWN_SERVICE_SCOPES = [
  * pinned by a test, never read at runtime: the live set is the `SERVICE_CLIENTS`
  * env value, validated by {@link parseServiceClients}.
  * - `meetings-api` (specs/20261104-meetings): pushes in-app notifications and relays host
- *   notices to crm-api; it never sends email (AC-12.4), so no `emails.send`.
+ *   notices to crm-api; it never sends email (AC-12.4), so no `emails.send`. Since
+ *   specs/20261112-meeting-hours it also tells hours-api a meeting's hours facts
+ *   (`meeting-hours-notices.send`, ADR 20261124-meeting-hours-facts-pushed-by-their-owner-as-a-versioned-state-built-at-send-time-through-an-until-delivered-outbox-and-applied-by-hours-api-only-when-not-older).
  * - `projects-api` (specs/20261103-projects, 026): reads CRM companies, won deals and a PO's
  *   referent contacts, an estimate's man-days, and pushes the ops-manager's
  *   notification; it sends no email, so no `emails.send` (ADR 20261013-all-notify-callers-scoped-credentials-shared-token-retired one scope per
@@ -120,7 +126,7 @@ export const KNOWN_SERVICE_SCOPES = [
  *   the caller, with the user's JWT, so it holds no other scope and sends no notification.
  */
 export const DOCUMENTED_CLIENT_SCOPES = {
-  "meetings-api": "notifications.push host-notices.send",
+  "meetings-api": "notifications.push host-notices.send meeting-hours-notices.send",
   "projects-api": "crm.companies.read crm.deals.read crm.contacts.read estimai.estimates.read notifications.push",
   "crm-api":
     "notifications.push emails.send deal-link-notices.send activities.write projects.purchase-orders.read legal-entities:read letterhead:render",
