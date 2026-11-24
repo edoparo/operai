@@ -151,7 +151,7 @@ export function writePairingCsv(data: PairingFileData): string {
         employee: p.employeeKey,
         expenseDate: l.date,
         amount: formatCents(l.amountCents),
-        currency: l.currency,
+        currency: neutralise(l.currency),
         category: p.category,
         reason: neutralise(p.reason ?? ""),
         proposed: p.proposed ?? "",
@@ -165,7 +165,7 @@ export function writePairingCsv(data: PairingFileData): string {
     );
   }
   for (const r of data.rows) {
-    out.push(record({ record: "row", id: `R${r.position}`, label: r.shape, category: r.category, state: "unresolved" }));
+    out.push(record({ record: "row", id: `R${r.position}`, label: neutralise(r.shape), category: r.category, state: "unresolved" }));
   }
   return `﻿${out.join("\r\n")}\r\n`;
 }

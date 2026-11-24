@@ -252,6 +252,32 @@ describe("no output of any mode or refusal carries a name, an email, a descripti
     expect(outputs.length).toBeGreaterThan(24);
   });
 
+  it("(I-4) a refusal inside the transaction names the employee as `<prefix> · <8>` and never by name or email", async () => {
+    const { register } = await fixture();
+    const registerPath = fresh("register-i4.xlsx");
+    writeFileSync(registerPath, register);
+    const proposal = fresh("proposal-i4.csv");
+    expect((await cli({}, "--dry-run", "--register", registerPath, "--propose", proposal)).exitCode).toBe(0);
+    const decidedPath = fresh("decided-i4.csv");
+    writeFileSync(
+      decidedPath,
+      editPairing(decideLines(readFileSync(proposal, "utf8"), { "z-differs": { decision: "new" } }), (r) => {
+        if (r["record"] === "worker" && r["decision"] === "") r["decision"] = "not-operai";
+      }),
+      { mode: 0o600 },
+    );
+    for (const [owner, code] of [["u-zelda", "ZEL"], ["u-zoe", "ZOE"]] as const) {
+      await db.receiptCode.create({ data: { ownerUserId: owner, code, updatedByUserId: "admin-1", updatedByEmail: "admin@example.invalid", updatedAt: new Date() } });
+    }
+    // Zelda's 2026 counter exists with no baseline: the release cannot load one (`baseline_pair_has_numbers`, exit 1).
+    await db.receiptCounter.create({ data: { ownerUserId: "u-zelda", year: 2026, lastSeq: 7, startAfter: 0 } });
+    const res = await cli({}, "--register", registerPath, "--pairing", decidedPath);
+    expect(res.exitCode).toBe(1);
+    expect(res.all).toContain("ZEL · u-zelda");
+    noSecrets(res.all, "baseline refusal");
+    expect(res.all).not.toMatch(/zelda\.fitz|Zelda Fitz|Fitzgerald|secret-mail|@/i);
+  });
+
   it("the doubtful line's own amounts are shown, and only those: the report lists the pairing's line and row amounts, not the exact match's", async () => {
     const { register } = await fixture();
     const registerPath = fresh("register.xlsx");

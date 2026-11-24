@@ -22,7 +22,9 @@
  *   0. The marker first: a completed release exits 0 "already completed" whatever the inputs, reading nothing and writing nothing.
  *   1. Accounting, read first (exit 2). 2. auth, for the owners' names (exit 4). 3. The inputs given (exit 5). 4. The inputs readable
  *   (exit 6). 5. Stale (exit 7). 6. Decided (exit 8). 7. The transaction (shared prefix, exit 9). 8. The report.
- *   Exit 1 is any other failure (usage, a pairing path that exists, an internal assertion); 3 is retired and never produced.
+ *   Exit 1 is any other failure (usage, a pairing path that exists, a --propose path inside a git worktree, an internal assertion);
+ *   3 is retired and never produced. A --propose path inside a git worktree is REFUSED before anything is read or written (the file
+ *   names employees and must never be committed); the paths that are only read (--register, --pairing, --offsets) get a warning.
  *
  * Inside the transaction (a failure anywhere changes nothing): owner names, Refund's default accounts, one baseline row per employee
  * whose computed baseline (max of the offsets row, the register maximum and the imported numbers, AC-3.1) is 1 or more, then per
@@ -57,7 +59,7 @@ import { BASELINE_YEAR, baselineKey, classifyAndNumber, type AccountingReads, ty
 import { initials, parseReceiptNumber } from "../src/accounting/receiptNumber";
 import { referenceSnapshot, type ReferenceSnapshot } from "../src/accounting/referenceSnapshot";
 import { RELEASE_MARKER_KEY } from "../src/accounting/release";
-import { OperatorFileError, parseCsvRows, sha256Bytes, shapeOf, worktreeWarning, writeFileExclusive } from "./lib/operatorFiles";
+import { OperatorFileError, parseCsvRows, pathInsideGitWorktree, sha256Bytes, shapeOf, worktreeWarning, writeFileExclusive } from "./lib/operatorFiles";
 import {
   analysePrefixes,
   computeBaselines,
@@ -1324,10 +1326,16 @@ export function parseArguments(argv: readonly string[]): Cli {
 
 async function main(argv: readonly string[]): Promise<void> {
   const cli = parseArguments(argv);
+  // L-1: a file this command WRITES with names and emails never goes inside a git worktree (exit 1, nothing read or written).
+  if (cli.propose !== undefined && pathInsideGitWorktree(cli.propose) !== null) {
+    throw new ReleaseError(
+      "propose_inside_worktree",
+      "the pairing file to write is inside a git worktree: it names employees and must never be committed. Choose a path outside the repository (for example in your home directory). Nothing was written",
+    );
+  }
   for (const [path, what] of [
     [cli.register, "the register export"],
     [cli.pairing, "the pairing file"],
-    [cli.propose, "the pairing file to write"],
     [cli.offsets, "the offsets file"],
   ] as const) {
     const warning = path === undefined ? null : worktreeWarning(path, what, "It names employees");

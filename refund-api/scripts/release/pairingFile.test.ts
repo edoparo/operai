@@ -182,6 +182,17 @@ describe("the writer (AC-2.3)", () => {
     const written = parseCsvRows(writePairingCsv(evil)).find((r) => r[0] === "worker")!;
     expect(written[2]!.startsWith("'=")).toBe(true);
   });
+
+  it("(L-2) neutralises the shape of a register row and the currency: a shape or a code starting with = - @ + is text", () => {
+    for (const shape of ["=AA99", "-99/99", "@AAA", "+99"]) {
+      const evil = { ...data, rows: [{ position: 3, shape, category: "malformed" }] } as unknown as PairingFileData;
+      const written = parseCsvRows(writePairingCsv(evil)).find((r) => r[0] === "row")!;
+      expect(written[2]).toBe(`'${shape}`);
+    }
+    const evilCurrency = { ...data, lines: data.lines.map((l) => ({ ...l, currency: "=EU" })) } as unknown as PairingFileData;
+    const line = parseCsvRows(writePairingCsv(evilCurrency)).find((r) => r[0] === "line")!;
+    expect(line[6]).toBe("'=EU");
+  });
 });
 
 describe("the reader (R6: Excel round trips)", () => {

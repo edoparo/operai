@@ -671,20 +671,26 @@ describe("the inputs: present (exit 5) and readable (exit 6)", () => {
   });
 });
 
-describe("paths in a git worktree (AC-5.6)", () => {
-  it("a register, pairing or offsets path inside a git worktree prints a warning on stderr, a path outside does not; the run goes on", async () => {
-    await legacyRequest(["2026-03-02"]);
-    const repo = join(tmp, "some-checkout");
+describe("paths in a git worktree (AC-5.6, L-1)", () => {
+  function checkout() {
+    const repo = join(tmp, `some-checkout-${++seq}`);
     mkdirSync(join(repo, ".git"), { recursive: true });
     mkdirSync(join(repo, "nested"), { recursive: true });
+    return repo;
+  }
+  let seq = 0;
+
+  it("a register or offsets path inside a git worktree prints a warning on stderr, a path outside does not; the run goes on", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const repo = checkout();
     const insideRegister = join(repo, "nested", "register.xlsx");
     writeFileSync(insideRegister, headerOnlyRegisterWorkbook());
     const insideOffsets = join(repo, "nested", "offsets.csv");
     writeFileSync(insideOffsets, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
-    const out = join(repo, "nested", "out.csv");
+    const out = fresh("outside-out.csv");
     const warned = await cliBare({}, "--dry-run", "--register", insideRegister, "--propose", out, "--offsets", insideOffsets);
     expect(warned.exitCode).toBe(0);
-    for (const what of ["the register export", "the pairing file to write", "the offsets file"]) expect(warned.stderr).toContain(what);
+    for (const what of ["the register export", "the offsets file"]) expect(warned.stderr).toContain(what);
     expect(warned.stderr).toContain("inside a git worktree");
     expect(warned.stderr).not.toContain("@");
 
@@ -692,6 +698,18 @@ describe("paths in a git worktree (AC-5.6)", () => {
     expect(quiet.exitCode).toBe(0);
     expect(quiet.stderr).not.toContain("WARNING");
     expect(existsSync(out)).toBe(true);
+  });
+
+  it("(L-1) --propose inside a git worktree is REFUSED with exit 1: nothing is read from Accounting or written, the file is not created", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const repo = checkout();
+    const out = join(repo, "nested", "accounting-release-pairing.csv");
+    const refused = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", out);
+    expect(refused.exitCode).toBe(1);
+    expect(refused.stderr).toContain("inside a git worktree");
+    expect(refused.stderr).toContain("Nothing was written");
+    expect(existsSync(out)).toBe(false);
+    expect(refused.stdout).not.toContain("Pairing file written");
   });
 });
 

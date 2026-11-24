@@ -3075,7 +3075,7 @@ with the `accounting` database's **public** connection string in that variable, 
 | Exit | Meaning | Written |
 |---|---|---|
 | 0 | done; or a dry run done (propose: the pairing file is written; check: the real run would succeed); or "already completed" | real run: everything; otherwise nothing (propose writes the pairing file only) |
-| 1 | any other failure (usage, a pairing path that already exists, an internal assertion, a database error), rolled back | nothing |
+| 1 | any other failure (usage, a pairing path that already exists, a `--propose` path inside a git worktree, an internal assertion, a database error), rolled back | nothing |
 | 2 | Accounting cannot be read | nothing |
 | 4 | `auth` cannot be read for the owner names (`users.contact`, step 4) | nothing |
 | 5 | register export or pairing file not given (real run), or a dry run without its mode (`--propose` or `--pairing`) | nothing |
@@ -3093,7 +3093,7 @@ accounting sets the codes decided on 2026-11-24 (LCM and LCP for the two employe
 **Step 7 — Dry run with the register, then the pairing** (accounting decides; the operator runs). The release **reads Accounting first** and exits **2**, writing nothing, if it cannot, so it needs steps 3 to 6 done (and step 4: refund-api cannot read without the
 scope). It runs from a checkout of the release commit under `railway run`, which injects refund-api's own variables, the service client included, and three are overridden because the private hosts of those variables do not resolve from a laptop: the `refund`
 database (public connection string), accounting-api and `auth` (their public hosts). The credentials are injected by `railway run`, never typed. **Operator shell only**, never CI or any job whose output is shipped to a log service. The register export and the pairing file name people:
-they stay in a path **outside any git worktree** (the script warns on stderr when a path is inside one) and are never committed or pasted into a ticket.
+they stay in a path **outside any git worktree** (the script **refuses** a `--propose` path inside one, exit 1, and warns on stderr for `--register`, `--pairing` and `--offsets`) and are never committed or pasted into a ticket.
 
 ```bash
 cd refund-api && bun install && bun run db:generate

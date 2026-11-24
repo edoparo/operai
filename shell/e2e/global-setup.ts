@@ -81,6 +81,28 @@ function scrub(text: string): string {
   return text.replace(/postgres(?:ql)?:\/\/[^\s'"`]+/gi, 'postgresql://***')
 }
 
+const ALLOW_REMOTE_DATABASE = 'E2E_ALLOW_REMOTE_DB'
+const LOCAL_DATABASE_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+/**
+ * The release step auto-confirms every proposal against the database it is pointed at, so it refuses a host that is not this
+ * machine unless `E2E_ALLOW_REMOTE_DB=1`. Only the host is judged; the URL (credentials included) is never in the error.
+ */
+export function assertLocalDatabase(url: string, variable: string, env: NodeJS.ProcessEnv = process.env): void {
+  if (env[ALLOW_REMOTE_DATABASE] === '1') return
+  let host: string
+  try {
+    host = new URL(url).hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  } catch {
+    throw new Error(`[global-setup] ${variable} is not a URL this setup can read the host of (its value is not shown)`)
+  }
+  if (LOCAL_DATABASE_HOSTS.has(host)) return
+  throw new Error(
+    `[global-setup] ${variable} names a database that is not on this machine: the release step confirms every proposal on its own and ` +
+      `writes the release marker there. Point it at a local database, or set ${ALLOW_REMOTE_DATABASE}=1 if you mean it (its value is not shown)`,
+  )
+}
+
 /**
  * The database a setup script must write to instead of its service's `.envrc`'s, or `undefined` for "the `.envrc`'s". A value that is
  * set but not a Postgres URL stops the run: a typo must not silently fall back to the shared database. The value is never echoed.
@@ -263,6 +285,7 @@ function releaseRefundAccounting(): void {
     return
   }
   const override = databaseOverride(REFUND_DATABASE_OVERRIDE)
+  if (override) assertLocalDatabase(override, REFUND_DATABASE_OVERRIDE)
   const where = override ? ` (database from ${REFUND_DATABASE_OVERRIDE})` : ''
   const inspect =
     'Run `cd refund-api && direnv exec . bun run accounting:release --dry-run --register scripts/fixtures/synthetic-register-header-only.xlsx ' +
