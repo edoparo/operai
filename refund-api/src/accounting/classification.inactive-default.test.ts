@@ -48,6 +48,7 @@ const { classificationRouter } = (await import("./classification.routes?inactive
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const { createExportRouter } = (await import("./export.routes?inactive-default")) as typeof import("./export.routes");
 const { parseDefaults, runAccountingRelease } = await import("../../scripts/accounting-release");
+const { proposeAndConfirm } = await import("../test-support/releaseRun");
 const { db } = await import("../lib/db");
 const { __resetAuthzCacheForTests } = await import("../auth/authz.middleware");
 const { createFakeAccounting, useFakeAccounting, restoreAccounting } = await import("../test-support/fakeAccounting");
@@ -151,13 +152,16 @@ async function legacyBatch(types: ("travel_train" | "office_material")[]) {
   return { batchId: batch.id, requestId: request.id, lineIds };
 }
 /** The release with no defaults of its own to seed: Refund's rows of `beforeEach` are the defaults. */
-const release = () =>
-  runAccountingRelease({
+const release = async () => {
+  const options = {
     defaults: parseDefaults({ typeDefaults: {} }),
-    offsets: [], // the explicit empty list of hand-issued numbers (T63: the list is required)
-    accounting: { begin: (name) => fake.begin(name) },
+    offsets: [],
+    accounting: { begin: (name: Parameters<typeof fake.begin>[0]) => fake.begin(name) },
     now: () => new Date("2026-11-20T08:00:00Z"),
-  });
+  };
+  const inputs = await proposeAndConfirm({ run: (o) => runAccountingRelease({ ...options, ...o }) });
+  return runAccountingRelease({ ...options, register: inputs.register, pairing: inputs.pairing });
+};
 
 async function submittedRequest(lines: { type: "travel_train" | "office_material"; currency?: "CHF" | "EUR" }[]) {
   const request = await db.refundRequest.create({
@@ -361,6 +365,11 @@ describe("the review view and the approval agree (AC-6.3)", () => {
 });
 
 describe("the release and the export agree (AC-7.2, AC-7.4)", () => {
+  // The release marker is there after the suite's cleanup; a release that has completed does nothing (AC-5.3, T12 of specs/20261124), so
+  // these tests, which run the release itself, start from the state before it: no marker (a standalone table, emptied like the suite does).
+  beforeEach(async () => {
+    await db.$executeRawUnsafe('TRUNCATE TABLE "refund_setting"');
+  });
   it("a legacy line whose type default is a deactivated account is numbered, left without an account, and blocks the export", async () => {
     const batch = await legacyBatch(["travel_train", "office_material"]);
     fake.setAccountActive("5901", false);

@@ -13,9 +13,10 @@
  * It writes the same row the real script writes, as the script's system actor,
  * but it is not the script: it does no seeding, no backfill and no baseline.
  *
- * Since T63 (specs/20261119-accounting, 20261118 SO-13) the real script REQUIRES the list of the last hand-issued 2026 numbers
- * (`--offsets`, exit 3 without it). A test that runs the script, or the e2e global setup, passes {@link EMPTY_BASELINE_CSV}: the
- * header line and no row, the explicit "no employee has a hand-issued 2026 number". (An empty file is refused.)
+ * Since T12 of specs/20261124-receipt-numbers-from-the-register the real script needs the accountant's workbook and a confirmed pairing
+ * file (`releaseRun.ts` makes them for a test that is not about the pairing); `--offsets` is optional and complements the register. A
+ * test that exercises `--offsets` passes {@link EMPTY_BASELINE_CSV} for "no employee has a hand-issued 2026 number": the header line and no
+ * row. (An empty file is refused.)
  */
 
 /** The content of a baseline file with no employee: only the header line. */

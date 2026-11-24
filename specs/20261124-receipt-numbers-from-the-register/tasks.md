@@ -245,7 +245,7 @@ Derived from these committed files:
 
 ## RUN — the release script
 
-- [ ] T12: refund-api — `accounting-release.ts` rewrite, part 1: CLI and order of the run, marker first (exit 0), Accounting (2) and auth (4) as before, inputs present (5) and readable (6), propose mode writing the pairing file, `--show-emails` removed, path warnings, `.gitignore` — refs: AC-2.1, AC-2.2, AC-2.3, AC-2.8, AC-5.1, AC-5.3, AC-5.6 — deps: T4, T6, T7, T8, T9, T10, T11
+- [x] T12: refund-api — `accounting-release.ts` rewrite, part 1: CLI and order of the run, marker first (exit 0), Accounting (2) and auth (4) as before, inputs present (5) and readable (6), propose mode writing the pairing file, `--show-emails` removed, path warnings, `.gitignore` — refs: AC-2.1, AC-2.2, AC-2.3, AC-2.8, AC-5.1, AC-5.3, AC-5.6 — deps: T4, T6, T7, T8, T9, T10, T11
   - touch: `refund-api/scripts/accounting-release.ts`, `refund-api/scripts/accounting-release.test.ts`, `refund-api/scripts/accounting-release.cli.test.ts`, `refund-api/src/test-support/accountingRelease.ts`, `refund-api/src/test-support/releaseRun.ts`, `refund-api/src/accounting/accounting-unavailable.matrix.test.ts`, `refund-api/src/accounting/classification.inactive-default.test.ts`, `refund-api/src/accounting/natural-keys.test.ts`, `refund-api/src/accounting/no-cache.test.ts`, `.gitignore`
   - agent: backend-dev · run
   - Details:
@@ -610,3 +610,23 @@ tasks share an edge or a path.
 **Critical path:** T3 → T6 → T9 → T11 → T12 → T13 → T22 → T23 → T27 → T29 → T30 → T34 (T2 → T4
 joins at T12 with a batch to spare). The RUI track finishes by B4 and AUTH, PDF and CODE by B3, so
 they have slack for review rework.
+
+## Implementation notes
+
+Deviations and findings recorded while a task closed (branch `rn/release`, T6 to T14, unattended run of 2026-11-24).
+
+- **T12, `PaperAssignment.split` (T4 file touched).** AC-1.7 and the plan's pairing-file section say a split group of ONE line records
+  origin `paper_split`, but `classifyAndNumber` derived `paper_split` only when one number appears on several lines. `PaperAssignment`
+  gained an optional `split?: boolean` in `refund-api/src/accounting/numbering.repo.ts` (default: derived, so every T4 caller and test is
+  unchanged); the release sets it for every line whose decision is `split`. `numbering.repo.ts` is not in T12 or T13's `touch:` list.
+- **T12, the real run before T13.** T12 commits the whole control flow (marker first, exits 2/4/5/6, propose, the transaction with names,
+  defaults, baseline rows, numbering and the marker) so the four existing suites and the CLI journeys can move to
+  `proposeAndConfirm`. The stale check (7), the validator (8) and the shared-prefix rule (9) are T13: until it lands the real run trusts
+  the file's decisions.
+- **T12, `--offsets` matching.** The old rule "the newest request must carry the listed email" is gone: a row applies to any email the
+  employee's requests used and the baseline row is written under the newest one (the counter reads them all, N-01). An offsets email held
+  by two user ids is still refused (exit 6). No message quotes an email any more (AC-5.6); `maskEmail` and `--show-emails` are removed.
+- **T12, `.gitignore`.** `**/*pairing*.csv` and `**/Recap_RS*` added as the task says; the existing offsets patterns stay.
+- **T12, marker-first and old tests.** A release that has completed does nothing (D11), so the old "a second run completes what was
+  left" semantics are retired: tests that ran the release on a database that already carried the marker now start from the
+  pre-release state (`classification.inactive-default.test.ts` empties the standalone `refund_setting` table in a `beforeEach`).

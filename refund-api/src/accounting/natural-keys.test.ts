@@ -64,6 +64,7 @@ const { __resetAuthzCacheForTests } = await import("../auth/authz.middleware");
 const { createAccountingClient } = await import("./accountingClient");
 const { restoreAccounting, useFakeAccounting } = await import("../test-support/fakeAccounting");
 const { runAccountingRelease } = await import("../../scripts/accounting-release");
+const { proposeAndConfirm } = await import("../test-support/releaseRun");
 const { notifyTransport } = await import("../lib/notifyPost");
 
 const exportRouter = createExportRouter();
@@ -552,7 +553,11 @@ describe("the release seeds by natural key, whatever Accounting's ids are", () =
         office_material: { ledgerAccount: "6101" },
       },
     };
-    const run = (dryRun: boolean) => runAccountingRelease({ accounting: port, defaults, dryRun, offsets: [], now: () => new Date("2026-11-20T08:00:00.000Z") });
+    const run = async (dryRun: boolean) => {
+      const options = { accounting: port, defaults, offsets: [], now: () => new Date("2026-11-20T08:00:00.000Z") };
+      const inputs = await proposeAndConfirm({ run: (o) => runAccountingRelease({ ...options, ...o }) });
+      return runAccountingRelease({ ...options, dryRun, register: inputs.register, pairing: inputs.pairing });
+    };
 
     const before = await run(true);
     directory.renumber();

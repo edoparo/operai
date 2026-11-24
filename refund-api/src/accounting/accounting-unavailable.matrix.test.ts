@@ -69,6 +69,7 @@ const { __resetAuthzCacheForTests } = await import("../auth/authz.middleware");
 const { ACCOUNTING_FAILURE_KINDS, AccountingUnavailableError, createAccountingClient } = await import("./accountingClient");
 const { restoreAccounting, useFakeAccounting } = await import("../test-support/fakeAccounting");
 const { runAccountingRelease } = await import("../../scripts/accounting-release");
+const { proposeAndConfirm } = await import("../test-support/releaseRun");
 const { isAccountingReleased } = await import("./release");
 const { markBatchPaid, discardBatch } = await import("../batches/decide.repo");
 const { notifyTransport } = await import("../lib/notifyPost");
@@ -600,12 +601,15 @@ const rows: Row[] = [
     },
     async act() {
       try {
-        const report = await runAccountingRelease({
+        // The release as a person runs it (T12, specs/20261124): propose on the header-only workbook, confirm, then run.
+        const options = {
           accounting: port,
           defaults: { typeDefaults: { travel_train: { ledgerAccount: "5901" } } },
-          offsets: [], // the explicit empty list of hand-issued numbers (T63: the list is required)
+          offsets: [], // no hand-issued number on top of the register
           now: () => new Date("2026-11-20T08:00:00.000Z"),
-        });
+        };
+        const inputs = await proposeAndConfirm({ run: (o) => runAccountingRelease({ ...options, ...o }) });
+        const report = await runAccountingRelease({ ...options, register: inputs.register, pairing: inputs.pairing });
         return { status: 0, body: report, headers: new Headers() };
       } catch (caught) {
         return { status: 0, body: null, headers: new Headers(), error: caught };

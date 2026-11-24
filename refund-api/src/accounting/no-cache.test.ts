@@ -60,6 +60,7 @@ const { __resetAuthzCacheForTests } = await import("../auth/authz.middleware");
 const { createAccountingClient } = await import("./accountingClient");
 const { restoreAccounting, useFakeAccounting } = await import("../test-support/fakeAccounting");
 const { runAccountingRelease } = await import("../../scripts/accounting-release");
+const { proposeAndConfirm } = await import("../test-support/releaseRun");
 const { notifyTransport } = await import("../lib/notifyPost");
 
 const exportRouter = createExportRouter();
@@ -476,7 +477,10 @@ describe("each listed operation reads Accounting afresh (AC-4.8, D2)", () => {
   it("release: two runs are two reads, and an entry deactivated between them is not seeded by the second", async () => {
     await truncateRefundTables({ released: false });
     const defaults = { typeDefaults: { travel_train: { ledgerAccount: "5901" } } };
-    const run = () => runAccountingRelease({ accounting: port, defaults, dryRun: true, offsets: [] });
+    const options = { accounting: port, defaults, offsets: [] };
+    // The file of the propose step is made first (it reads Accounting too), so the two runs measured below are the check runs.
+    const inputs = await proposeAndConfirm({ run: (o) => runAccountingRelease({ ...options, ...o }) });
+    const run = () => runAccountingRelease({ ...options, dryRun: true, register: inputs.register, pairing: inputs.pairing });
 
     const first = await measured(run);
     expect(first.value.seeded.typeDefaults).toEqual(["travel_train"]);

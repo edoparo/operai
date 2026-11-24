@@ -96,6 +96,11 @@ export interface PaperAssignment {
   readonly number: string;
   readonly splitPart: number;
   readonly registerRows: readonly number[];
+  /**
+   * `true` for a line of a confirmed split receipt even when it is the only line that takes the number (AC-1.7: one line, two register
+   * rows): the origin is then `paper_split` with part 1, as when the number appears on several lines. Default: derived from the count.
+   */
+  readonly split?: boolean;
 }
 
 export interface ClassifyAndNumberInput {
@@ -359,7 +364,7 @@ export async function classifyAndNumber(
       receiptNumber = paperLine.parsed.text;
       seq = paperLine.parsed.seq;
       splitPart = paperLine.assignment.splitPart;
-      origin = partsOf.get(paperLine.parsed.text)!.length > 1 ? "paper_split" : "paper";
+      origin = paperLine.assignment.split === true || partsOf.get(paperLine.parsed.text)!.length > 1 ? "paper_split" : "paper";
     } else {
       seq = nextSeq.get(year)!;
       nextSeq.set(year, seq + 1);

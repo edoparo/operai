@@ -22,3 +22,7 @@ notes.md
 # email and must never be committed. Keep it outside the repository (infra/README.md); these refuse the usual names.
 **/*offsets*.csv
 **/accounting-offsets*
+# specs/20261124-receipt-numbers-from-the-register (AC-5.6): the pairing file names workers and employees, and the accountant's
+# register export (Recap_RS_2026.xlsx) is the register itself. Neither is ever committed: keep them outside the repository.
+**/*pairing*.csv
+**/Recap_RS*

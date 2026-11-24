@@ -48,23 +48,21 @@ const { loadExportSource, evaluateExport } = await import("../src/accounting/exp
 const { buildAccountingFile } = await import("../src/accounting/export");
 const { cellValues, readWorkbook } = await import("../src/test-support/xlsxReader");
 const { createFakeAccounting, restoreAccounting, useFakeAccounting } = await import("../src/test-support/fakeAccounting");
+const { proposeAndConfirm } = await import("../src/test-support/releaseRun");
 const { __resetAuthzCacheForTests } = await import("../src/auth/authz.middleware");
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster (testAuth.ts, "no shared router specifier")
 const { decideRouter } = (await import("../src/review/decide.routes?release-script")) as typeof import("../src/review/decide.routes");
 const {
   ACCOUNTING_UNREADABLE_MESSAGE,
   OWNER_NAMES_UNREADABLE_MESSAGE,
-  BASELINE_MISSING_MESSAGE,
-  BaselineMissingError,
   chunkByMonths,
   DEFAULT_DEFAULTS_PATH,
   formatReport,
-  maskEmail,
-  offsetsPathWarning,
   parseDefaults,
   parseOffsetsCsv,
   RATE_CHUNK_MONTHS,
   describeReleaseFailure,
+  InputMissingError,
   ReleaseError,
   runAccountingRelease,
 } = await import("./accounting-release");
@@ -177,9 +175,21 @@ const ownerNames = {
   },
 };
 
-/** A release run. The list of hand-issued numbers is REQUIRED (T63): by default the explicit empty list; a test passes `offsets: undefined` for "no list". */
-const run = (over: Parameters<typeof runAccountingRelease>[0] = {}) =>
-  runAccountingRelease({ now: () => NOW, accounting: { begin: (name) => fake.begin(name) }, ownerNames, offsets: [], ...over });
+/**
+ * A release as a person runs it (T12, specs/20261124): the propose mode on the header-only workbook (no worker, no number: every line has
+ * no paper counterpart), every `proposed` record confirmed, then the run itself with the options the test gives. Accounting and auth are
+ * asked by the propose step too; their counters are reset before the run, so a test that counts reads or asked names counts the run's.
+ * With `offsets: [{...}]` the list complements the register (AC-3.1); `dryRun: true` is the check mode.
+ */
+const run = async (over: Parameters<typeof runAccountingRelease>[0] = {}) => {
+  const base = { now: () => NOW, accounting: { begin: (name: Parameters<Fake["begin"]>[0]) => fake.begin(name) }, ownerNames, offsets: [] };
+  const inputs = await proposeAndConfirm({
+    run: (o) => runAccountingRelease({ ...base, ...(over.offsets !== undefined ? { offsets: over.offsets } : {}), ...o }),
+  });
+  fake.resetCalls();
+  authNames.asked.length = 0;
+  return runAccountingRelease({ ...base, register: inputs.register, ...(inputs.alreadyCompleted ? {} : { pairing: inputs.pairing }), ...over });
+};
 const line = (id: string) => db.refundLine.findUniqueOrThrow({ where: { id } });
 
 /** Everything a release writes, counted: nothing of it may exist after a run that stopped (AC-7.4). */
@@ -254,6 +264,23 @@ describe("parseOffsetsCsv", () => {
     ]);
     expect(parseOffsetsCsv("a@b.ch,2026,1")).toHaveLength(1);
     expect(parseOffsetsCsv("\uFEFFemail,year,lastIssuedSeq\r\na@b.ch,2026,7\r\n")).toEqual([{ email: "a@b.ch", year: 2026, lastIssuedSeq: 7 }]);
+    // the delimiter is detected (an Excel save in a Swiss or Italian locale writes `;`), and a tab works too
+    expect(parseOffsetsCsv("email;year;lastIssuedSeq\r\na@b.ch;2026;7\r\n")).toEqual([{ email: "a@b.ch", year: 2026, lastIssuedSeq: 7 }]);
+    expect(parseOffsetsCsv("a@b.ch\t2026\t7")).toEqual([{ email: "a@b.ch", year: 2026, lastIssuedSeq: 7 }]);
+  });
+
+  it("(AC-5.6) no message quotes the email of a row", () => {
+    for (const bad of ["secret.person@b.ch,2026,x", "secret.person@b.ch,2025,5", "secret.person@b.ch,2026,5\nSecret.Person@b.ch,2026,6", "secret.person@b.ch,2026,0"]) {
+      let message = "";
+      try {
+        parseOffsetsCsv(bad);
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).not.toBe("");
+      expect(message.toLowerCase()).not.toContain("secret");
+      expect(message).not.toContain("@");
+    }
   });
 
   it("(AC-7.4) a file with only the header line is the explicit empty list; a file with nothing in it is refused, not read as 'no employee'", () => {
@@ -271,14 +298,14 @@ describe("parseOffsetsCsv", () => {
     for (const bad of ["a@b.ch,2026", "nope,2026,1", "a@b.ch,26,1", "a@b.ch,2026,0", "a@b.ch,2026,x", "a@b.ch,2026,100000", "a@b.ch,2026,1\nA@b.ch,2026,2", " a@b.ch ,2026,1\nA@B.CH,2026,2"]) {
       expect(() => parseOffsetsCsv(bad)).toThrow(ReleaseError);
     }
-    expect(() => parseOffsetsCsv("a@b.ch,2026,x")).toThrow(/line 1/);
+    expect(() => parseOffsetsCsv("a@b.ch,2026,x")).toThrow(/row 1/);
   });
 
   it("(AC-4.12) only 2026 is accepted: a row of 2025, 2027 or any other year is refused, naming the line", () => {
     for (const year of ["2025", "2027", "2028", "2000"]) {
-      expect(() => parseOffsetsCsv(`email,year,lastIssuedSeq\na@b.ch,${year},5`)).toThrow(/line 2: only 2026 continues the paper register/);
+      expect(() => parseOffsetsCsv(`email,year,lastIssuedSeq\na@b.ch,${year},5`)).toThrow(/row 2: only 2026 continues the paper register/);
     }
-    expect(() => parseOffsetsCsv("a@b.ch,2026,5\nc@d.ch,2027,5")).toThrow(/line 2/);
+    expect(() => parseOffsetsCsv("a@b.ch,2026,5\nc@d.ch,2027,5")).toThrow(/row 2/);
   });
 });
 
@@ -414,13 +441,15 @@ describe("Accounting is read first (AC-7.4, AC-6.8)", () => {
   it("a legacy line that appears while Accounting is being read was not asked about: the run is refused and rolled back, never guessed", async () => {
     await request("u1", [{ id: "known", date: "2026-03-05", currency: "EUR" }]);
     fake.setRate("EUR", "2026-03", 924_600);
+    const base = { now: () => NOW, accounting: { begin: (name: Parameters<Fake["begin"]>[0]) => fake.begin(name) }, ownerNames, offsets: [] };
+    const inputs = await proposeAndConfirm({ run: (o) => runAccountingRelease({ ...base, ...o }) });
     const before = await snapshot();
     fake.onRead(async (call) => {
       if (call.read !== "rates") return;
       fake.onRead(null);
       await request("u1", [{ id: "late", date: "2026-05-05", currency: "EUR" }]);
     });
-    const error = await run().catch((e: unknown) => e);
+    const error = await runAccountingRelease({ ...base, register: inputs.register, pairing: inputs.pairing }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ReleaseError);
     expect((error as InstanceType<typeof ReleaseError>).code).toBe("legacy_lines_changed");
     const after = await snapshot();
@@ -456,7 +485,7 @@ describe("backfill (AC-7.1, AC-7.4)", () => {
     expect(audit.every((a) => (a.detail as any).cause === "release")).toBe(true);
 
     expect(report.lines.map((l) => l.receiptNumber)).toEqual(["MC26/001", "MC26/002", "MC26/003"]);
-    expect(report.numbered).toEqual([{ employee: "u1@welld.ch", employeeRef: "MC · u1", year: 2026, count: 3, first: "MC26/001", last: "MC26/003" }]);
+    expect(report.numbered).toEqual([{ employeeRef: "MC · u1", year: 2026, count: 3, first: "MC26/001", last: "MC26/003" }]);
     expect(report.unclassified).toEqual([]);
     expect(report.markerWritten).toBe(true);
     expect(await db.$transaction((tx) => isAccountingReleased(tx))).toBe(true);
@@ -995,14 +1024,13 @@ describe("Refund's default accounts (AC-8.3 of 20261118, SO-17, D20)", () => {
     expect(tables).toEqual([]);
   });
 
-  it("(AC-8.3) on an empty database the release gives the gifts type no default account, so a gifts line is refused until an account is chosen", async () => {
-    await run();
-    expect(await db.expenseTypeAccountingDefault.findMany({ where: { type: "representation_gifts" } })).toEqual([]);
+  it("(AC-8.3) on an empty database the release gives the gifts type no default account, so a gifts line is numbered, listed without an account, and refused at approval until one is chosen", async () => {
     await request("u1", [{ id: "gift", date: "2026-03-02", type: "representation_gifts" }]);
-    const second = await run();
-    expect(second.alreadyReleased).toBe(true);
-    expect((await line("gift")).accountNumber).toBeNull(); // the second run numbers it, with no account: it is reported, never guessed
-    expect(second.unclassified.map((u) => [u.lineId, u.missing])).toEqual([["gift", ["account"]]]);
+    const report = await run();
+    expect(await db.expenseTypeAccountingDefault.findMany({ where: { type: "representation_gifts" } })).toEqual([]);
+    expect((await line("gift")).receiptNumber).toBe("MC26/001");
+    expect((await line("gift")).accountNumber).toBeNull(); // numbered with no account: it is reported, never guessed
+    expect(report.unclassified.map((u) => [u.lineId, u.missing])).toEqual([["gift", ["account"]]]);
   });
 
   it("never creates anything in Accounting: it only reads (a reader's projection has no write at all)", async () => {
@@ -1060,7 +1088,8 @@ describe("idempotence and dry run", () => {
     const before = await snapshot();
     const second = await run();
     expect(await snapshot()).toEqual(before);
-    expect(second).toMatchObject({ alreadyReleased: true, markerWritten: false, lines: [], unclassified: [], ratePending: [] });
+    expect(second).toMatchObject({ alreadyCompleted: { at: expect.any(String) }, markerWritten: false, lines: [], unclassified: [], ratePending: [] });
+    expect(formatReport(second)).toContain("already completed");
     expect(second.seeded).toMatchObject({ typeDefaults: [] });
     expect(second.seeded).not.toHaveProperty("foreignCurrencyVatCode");
     expect(await db.refundSetting.count({ where: { key: "accounting-release-completed-at" } })).toBe(1);
@@ -1091,24 +1120,23 @@ describe("idempotence and dry run", () => {
   });
 });
 
-describe("the baseline list (T63: SO-13, SO-14 of 20261118; AC-4.11, AC-4.12, AC-4.13, AC-7.4)", () => {
+describe("the baseline (T63 of 20261119, rewritten by T12 of 20261124: AC-3.1, AC-4.12, AC-4.13, AC-2.8)", () => {
   const baselineRows = () => db.receiptNumberBaseline.findMany({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
   const counterOf = (ownerUserId: string, year: number) => db.receiptCounter.findUnique({ where: { ownerUserId_year: { ownerUserId, year } } });
 
-  it("numbering starts after the baseline (81 gives 082), the table holds the row, and the counter says it started from the baseline", async () => {
+  it("numbering starts after the offsets row (81 gives 082), the table holds the row under the lower-cased email, and the counter says it started from the baseline", async () => {
     await request("u1", [{ id: "l1", date: "2026-03-02" }, { id: "l2", date: "2026-03-03" }], { email: "matteo.codogno@welld.ch" });
     const report = await run({ offsets: [{ email: "Matteo.Codogno@welld.ch", year: 2026, lastIssuedSeq: 81 }] });
-    expect(report.baseline).toEqual([{ email: "Matteo.Codogno@welld.ch", employeeRef: "MC · u1", year: 2026, lastIssuedSeq: 81, outcome: "applied" }]);
+    expect(report.baseline).toEqual([{ employeeRef: "MC · u1", baseline: 81, outcome: "written" }]);
     expect((await line("l1")).receiptNumber).toBe("MC26/082");
     expect((await line("l2")).receiptNumber).toBe("MC26/083");
     expect(await counterOf("u1", 2026)).toMatchObject({ lastSeq: 83, startAfter: 81, startAfterSetBy: "baseline" });
-    // The row is keyed by the lower-cased email, and written as the release.
     expect(await baselineRows()).toMatchObject([
       { emailKey: "matteo.codogno@welld.ch", year: 2026, lastIssuedSeq: 81, createdByUserId: "system:accounting-release" },
     ]);
   });
 
-  it("an employee in the list with no Refund request at release is accepted, reported as not yet in Refund, and no counter is made for them", async () => {
+  it("an employee in the list with no Refund request at release is accepted, reported as not yet in Refund with no email, and no counter is made for them", async () => {
     await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "m@welld.ch" });
     const report = await run({
       offsets: [
@@ -1116,24 +1144,24 @@ describe("the baseline list (T63: SO-13, SO-14 of 20261118; AC-4.11, AC-4.12, AC
         { email: "Newcomer@welld.ch", year: 2026, lastIssuedSeq: 40 },
       ],
     });
-    expect(report.baseline.map((b) => [b.employeeRef, b.outcome])).toEqual([
-      ["MC · u1", "applied"],
-      [null, "applied"],
+    expect(report.baseline.map((b) => [b.employeeRef, b.baseline, b.outcome])).toEqual([
+      ["MC · u1", 10, "written"],
+      ["not yet in Refund", 40, "written"],
     ]);
     expect((await baselineRows()).map((r) => [r.emailKey, r.lastIssuedSeq])).toEqual([
       ["m@welld.ch", 10],
       ["newcomer@welld.ch", 40],
     ]);
-    expect(await db.receiptCounter.count()).toBe(1); // only Matteo's, made by the backfill
+    expect(await db.receiptCounter.count()).toBe(1); // only Matteo's, made by the numbering
     expect((await line("l1")).receiptNumber).toBe("MC26/011");
     const text = formatReport(report);
-    expect(text).toContain("not yet in Refund (N***@welld.ch) 2026: numbering continues after 40 (applied)");
-    expect(text).toContain("MC · u1 2026: numbering continues after 10 (applied)");
+    expect(text).toContain("not yet in Refund 2026: numbering continues after 40 (written)");
+    expect(text).toContain("MC · u1 2026: numbering continues after 10 (written)");
     // D-10: a group of one reads "1 line", never "1 lines"
     expect(text).toContain("2026: 1 line, MC26/011 to MC26/011");
     expect(text).not.toMatch(/\b1 lines\b/);
-    expect(text).not.toContain("Newcomer");
-    expect(formatReport(report, { showEmails: true })).toContain("not yet in Refund (Newcomer@welld.ch) 2026");
+    expect(text).not.toContain("@");
+    expect(text.toLowerCase()).not.toContain("newcomer");
   });
 
   it("the release makes no counter for an employee who has no line to number: the baseline row waits for the counter's creation (receipt.baseline.test.ts)", async () => {
@@ -1160,128 +1188,80 @@ describe("the baseline list (T63: SO-13, SO-14 of 20261118; AC-4.11, AC-4.12, AC
     }
     await expect(
       run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 5 }, { email: "M@Welld.ch", year: 2026, lastIssuedSeq: 6 }] }),
-    ).rejects.toThrow(/appears twice/);
+    ).rejects.toThrow(/appear twice/);
     expect(await snapshot()).toEqual(before);
   });
 
   it("is refused for an employee whose 2026 counter already exists with another start, and then NOTHING is written", async () => {
     await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "m@welld.ch" });
-    await run();
-    await request("u1", [{ id: "l2", date: "2026-03-09" }], { email: "m@welld.ch" });
+    await db.receiptCounter.create({ data: { ownerUserId: "u1", year: 2026, lastSeq: 3, startAfter: 0 } });
     const before = await snapshot();
-    await expect(run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 81 }] })).rejects.toThrow(/already has receipt numbers/);
+    await expect(run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 81 }] })).rejects.toThrow(/counter already exists/);
     expect(await snapshot()).toEqual(before);
-    expect((await line("l2")).receiptNumber).toBeNull();
+    expect((await line("l1")).receiptNumber).toBeNull();
   });
 
-  it("a refused row rolls back the seed, the earlier rows of the list and the marker too", async () => {
+  it("an email behind two user ids is refused: each would start after it and repeat the other's numbers; nothing is written", async () => {
     await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "m@welld.ch" });
     await request("u2", [], { email: "x@welld.ch" });
-    await request("u3", [], { email: "x@welld.ch" }); // two user ids behind one email, the second row of the list
-    await expect(
-      run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 5 }, { email: "x@welld.ch", year: 2026, lastIssuedSeq: 5 }] }),
-    ).rejects.toThrow(/x\*\*\*@welld\.ch.*more than one user id/);
-    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
-    expect(await db.refundSetting.count()).toBe(0);
-    expect(await db.receiptNumberBaseline.count()).toBe(0);
+    await request("u3", [], { email: "X@welld.ch" });
+    const before = await snapshot();
+    await expect(run({ offsets: [{ email: "x@welld.ch", year: 2026, lastIssuedSeq: 5 }] })).rejects.toThrow(/more than one user id/);
+    expect(await snapshot()).toEqual(before);
     expect((await line("l1")).receiptNumber).toBeNull();
   });
 
-  it("an email behind two user ids is refused: each would start after it and repeat the other's numbers", async () => {
-    await request("u1", [], { email: "m@welld.ch" });
-    await request("u2", [], { email: "M@welld.ch" });
-    await expect(run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 5 }] })).rejects.toThrow(/more than one/);
+  it("a row for any of the employee's request emails applies, and is written under the newest one (the counter reads them all)", async () => {
+    const r = await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "old@welld.ch" });
+    await db.refundRequest.create({ data: { ownerUserId: "u1", ownerEmail: "new@welld.ch", ownerName: "Matteo Codogno", status: "draft", createdAt: new Date(r.createdAt.getTime() + 60_000) } });
+    const report = await run({ offsets: [{ email: "old@welld.ch", year: 2026, lastIssuedSeq: 5 }] });
+    expect(report.baseline).toEqual([{ employeeRef: "MC · u1", baseline: 5, outcome: "written" }]);
+    expect((await baselineRows()).map((x) => [x.emailKey, x.lastIssuedSeq])).toEqual([["new@welld.ch", 5]]);
+    expect((await line("l1")).receiptNumber).toBe("MC26/006");
   });
 
-  it("the newest request of the employee must carry the listed email: else the baseline would never apply, and the list is refused", async () => {
-    const r = await request("u1", [], { email: "old@welld.ch" });
-    await db.refundRequest.create({ data: { ownerUserId: "u1", ownerEmail: "new@welld.ch", ownerName: "Matteo Codogno", status: "approved", createdAt: new Date(r.createdAt.getTime() + 60_000) } });
-    await expect(run({ offsets: [{ email: "old@welld.ch", year: 2026, lastIssuedSeq: 5 }] })).rejects.toThrow(/carries another email.*n\*\*\*@welld\.ch/);
-    expect(await db.receiptNumberBaseline.count()).toBe(0);
-    // Listed under the email Refund holds now, it is accepted.
-    const ok = await run({ offsets: [{ email: "new@welld.ch", year: 2026, lastIssuedSeq: 5 }] });
-    expect(ok.baseline[0]).toMatchObject({ employeeRef: "MC · u1", outcome: "applied" });
-  });
-
-  it("a rerun of the very same list changes nothing: already-applied, no second row, no second marker, no second number", async () => {
-    await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "m@welld.ch" });
-    const list = [
-      { email: "m@welld.ch", year: 2026, lastIssuedSeq: 81 },
-      { email: "ghost@welld.ch", year: 2026, lastIssuedSeq: 12 },
-    ];
-    expect((await run({ offsets: list })).baseline.map((b) => b.outcome)).toEqual(["applied", "applied"]);
-    const after = await snapshot();
-    const again = await run({ offsets: list });
-    expect(again.baseline.map((b) => b.outcome)).toEqual(["already-applied", "already-applied"]);
-    expect(again.alreadyReleased).toBe(true);
-    expect(again.markerWritten).toBe(false);
-    expect(await snapshot()).toEqual(after);
-    expect(await db.receiptNumberBaseline.count()).toBe(2);
-    expect((await line("l1")).receiptNumber).toBe("MC26/082");
-  });
-
-  it("a corrected value for an employee with no counter yet is appended (the latest row counts); once the counter exists it is refused", async () => {
-    await run({ offsets: [{ email: "ghost@welld.ch", year: 2026, lastIssuedSeq: 12 }] });
-    const fixed = await run({ offsets: [{ email: "ghost@welld.ch", year: 2026, lastIssuedSeq: 14 }] });
-    expect(fixed.baseline[0]!.outcome).toBe("applied");
-    expect((await baselineRows()).map((r) => r.lastIssuedSeq)).toEqual([12, 14]);
-
-    await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "m@welld.ch" });
-    await run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 81 }] });
-    await expect(run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 82 }] })).rejects.toThrow(ReleaseError);
-  });
-
-  it("(AC-7.4) NO LIST: a real run throws BaselineMissingError and writes nothing at all (no default, no baseline row, no number, no counter, no marker, no audit)", async () => {
+  it("(AC-2.8) a real run with no register or no pairing, and a dry run with no mode, are refused with InputMissingError (exit 5) and write nothing", async () => {
     await request("u1", [{ id: "l1", date: "2026-03-02" }, { id: "l2", date: "2026-03-03" }], { email: "m@welld.ch" });
     const before = await snapshot();
-    const error = await run({ offsets: undefined }).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(BaselineMissingError);
-    expect((error as InstanceType<typeof BaselineMissingError>).message).toBe(BASELINE_MISSING_MESSAGE);
-    expect(BASELINE_MISSING_MESSAGE).toMatch(/list of last hand-issued 2026 numbers is missing: nothing was numbered \(AC-7\.4\)/);
+    const base = { now: () => NOW, accounting: { begin: (name: Parameters<Fake["begin"]>[0]) => fake.begin(name) }, ownerNames, offsets: [] };
+    const inputs = await proposeAndConfirm({ run: (o) => runAccountingRelease({ ...base, ...o }) });
+    fake.resetCalls();
+    for (const over of [
+      {},
+      { register: inputs.register },
+      { pairing: inputs.pairing },
+      { register: inputs.register, propose: true },
+      { dryRun: true },
+      { dryRun: true, register: inputs.register },
+      { dryRun: true, register: inputs.register, propose: true, pairing: inputs.pairing },
+    ]) {
+      const error = await runAccountingRelease({ ...base, ...over }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(InputMissingError);
+      expect((error as InstanceType<typeof InputMissingError>).exit).toBe(5);
+    }
     expect(await snapshot()).toEqual(before);
-    expect(before.typeDefaults + before.settings + before.baseline + before.audit).toBe(0);
     expect(await isAccountingReleased(db as never)).toBe(false);
     expect((await line("l1")).receiptNumber).toBeNull();
-    // Approvals stay refused meanwhile, so no number is consumed.
-    // A rerun with the list works.
-    const done = await run({ offsets: [{ email: "m@welld.ch", year: 2026, lastIssuedSeq: 81 }] });
-    expect(done.markerWritten).toBe(true);
-    expect((await line("l1")).receiptNumber).toBe("MC26/082");
+    // Accounting is read first even then: a refusal for missing inputs comes after it (the exit table follows the order of the run)
+    expect(fake.reads.total).toBeGreaterThan(0);
   });
 
-  it("(AC-7.4) an unreadable Accounting still comes first: no list AND Accounting down is the Accounting error, not the list's", async () => {
+  it("(AC-7.4) an unreadable Accounting still comes first: missing inputs AND Accounting down is the Accounting error", async () => {
     await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "m@welld.ch" });
     fake.failWith("timeout");
-    await expect(run({ offsets: undefined })).rejects.toBeInstanceOf(AccountingUnavailableError);
-    await expect(run({ offsets: undefined, dryRun: true })).rejects.toBeInstanceOf(AccountingUnavailableError);
+    const base = { now: () => NOW, accounting: { begin: (name: Parameters<Fake["begin"]>[0]) => fake.begin(name) }, ownerNames, offsets: [] };
+    await expect(runAccountingRelease(base)).rejects.toBeInstanceOf(AccountingUnavailableError);
+    await expect(runAccountingRelease({ ...base, dryRun: true })).rejects.toBeInstanceOf(AccountingUnavailableError);
   });
 
-  it("(AC-7.4) a DRY RUN with no list reads Accounting, writes nothing, numbers nothing, and reports BLOCKED: list missing", async () => {
-    await request("u1", [{ id: "l1", date: "2026-03-02" }, { id: "l2", date: "2026-03-03", currency: "EUR" }], { email: "m@welld.ch" });
-    await request("u2", [{ id: "l3", date: "2026-03-04", entity: "welld_it" }], { email: "x@welld.ch" });
-    const before = await snapshot();
-    const report = await run({ offsets: undefined, dryRun: true });
-    expect(report.blocked).toBe("baseline_missing");
-    expect(report).toMatchObject({ dryRun: true, markerWritten: false, legacyLinesWaiting: 2, baseline: [], numbered: [], lines: [], itLinesLeftUnnumbered: 1 });
-    expect(await snapshot()).toEqual(before);
-    const text = formatReport(report);
-    expect(text).toContain("BLOCKED: list missing.");
-    expect(text).toContain("exit code 3");
-    expect(text).toContain("Legacy WellD CH lines the real run would number once the list is given: 2");
-    expect(text).toContain("Release marker written: no (blocked: the list is missing)");
-    expect(text).not.toMatch(/MC26\/0|Every line|Numbered legacy/); // no number is shown: it would ignore the paper register
-    expect(text).not.toContain("@");
-  });
-
-  it("(AC-7.4, AC-4.12) the explicit empty list is accepted: the lines are numbered from 001, the report says so, and no baseline row exists", async () => {
+  it("(AC-4.12) with no offsets list at all the lines are numbered from 001, the report says so, and no baseline row exists", async () => {
     await request("u1", [{ id: "l1", date: "2026-03-02" }], { email: "m@welld.ch" });
     const report = await run({ offsets: [] });
-    expect(report.blocked).toBeNull();
     expect(report.baseline).toEqual([]);
     expect((await line("l1")).receiptNumber).toBe("MC26/001");
     expect(await db.receiptNumberBaseline.count()).toBe(0);
     expect(await counterOf("u1", 2026)).toMatchObject({ lastSeq: 1, startAfter: 0, startAfterSetBy: null });
-    expect(formatReport(report)).toContain("an empty list: no employee has a hand-issued 2026 number, numbering starts at 001");
+    expect(formatReport(report)).toContain("none: numbering starts at 001");
   });
 
   it("2027 restarts at 001 whatever the baseline and the 2026 sequence (AC-4.13), and 2025 is not continued either", async () => {
@@ -1306,19 +1286,19 @@ describe("the report (D-1, SR-4)", () => {
     expect(dry).toContain("Release marker written: no (dry run: the real run would write it)");
     expect(dry).not.toContain("Release marker written: yes");
     expect(formatReport(await run())).toContain("Release marker written: yes");
-    expect(formatReport(await run())).toContain("Release marker written: no (already set)");
-    expect(formatReport(await run({ dryRun: true }))).toContain("Release marker written: no (already set)");
+    expect(formatReport(await run())).toContain("already completed");
+    expect(formatReport(await run({ dryRun: true }))).toContain("already completed");
   });
 
-  it("SR-4: an employee is `<initials> · <first 8 characters of the user id>`, and no `@` appears anywhere without showEmails", async () => {
+  it("SR-4: an employee is `<prefix> · <first 8 characters of the user id>`, and no `@` and no name appears anywhere (--show-emails no longer exists)", async () => {
     await request("0123456789abcdef", [{ id: "l1", date: "2026-03-02" }], { email: "matteo.codogno@welld.ch", name: "Matteo Codogno" });
     const report = await run({ dryRun: true, offsets: [{ email: "matteo.codogno@welld.ch", year: 2026, lastIssuedSeq: 4 }] });
-    for (const text of [formatReport(report), formatReport(report, { showEmails: false })]) {
-      expect(text).not.toContain("@");
-      expect(text).toContain("MC · 01234567");
-      expect(text).not.toContain("89abcdef");
-    }
-    expect(formatReport(report, { showEmails: true })).toContain("matteo.codogno@welld.ch");
+    const text = formatReport(report);
+    expect(text).not.toContain("@");
+    expect(text).not.toContain("Matteo");
+    expect(text).not.toContain("Codogno");
+    expect(text).toContain("MC · 01234567");
+    expect(text).not.toContain("89abcdef");
   });
 
   it("SR-4: the unclassified lines are listed by the same reference", async () => {
@@ -1350,43 +1330,7 @@ describe("describeReleaseFailure (F-03)", () => {
   });
 });
 
-describe("maskEmail (SR-4)", () => {
-  it("keeps the first character and the domain", () => {
-    expect(maskEmail("matteo.codogno@welld.ch")).toBe("m***@welld.ch");
-    expect(maskEmail("A@b.ch")).toBe("A***@b.ch");
-  });
-  it("a value with no local part or no @ keeps one character at most", () => {
-    expect(maskEmail("not-an-email")).toBe("n***");
-    expect(maskEmail("@welld.ch")).toBe("***");
-    expect(maskEmail("")).toBe("***");
-  });
-  it("parse errors mask the cell unless asked", () => {
-    expect(() => parseOffsetsCsv("matteo@x,2026,1")).toThrow(/"m\*\*\*@x"/);
-    expect(() => parseOffsetsCsv("matteo@x,2026,1", { showEmails: true })).toThrow(/"matteo@x"/);
-    expect(() => parseOffsetsCsv("a@b.ch,2026,1\nA@b.ch,2026,2")).toThrow(/A\*\*\*@b\.ch 2026 appears twice/);
-  });
-});
-
-describe("offsetsPathWarning (SR-3)", () => {
-  const dir = mkdtempSync(join(tmpdir(), "offsets-path-"));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
-
-  it("warns for a file under a directory that has `.git` (a directory, or a file as in a linked worktree), at any depth", () => {
-    mkdirSync(join(dir, "clone", ".git"), { recursive: true });
-    mkdirSync(join(dir, "clone", "a", "b"), { recursive: true });
-    mkdirSync(join(dir, "linked", "x"), { recursive: true });
-    writeFileSync(join(dir, "linked", ".git"), "gitdir: /elsewhere\n");
-    expect(offsetsPathWarning(join(dir, "clone", "a", "b", "offsets.csv"))).toContain("inside a git worktree");
-    expect(offsetsPathWarning(join(dir, "linked", "x", "offsets.csv"))).toContain("inside a git worktree");
-    expect(offsetsPathWarning(join(dir, "clone", "a", "b", "offsets.csv"))).not.toContain("@");
-  });
-  it("is silent for a path outside any worktree", () => {
-    mkdirSync(join(dir, "plain"), { recursive: true });
-    expect(offsetsPathWarning(join(dir, "plain", "offsets.csv"))).toBeNull();
-  });
-});
-
-describe(".gitignore keeps an offsets file out of the repository (SR-3, S-03)", () => {
+describe(".gitignore keeps the operator files out of the repository (SR-3, S-03; AC-5.6)", () => {
   const root = join(import.meta.dir, "..", "..");
   const ignored = (path: string) => Bun.spawnSync(["git", "check-ignore", "-q", path], { cwd: root }).exitCode === 0;
 
@@ -1395,13 +1339,18 @@ describe(".gitignore keeps an offsets file out of the repository (SR-3, S-03)", 
       expect(ignored(path)).toBe(true);
     }
   });
-  it("does not ignore the script, its tests or its defaults file", () => {
-    for (const path of ["refund-api/scripts/accounting-release.ts", "refund-api/scripts/accounting-release.test.ts", "refund-api/scripts/data/accounting-defaults.welld-ch.json"]) {
+  it("ignores a pairing file and the accountant's register export anywhere in the tree", () => {
+    for (const path of ["refund-api/pairing-2026.csv", "refund-api/scripts/release-pairing.csv", "x/y/pairing-check.csv", "refund-api/Recap_RS_2026.xlsx", "Recap_RS_2026 (copy).xlsx", "a/b/Recap_RS_2025.xls"]) {
+      expect(ignored(path)).toBe(true);
+    }
+  });
+  it("does not ignore the script, its tests, its defaults file or the committed header-only fixture", () => {
+    for (const path of ["refund-api/scripts/accounting-release.ts", "refund-api/scripts/accounting-release.test.ts", "refund-api/scripts/data/accounting-defaults.welld-ch.json", "refund-api/scripts/fixtures/synthetic-register-header-only.xlsx", "refund-api/scripts/release/pairingFile.ts"]) {
       expect(ignored(path)).toBe(false);
     }
   });
   it("no tracked file matches the patterns", () => {
     const tracked = new TextDecoder().decode(Bun.spawnSync(["git", "ls-files"], { cwd: root }).stdout).split("\n");
-    expect(tracked.filter((f) => /offsets.*\.csv$/.test(f) || /accounting-offsets/.test(f))).toEqual([]);
+    expect(tracked.filter((f) => /offsets.*\.csv$/.test(f) || /accounting-offsets/.test(f) || /pairing.*\.csv$/i.test(f) || /Recap_RS/.test(f))).toEqual([]);
   });
 });

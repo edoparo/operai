@@ -1,11 +1,11 @@
 /**
- * The release script as an OPERATOR runs it: `bun run scripts/accounting-release.ts [--dry-run] --offsets <csv>`
- * (QE pass T35, specs/20261118-refund-accounting-export; AC-7.1, AC-7.2, AC-7.3, plan D2, D6, R5; reworked by T22,
- * specs/20261119-accounting: AC-7.4, AC-7.5, AC-6.8; and by T63 for the 2026 baseline: `--offsets` is REQUIRED, exit 3 without it,
- * and a file with only the header line is the explicit empty list: SO-13 of 20261118, AC-4.11, AC-4.12, AC-7.4).
+ * The release script as an OPERATOR runs it: `bun run scripts/accounting-release.ts [--dry-run] --register <xlsx> (--propose <csv> | --pairing <csv>)`
+ * (QE pass T35, specs/20261118-refund-accounting-export; reworked by T22 and T63 of specs/20261119-accounting, and by T12 of
+ * specs/20261124-receipt-numbers-from-the-register: the three steps propose, check and run; AC-2.1, AC-2.3, AC-2.8, AC-5.1, AC-5.3, AC-5.6).
  *
- * `cli(...)` adds the header-only list unless the test passes `--offsets` itself, so the older journeys run as an operator with no
- * hand-issued numbers would; `cliBare(...)` runs exactly the arguments given (the missing-list cases).
+ * `cli(...)` does what the operator does with a register that has nothing to decide (the header-only workbook): it PROPOSES a pairing file,
+ * confirms every proposed record, and then runs the arguments given with `--register` and `--pairing` added, so the journeys of the
+ * older rounds still run as an operator with no paper numbers would. `cliBare(...)` runs exactly the arguments given.
  *
  * `accounting-release.test.ts` drives `runAccountingRelease()` in process, with a fake `AccountingPort`. What no in-process test
  * runs is the entry point itself (argument parsing, the report on stdout, the exit code, "nothing was changed" on failure), and
@@ -22,19 +22,17 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { db } from "../src/lib/db";
 import { isAccountingReleased } from "../src/accounting/release";
-import { EMPTY_BASELINE_CSV } from "../src/test-support/accountingRelease";
+import { confirmProposed } from "../src/test-support/releaseRun";
+import { buildRegisterWorkbook, headerOnlyRegisterWorkbook } from "../src/test-support/registerWorkbook";
 import { truncateRefundTables } from "../src/test-support/dbCleanup";
 
 const SCRIPT = join(import.meta.dir, "accounting-release.ts");
 const tmp = mkdtempSync(join(tmpdir(), "accounting-release-cli-"));
-/** The explicit empty list: the header line and no row (no employee has a hand-issued 2026 number). */
-const EMPTY_LIST = join(tmp, "empty-baseline.csv");
-writeFileSync(EMPTY_LIST, EMPTY_BASELINE_CSV);
 
 // ─── Auth and Accounting, as the wire has them ───────────────────────────────
 
@@ -133,12 +131,31 @@ afterAll(async () => {
   rmSync(tmp, { recursive: true, force: true });
 });
 
+/** The workbook of the header row only: no worker, no number, so every line has no paper counterpart (T7). */
+const REGISTER = join(tmp, "register-header-only.xlsx");
+writeFileSync(REGISTER, headerOnlyRegisterWorkbook());
+
+let fileCounter = 0;
+const fresh = (name: string) => join(tmp, `${++fileCounter}-${name}`);
+
+/**
+ * The release as the operator types it, in three steps, with the header-only register: PROPOSE to a new file, confirm every proposed
+ * record, then run the arguments given with `--register` and `--pairing` added. A propose that fails (Accounting down, an unreachable
+ * database, a usage error) is the result, as it would be for the operator. `world.requests` counts only the last step.
+ */
 async function cli(...args: string[]) {
   return cliWith({}, ...args);
 }
 
 async function cliWith(env: Record<string, string>, ...args: string[]) {
-  return cliBare(env, ...(args.includes("--offsets") ? args : [...args, "--offsets", EMPTY_LIST]));
+  const proposalPath = fresh("proposal.csv");
+  const propose = await cliBare(env, "--dry-run", "--register", REGISTER, "--propose", proposalPath, ...args.filter((a) => a !== "--dry-run"));
+  if (propose.exitCode !== 0) return propose;
+  const confirmedPath = fresh("confirmed.csv");
+  writeFileSync(confirmedPath, confirmProposed(readFileSync(proposalPath, "utf8")), { mode: 0o600 });
+  world.requests.length = 0;
+  world.mints = 0;
+  return cliBare(env, ...args, "--register", REGISTER, "--pairing", confirmedPath);
 }
 
 async function cliBare(env: Record<string, string>, ...args: string[]) {
@@ -173,6 +190,22 @@ const released = () => db.$transaction((tx) => isAccountingReleased(tx));
 const numbers = async (ids: string[]) =>
   (await db.refundLine.findMany({ where: { id: { in: ids } }, orderBy: { date: "asc" } })).map((l) => l.receiptNumber);
 
+/** Every refund table's row count: what a propose or a refusal must leave as it was. */
+async function footprint() {
+  return {
+    audit: await db.refundAuditEntry.count(),
+    settings: await db.refundSetting.count(),
+    baseline: await db.receiptNumberBaseline.count(),
+    counters: await db.receiptCounter.count(),
+    defaults: await db.expenseTypeAccountingDefault.count(),
+    numbered: await db.refundLine.count({ where: { receiptNumber: { not: null } } }),
+    named: await db.refundRequest.count({ where: { ownerName: { not: null } } }),
+    requests: await db.refundRequest.count(),
+    lines: await db.refundLine.count(),
+    codes: await db.receiptCode.count(),
+  };
+}
+
 describe("accounting:release, run as the operator runs it", () => {
   it("an unknown argument exits 1 with the usage and changes nothing", async () => {
     const { ids } = await legacyRequest(["2026-03-02"]);
@@ -185,6 +218,17 @@ describe("accounting:release, run as the operator runs it", () => {
     expect(await numbers(ids)).toEqual([null]);
     expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
     expect(world.requests).toEqual([]); // the arguments are checked before anything is asked of Accounting
+  });
+
+  it("(AC-5.6) --show-emails is refused as removed, naming the reason, and changes nothing", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const res = await cliBare({}, "--dry-run", "--show-emails", "--register", REGISTER, "--propose", fresh("p.csv"));
+    expect(res.exitCode).toBe(1);
+    expect(res.stderr).toContain("--show-emails was removed");
+    expect(res.stderr).toContain("AC-5.6");
+    expect(res.stdout).toBe("");
+    expect(await numbers(ids)).toEqual([null]);
+    expect(world.requests).toEqual([]);
   });
 
   it("(SO-17) --defaults with a file of the old world (a VAT code, or the foreign-currency VAT code) exits 1 and changes nothing, before Accounting is asked", async () => {
@@ -207,26 +251,28 @@ describe("accounting:release, run as the operator runs it", () => {
     expect(world.requests).toEqual([]);
   });
 
-  it("--offsets with no value exits 1 and changes nothing", async () => {
+  it("a flag with no value exits 1 and changes nothing", async () => {
     await legacyRequest(["2026-03-02"]);
-    const res = await cli("--offsets");
-    expect(res.exitCode).toBe(1);
-    expect(res.stderr).toContain("--offsets needs a value");
+    for (const flag of ["--offsets", "--register", "--pairing", "--propose", "--sheet"]) {
+      const res = await cliBare({}, "--dry-run", flag);
+      expect(res.exitCode).toBe(1);
+      expect(res.stderr).toContain(`${flag} needs a value`);
+    }
     expect(await released()).toBe(false);
   });
 
-  it("--dry-run prints what would happen, every line, and writes nothing: no marker, no seed, no number", async () => {
+  it("--dry-run (check) prints what would happen, every line, and writes nothing: no marker, no seed, no number", async () => {
     const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
     const res = await cli("--dry-run");
     expect(res.exitCode).toBe(0);
-    expect(res.stdout).toContain("DRY RUN: nothing was written");
+    expect(res.stdout).toContain("DRY RUN (check): nothing was written");
     expect(res.stdout).toContain("Numbered legacy WellD CH lines (2)");
     // D-1 (qe-report.md): the report must not claim the marker was written by a dry run.
     expect(res.stdout).not.toContain("Release marker written: yes");
     expect(res.stdout).toMatch(/Release marker written: no \(dry run: the real run would write it\)/);
     expect(res.stdout).not.toContain("Accounting release completed");
-    expect(res.stdout).toMatch(/MC26\/001 {2}2026-03-02/);
-    expect(res.stdout).toMatch(/MC26\/002 {2}2026-03-10/);
+    expect(res.stdout).toMatch(/MC26\/001 {2}new {2}2026-03-02/);
+    expect(res.stdout).toMatch(/MC26\/002 {2}new {2}2026-03-10/);
     expect(res.stdout).toContain("WellD Italia lines of approved or paid requests left without a number: 1");
     expect(await released()).toBe(false);
     expect(await numbers(ids)).toEqual([null, null]);
@@ -236,7 +282,7 @@ describe("accounting:release, run as the operator runs it", () => {
     expect(world.requests.some((r) => r.includes("/reference-data"))).toBe(true);
   });
 
-  it("the real run releases: marker, seed, classification and numbers by date, the Italian line untouched; a second run changes nothing", async () => {
+  it("the real run releases: marker, seed, classification and numbers by date, the Italian line untouched; a second run is 'already completed' and changes nothing", async () => {
     const { ids, itId } = await legacyRequest(["2026-03-10", "2026-03-02"]);
     const first = await cli();
     expect(first.exitCode).toBe(0);
@@ -249,13 +295,39 @@ describe("accounting:release, run as the operator runs it", () => {
     const it = await db.refundLine.findUniqueOrThrow({ where: { id: itId } });
     expect([it.receiptNumber, it.accountNumber, it.vatCodeCopy]).toEqual([null, null, null]); // AC-7.3
 
-    const audit = await db.refundAuditEntry.count();
-    const second = await cli();
+    const before = await footprint();
+    world.requests.length = 0;
+    const second = await cliBare({});
     expect(second.exitCode).toBe(0);
-    expect(second.stdout).toContain("The release marker was already set");
+    expect(second.stdout).toContain("was already completed");
     expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]);
-    expect(await db.refundAuditEntry.count()).toBe(audit);
-    expect(await db.receiptCounter.count()).toBe(1);
+    expect(await footprint()).toEqual(before);
+    expect(world.requests).toEqual([]); // not even a token: nothing was read, from anybody
+  });
+
+  it("(AC-5.3, D11) after completion ANY inputs exit 0 'already completed', ask nobody and write nothing: none, wrong ones, a missing file, a decided one", async () => {
+    await legacyRequest(["2026-03-02"]);
+    expect((await cli()).exitCode).toBe(0);
+    const before = await footprint();
+    world.requests.length = 0;
+    const garbage = fresh("garbage.xlsx");
+    writeFileSync(garbage, "not a workbook");
+    for (const args of [
+      [],
+      ["--register", garbage, "--pairing", garbage],
+      ["--register", "/does/not/exist.xlsx", "--pairing", "/does/not/exist.csv"],
+      ["--dry-run"],
+      ["--dry-run", "--register", REGISTER, "--propose", fresh("never-written.csv")],
+      ["--offsets", garbage],
+    ]) {
+      const res = await cliBare({}, ...args);
+      expect(res.exitCode).toBe(0);
+      expect(res.stdout).toContain("was already completed");
+      expect(res.stdout).not.toContain("Accounting release completed");
+    }
+    expect(await footprint()).toEqual(before);
+    expect(world.requests).toEqual([]);
+    expect(existsSync(join(tmp, `${fileCounter}-never-written.csv`))).toBe(false);
   });
 
   it("(AC-7.4) Accounting that answers 503 ends the run with EXIT 2 and the message, and NOTHING is written; a rerun once it is back works", async () => {
@@ -284,6 +356,19 @@ describe("accounting:release, run as the operator runs it", () => {
     expect(again.exitCode).toBe(0);
     expect(await released()).toBe(true);
     expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]);
+  });
+
+  it("(AC-2.1) Accounting is read BEFORE the workbook: with Accounting down and a register that does not exist the status is 2, not 6, and no file is written", async () => {
+    await legacyRequest(["2026-03-02"]);
+    world.down = true;
+    const out = fresh("never.csv");
+    const res = await cliBare({}, "--dry-run", "--register", "/does/not/exist.xlsx", "--propose", out);
+    expect(res.exitCode).toBe(2);
+    expect(existsSync(out)).toBe(false);
+    world.down = false;
+    const later = await cliBare({}, "--dry-run", "--register", "/does/not/exist.xlsx", "--propose", out);
+    expect(later.exitCode).toBe(6);
+    expect(existsSync(out)).toBe(false);
   });
 
   it("(AC-7.4) Accounting that cannot even be connected to (nothing listens) is exit 2 as well, with nothing written", async () => {
@@ -428,176 +513,221 @@ describe("accounting:release, run as the operator runs it", () => {
     expect(await released()).toBe(true);
     expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
   });
+});
 
-  it("--offsets <csv> continues numbering after the paper-era number, and the file is read from the path given", async () => {
-    const { ids } = await legacyRequest(["2026-03-02"]);
-    const csv = join(tmp, "offsets.csv");
-    writeFileSync(csv, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
-    const res = await cli("--offsets", csv);
-    expect(res.exitCode).toBe(0);
-    expect(res.stdout).toContain("MC · u-matteo 2026: numbering continues after 81"); // SR-4: no email without --show-emails
-    expect(await numbers(ids)).toEqual(["MC26/082"]);
-  });
-
-  it("(SR-4, S-04) no `@` anywhere in the report without --show-emails: dry run and real run, offsets and unclassified lines included", async () => {
+describe("the propose mode (AC-2.1, AC-2.3)", () => {
+  it("writes the pairing file with mode 0600, prints the report and writes NOTHING to the database: every refund table's row count is as it was", async () => {
     await legacyRequest(["2026-03-02", "2026-03-10"]);
-    const csv = join(tmp, "mask-offsets.csv");
-    writeFileSync(csv, "matteo.codogno@welld.ch,2026,81\n");
-    const dry = await cli("--dry-run", "--offsets", csv);
-    expect(dry.exitCode).toBe(0);
-    expect(dry.stdout).toContain("Every line");
-    expect(dry.stdout).not.toContain("@");
-    expect(dry.stdout).toContain("MC · u-matteo");
-    expect(dry.stderr).not.toContain("@");
-    const real = await cli("--offsets", csv);
-    expect(real.exitCode).toBe(0);
-    expect(real.stdout).not.toContain("@");
-  });
-
-  it("(SR-4) --show-emails prints the full address, in the report only when asked", async () => {
-    await legacyRequest(["2026-03-02"]);
-    const res = await cli("--dry-run", "--show-emails");
+    const before = await footprint();
+    const out = fresh("proposal.csv");
+    const res = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", out);
     expect(res.exitCode).toBe(0);
-    expect(res.stdout).toContain("matteo.codogno@welld.ch");
+    expect(statSync(out).mode & 0o777).toBe(0o600);
+    expect(res.stdout).toContain("DRY RUN (propose)");
+    expect(res.stdout).toContain("Pre-release lines: 2");
+    expect(res.stdout).toContain("no paper counterpart: 2 lines");
+    expect(res.stdout).toContain("Release marker written: no");
+    expect(await footprint()).toEqual(before);
+    const text = readFileSync(out, "utf8");
+    expect(text.charCodeAt(0)).toBe(0xfeff);
+    expect(text).toContain("operai-pairing/1");
+    // Accounting and auth were read first (the token was minted, the reference data asked).
+    expect(world.requests.some((r) => r.includes("/reference-data"))).toBe(true);
   });
 
-  it("(SR-4) a refused offset names the employee masked, as m***@welld.ch, in the error", async () => {
+  it("refuses an existing path with exit 1 and leaves that file exactly as it was", async () => {
     await legacyRequest(["2026-03-02"]);
-    expect((await cli()).exitCode).toBe(0);
-    const csv = join(tmp, "masked-error.csv");
-    writeFileSync(csv, "matteo.codogno@welld.ch,2026,81\n");
-    const res = await cli("--offsets", csv);
+    const decided = fresh("decided.csv");
+    writeFileSync(decided, "a decided file, never overwritten");
+    const res = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", decided);
     expect(res.exitCode).toBe(1);
-    expect(res.stderr).toContain("m***@welld.ch");
-    expect(res.stderr).not.toContain("matteo.codogno");
-    const withEmails = await cli("--offsets", csv, "--show-emails");
-    expect(withEmails.stderr).toContain("matteo.codogno@welld.ch");
+    expect(res.stderr).toContain("accounting:release failed, nothing was changed");
+    expect(readFileSync(decided, "utf8")).toBe("a decided file, never overwritten");
   });
 
-  it("(SR-3, S-03) an --offsets path inside a git worktree prints a warning (stderr), a path outside does not; the run goes on", async () => {
+  it("(AC-5.6) the report prints no name and no email, the pairing file does hold them (it is the operator's), and an employee is `<prefix> · <id8>`", async () => {
     await legacyRequest(["2026-03-02"]);
-    const repo = join(tmp, "some-checkout");
-    mkdirSync(join(repo, ".git"), { recursive: true });
-    mkdirSync(join(repo, "nested"), { recursive: true });
-    const inside = join(repo, "nested", "offsets.csv");
-    writeFileSync(inside, "matteo.codogno@welld.ch,2026,81\n");
-    const warned = await cli("--dry-run", "--offsets", inside);
-    expect(warned.exitCode).toBe(0);
-    expect(warned.stderr).toContain("WARNING");
-    expect(warned.stderr).toContain("inside a git worktree");
-    expect(warned.stderr).not.toContain("@");
-
-    const outside = join(tmp, "outside-offsets.csv");
-    writeFileSync(outside, "matteo.codogno@welld.ch,2026,81\n");
-    const quiet = await cli("--dry-run", "--offsets", outside);
-    expect(quiet.exitCode).toBe(0);
-    expect(quiet.stderr).not.toContain("WARNING");
+    const out = fresh("privacy.csv");
+    const res = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", out);
+    expect(res.exitCode).toBe(0);
+    for (const text of [res.stdout, res.stderr]) {
+      expect(text).not.toContain("@");
+      expect(text).not.toMatch(/Matteo|Codogno/);
+    }
+    expect(res.stdout).toContain("MC · u-matteo");
+    expect(readFileSync(out, "utf8")).toContain("matteo.codogno@welld.ch");
   });
 
-  it("(AC-7.4, SO-13) NO --offsets: EXIT 3 with the reason, and NOTHING is written (no default, no baseline row, no number, no counter, no audit, no marker)", async () => {
+  it("--offsets complements the register: an offsets-only employee shows in the report by reference, without the email", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const list = fresh("offsets.csv");
+    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\nanna.rossi@welld.ch,2026,12\n");
+    const res = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", fresh("p.csv"), "--offsets", list);
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("MC · u-matteo: 1 line; offsets 81, register maximum 0, imported maximum 0, baseline 81; first new number MC26/082");
+    expect(res.stdout).toContain("not yet in Refund: 0 lines; offsets 12");
+    expect(res.stdout).not.toContain("@");
+    expect(res.stdout).not.toContain("anna.rossi");
+  });
+});
+
+describe("the inputs: present (exit 5) and readable (exit 6)", () => {
+  it("(AC-2.8) a real run with no --register or no --pairing, or with --offsets alone, is exit 5 'run the dry run first' with NOTHING written", async () => {
     const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
-    const res = await cliBare({});
-    expect(res.exitCode).toBe(3);
-    expect(res.stderr).toContain("accounting:release stopped: the list of last hand-issued 2026 numbers is missing: nothing was numbered (AC-7.4)");
-    expect(res.stderr).toContain("--offsets <csv>");
-    expect(res.stdout).not.toContain("Accounting release completed");
-    expect(res.stderr).not.toContain("nothing was changed"); // that is the exit-1 wording
+    const list = fresh("offsets.csv");
+    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
+    const confirmed = fresh("confirmed.csv");
+    writeFileSync(confirmed, "x");
+    for (const args of [[], ["--register", REGISTER], ["--pairing", confirmed], ["--offsets", list]]) {
+      const res = await cliBare({}, ...args);
+      expect(res.exitCode).toBe(5);
+      expect(res.stderr).toContain("run the dry run first");
+      expect(res.stderr).not.toContain("nothing was changed"); // that is the exit-1 wording
+      expect(res.stdout).not.toContain("Accounting release completed");
+    }
     expect(await released()).toBe(false);
     expect(await numbers(ids)).toEqual([null, null]);
-    for (const count of [
-      await db.expenseTypeAccountingDefault.count(),
-      await db.receiptCounter.count(),
-      await db.receiptNumberBaseline.count(),
-      await db.refundAuditEntry.count(),
-      await db.refundSetting.count(),
-    ]) {
-      expect(count).toBe(0);
-    }
-    // Accounting was read first (so that an unreadable one is still exit 2), and only read.
+    expect(await footprint()).toMatchObject({ settings: 0, baseline: 0, counters: 0, audit: 0, defaults: 0, numbered: 0 });
+    // Accounting was read first, and only read.
     expect(world.requests.every((r) => r.startsWith("GET /system/v1/") || r === "POST /system/service-token")).toBe(true);
-
-    // A rerun with the list is safe, and numbers from the paper register.
-    const list = join(tmp, "after-missing.csv");
-    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
-    const again = await cliBare({}, "--offsets", list);
-    expect(again.exitCode).toBe(0);
-    expect(await numbers(ids)).toEqual(["MC26/082", "MC26/083"]);
   });
 
-  it("(AC-7.4) --dry-run with no list reads Accounting, writes nothing, shows no number, prints BLOCKED: list missing, and ends with exit 3", async () => {
-    const { ids } = await legacyRequest(["2026-03-02"]);
-    const res = await cliBare({}, "--dry-run");
-    expect(res.exitCode).toBe(3);
-    expect(res.stdout).toContain("DRY RUN: nothing was written");
-    expect(res.stdout).toContain("BLOCKED: list missing.");
-    expect(res.stdout).toContain("Legacy WellD CH lines the real run would number once the list is given: 1");
-    expect(res.stdout).not.toMatch(/MC26\/0/);
-    expect(res.stdout).not.toContain("@");
-    expect(world.requests.some((r) => r.includes("/reference-data"))).toBe(true);
+  it("(AC-2.8) a dry run needs the register and exactly one mode: neither, or both, is exit 5", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const some = fresh("some.csv");
+    writeFileSync(some, "x");
+    for (const args of [["--dry-run"], ["--dry-run", "--register", REGISTER], ["--dry-run", "--register", REGISTER, "--propose", fresh("p.csv"), "--pairing", some], ["--dry-run", "--propose", fresh("p.csv")]]) {
+      const res = await cliBare({}, ...args);
+      expect(res.exitCode).toBe(5);
+    }
+    // --propose without --dry-run is not a mode of the real run either
+    expect((await cliBare({}, "--register", REGISTER, "--propose", fresh("p.csv"))).exitCode).toBe(5);
     expect(await released()).toBe(false);
-    expect(await numbers(ids)).toEqual([null]);
-    expect(await db.expenseTypeAccountingDefault.count()).toBe(0);
   });
 
-  it("(AC-7.4) Accounting unreadable AND no list is still exit 2: Accounting is read first", async () => {
+  it("(AC-7.4) Accounting unreadable AND no inputs is still exit 2: Accounting is read first", async () => {
     await legacyRequest(["2026-03-02"]);
     world.down = true;
-    const res = await cliBare({});
-    expect(res.exitCode).toBe(2);
-    expect(res.stderr).toContain("Accounting cannot be read");
-    expect(res.stderr).not.toContain("hand-issued");
-    const dry = await cliBare({}, "--dry-run");
-    expect(dry.exitCode).toBe(2);
+    expect((await cliBare({})).exitCode).toBe(2);
+    expect((await cliBare({}, "--dry-run")).exitCode).toBe(2);
   });
 
-  it("(AC-7.4, AC-4.12) a file with only the header line is the explicit empty list: exit 0, numbered from 001, no baseline row", async () => {
+  it("an unreadable workbook, a missing sheet, a sheet with no header, a pairing file of another format and a bad offsets file are exit 6, quote no cell, and write nothing", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const garbage = fresh("garbage.xlsx");
+    writeFileSync(garbage, "SECRET-CELL-TEXT is not a workbook");
+    const noHeader = fresh("no-header.xlsx");
+    writeFileSync(noHeader, buildRegisterWorkbook([], { sheetName: "2026" }));
+    const wrongFormat = fresh("wrong-format.csv");
+    writeFileSync(wrongFormat, "record,id,label,decision,state\nmeta,format,operai-pairing/9,,\nmeta,register,x,,\nmeta,lines,y,,\n");
+    const badOffsets = fresh("bad-offsets.csv");
+    writeFileSync(badOffsets, "secret.person@welld.ch,2025,5\n");
+    const proposal = fresh("proposal.csv");
+    expect((await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", proposal)).exitCode).toBe(0);
+
+    const cases: [string, string[]][] = [
+      ["a file that is no workbook", ["--dry-run", "--register", garbage, "--propose", fresh("p.csv")]],
+      ["a missing file", ["--dry-run", "--register", "/does/not/exist.xlsx", "--propose", fresh("p.csv")]],
+      ["a sheet the workbook does not have", ["--dry-run", "--register", REGISTER, "--propose", fresh("p.csv"), "--sheet", "Nope"]],
+      ["a pairing file of another format", ["--dry-run", "--register", REGISTER, "--pairing", wrongFormat]],
+      ["a missing pairing file", ["--dry-run", "--register", REGISTER, "--pairing", "/does/not/exist.csv"]],
+      ["a bad offsets file", ["--dry-run", "--register", REGISTER, "--propose", fresh("p.csv"), "--offsets", badOffsets]],
+    ];
+    for (const [name, args] of cases) {
+      const res = await cliBare({}, ...args);
+      expect({ name, exit: res.exitCode }).toEqual({ name, exit: 6 });
+      expect(res.stderr).toContain("accounting:release stopped (exit 6)");
+      const all = `${res.stdout}\n${res.stderr}`;
+      expect(all).not.toMatch(/SECRET-CELL-TEXT|secret\.person/);
+    }
+    void noHeader;
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+    expect(await footprint()).toMatchObject({ settings: 0, baseline: 0, counters: 0, audit: 0, defaults: 0, numbered: 0 });
+  });
+
+  it("(AC-4.12) a file with only the header line is the explicit empty offsets list, and an empty or comment-only file is refused: exit 6, nothing written", async () => {
     const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
-    const res = await cliBare({}, "--offsets", EMPTY_LIST);
-    expect(res.exitCode).toBe(0);
-    expect(res.stdout).toContain("an empty list: no employee has a hand-issued 2026 number, numbering starts at 001");
+    const header = fresh("empty.csv");
+    writeFileSync(header, "email,year,lastIssuedSeq\n");
+    const ok = await cli("--offsets", header);
+    expect(ok.exitCode).toBe(0);
+    expect(ok.stdout).toContain("none: numbering starts at 001");
     expect(await numbers(ids)).toEqual(["MC26/001", "MC26/002"]);
     expect(await db.receiptNumberBaseline.count()).toBe(0);
-    expect(await released()).toBe(true);
   });
 
-  it("an EMPTY or comment-only file is refused (exit 1, nothing written): a truncated list must not read as 'no employee has a number'", async () => {
+  it("a truncated offsets file would number from 001 over the paper numbers: empty, blank or comment-only is exit 6", async () => {
     const { ids } = await legacyRequest(["2026-03-02"]);
-    for (const [name, body] of [
-      ["zero.csv", ""],
-      ["blank.csv", "\n\n"],
-      ["comment.csv", "# all of them are new\n"],
-    ] as const) {
-      const file = join(tmp, name);
+    for (const [name, body] of [["zero.csv", ""], ["blank.csv", "\n\n"], ["comment.csv", "# all of them are new\n"]] as const) {
+      const file = fresh(name);
       writeFileSync(file, body);
-      const res = await cliBare({}, "--offsets", file);
-      expect(res.exitCode).toBe(1);
-      expect(res.stderr).toContain("accounting:release failed, nothing was changed");
+      const res = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", fresh("p.csv"), "--offsets", file);
+      expect(res.exitCode).toBe(6);
       expect(res.stderr).toContain("no header line and no row");
     }
     expect(await released()).toBe(false);
     expect(await numbers(ids)).toEqual([null]);
   });
+});
 
-  it("(AC-4.12) a row for a year but 2026 is refused, with nothing written", async () => {
+describe("paths in a git worktree (AC-5.6)", () => {
+  it("a register, pairing or offsets path inside a git worktree prints a warning on stderr, a path outside does not; the run goes on", async () => {
+    await legacyRequest(["2026-03-02"]);
+    const repo = join(tmp, "some-checkout");
+    mkdirSync(join(repo, ".git"), { recursive: true });
+    mkdirSync(join(repo, "nested"), { recursive: true });
+    const insideRegister = join(repo, "nested", "register.xlsx");
+    writeFileSync(insideRegister, headerOnlyRegisterWorkbook());
+    const insideOffsets = join(repo, "nested", "offsets.csv");
+    writeFileSync(insideOffsets, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
+    const out = join(repo, "nested", "out.csv");
+    const warned = await cliBare({}, "--dry-run", "--register", insideRegister, "--propose", out, "--offsets", insideOffsets);
+    expect(warned.exitCode).toBe(0);
+    for (const what of ["the register export", "the pairing file to write", "the offsets file"]) expect(warned.stderr).toContain(what);
+    expect(warned.stderr).toContain("inside a git worktree");
+    expect(warned.stderr).not.toContain("@");
+
+    const quiet = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", fresh("outside.csv"));
+    expect(quiet.exitCode).toBe(0);
+    expect(quiet.stderr).not.toContain("WARNING");
+    expect(existsSync(out)).toBe(true);
+  });
+});
+
+describe("the baseline from --offsets, run as the operator runs it", () => {
+  it("--offsets <csv> continues numbering after the paper-era number, and the file is read from the path given", async () => {
     const { ids } = await legacyRequest(["2026-03-02"]);
-    const list = join(tmp, "wrong-year.csv");
-    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2027,5\n");
-    const res = await cliBare({}, "--offsets", list);
-    expect(res.exitCode).toBe(1);
-    expect(res.stderr).toContain("only 2026 continues the paper register");
-    expect(res.stderr).not.toContain("matteo.codogno");
-    expect(await released()).toBe(false);
-    expect(await numbers(ids)).toEqual([null]);
+    const csv = fresh("offsets.csv");
+    writeFileSync(csv, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\n");
+    const res = await cli("--offsets", csv);
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("MC · u-matteo 2026: numbering continues after 81"); // AC-5.6: no email in any output
+    expect(await numbers(ids)).toEqual(["MC26/082"]);
   });
 
-  it("(AC-4.11) the report names each row by the initials Refund will use, and an employee not yet in Refund masked; no full address without --show-emails", async () => {
+  it("(AC-5.6) no `@` and no name anywhere in a dry run or a real run with offsets", async () => {
+    await legacyRequest(["2026-03-02", "2026-03-10"]);
+    const csv = fresh("mask-offsets.csv");
+    writeFileSync(csv, "matteo.codogno@welld.ch,2026,81\n");
+    const dry = await cli("--dry-run", "--offsets", csv);
+    expect(dry.exitCode).toBe(0);
+    expect(dry.stdout).toContain("Every line");
+    expect(dry.stdout).toContain("MC · u-matteo");
+    for (const text of [dry.stdout, dry.stderr]) expect(text).not.toMatch(/@|Matteo|Codogno/);
+    const real = await cli("--offsets", csv);
+    expect(real.exitCode).toBe(0);
+    for (const text of [real.stdout, real.stderr]) expect(text).not.toMatch(/@|Matteo|Codogno/);
+  });
+
+  it("the report names each baseline by the prefix Refund will use, and an employee not yet in Refund as such, never by email", async () => {
     const { ids } = await legacyRequest(["2026-03-02"]);
-    const list = join(tmp, "two-rows.csv");
+    const list = fresh("two-rows.csv");
     writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\nanna.rossi@welld.ch,2026,12\n");
-    const res = await cliBare({}, "--offsets", list);
+    const res = await cli("--offsets", list);
     expect(res.exitCode).toBe(0);
-    expect(res.stdout).toContain("MC · u-matteo 2026: numbering continues after 81 (applied)");
-    expect(res.stdout).toContain("not yet in Refund (a***@welld.ch) 2026: numbering continues after 12 (applied)");
+    expect(res.stdout).toContain("MC · u-matteo 2026: numbering continues after 81 (written)");
+    expect(res.stdout).toContain("not yet in Refund 2026: numbering continues after 12 (written)");
     expect(res.stdout).not.toContain("matteo.codogno");
     expect(res.stdout).not.toContain("anna.rossi");
     expect(await numbers(ids)).toEqual(["MC26/082"]);
@@ -605,46 +735,27 @@ describe("accounting:release, run as the operator runs it", () => {
       ["anna.rossi@welld.ch", 12],
       ["matteo.codogno@welld.ch", 81],
     ]);
-    const shown = await cliBare({}, "--offsets", list, "--show-emails");
-    expect(shown.stdout).toContain("anna.rossi@welld.ch");
   });
 
-  it("a rerun with the same list is a no-op: already-applied, the same numbers, no second baseline row, no second audit row", async () => {
+  it("a row for a year but 2026 is refused (exit 6), with nothing written and no email in the message", async () => {
     const { ids } = await legacyRequest(["2026-03-02"]);
-    const list = join(tmp, "rerun.csv");
-    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2026,81\nanna.rossi@welld.ch,2026,12\n");
-    expect((await cliBare({}, "--offsets", list)).exitCode).toBe(0);
-    const audit = await db.refundAuditEntry.count();
-    const again = await cliBare({}, "--offsets", list);
-    expect(again.exitCode).toBe(0);
-    expect(again.stdout).toContain("(already-applied)");
-    expect(again.stdout).not.toContain("(applied)");
-    expect(await numbers(ids)).toEqual(["MC26/082"]);
-    expect(await db.receiptNumberBaseline.count()).toBe(2);
-    expect(await db.refundAuditEntry.count()).toBe(audit);
+    const list = fresh("wrong-year.csv");
+    writeFileSync(list, "email,year,lastIssuedSeq\nmatteo.codogno@welld.ch,2027,5\n");
+    const res = await cli("--offsets", list);
+    expect(res.exitCode).toBe(6);
+    expect(res.stderr).toContain("only 2026 continues the paper register");
+    expect(res.stderr).not.toContain("matteo.codogno");
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
   });
 
-  it("an offset for an employee and year that already hold numbers is refused: exit 1, and the whole release is rolled back", async () => {
-    const { ids } = await legacyRequest(["2026-03-02"]);
-    expect((await cli()).exitCode).toBe(0); // numbers MC26/001
-    const csv = join(tmp, "late-offsets.csv");
-    writeFileSync(csv, "matteo.codogno@welld.ch,2026,81\n");
-    const res = await cli("--offsets", csv);
-    expect(res.exitCode).toBe(1);
-    expect(res.stderr).toContain("nothing was changed");
-    expect(await numbers(ids)).toEqual(["MC26/001"]);
-    expect((await db.receiptCounter.findFirstOrThrow()).lastSeq).toBe(1);
-  });
-
-  it("a malformed offsets file is refused before anything is written", async () => {
+  it("a malformed offsets file is refused before anything is written, and the bad cell is not echoed", async () => {
     await legacyRequest(["2026-03-02"]);
-    const csv = join(tmp, "bad.csv");
+    const csv = fresh("bad.csv");
     writeFileSync(csv, "not-an-email,2026,81\n");
     const res = await cli("--offsets", csv);
-    expect(res.exitCode).toBe(1);
-    expect(res.stderr).toContain("nothing was changed");
-    expect(res.stderr).not.toContain("not-an-email"); // the bad cell is echoed masked (SR-4)
-    expect(res.stderr).toContain('"n***"');
+    expect(res.exitCode).toBe(6);
+    expect(res.stderr).not.toContain("not-an-email");
     expect(await released()).toBe(false);
   });
 });
