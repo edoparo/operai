@@ -401,10 +401,11 @@ Derived from these committed files:
   - done when: the ADR carries a dated amendment matching DS-8 and stating that the 409 rule is unchanged; no other ADR is edited.
   - evidence: decision 5 of the ADR carries "Amendment 2026-11-24 (design sync DS-8)" (flag with or without a code; 409 rule unchanged); its AGENTS.md line updated; `git diff --stat` touches only the ADR, AGENTS.md and this box.
 
-- [ ] T26: changeset `.changeset/receipt-numbers-from-the-register.md` (auth minor, refund-api minor, refund-ui minor) — refs: none (release plumbing) — deps: T1, T5, T13, T15, T21
+- [x] T26: changeset `.changeset/receipt-numbers-from-the-register.md` (auth minor, refund-api minor, refund-ui minor) — refs: none (release plumbing) — deps: T1, T5, T13, T15, T21
   - touch: `.changeset/receipt-numbers-from-the-register.md`
   - agent: devops · docs
   - done when: `cd $WT && mise run changeset:check` is OK.
+  - evidence: `.changeset/receipt-numbers-from-the-register.md` (@operai/auth, @operai/refund-api, @operai/refund-ui, minor; same frontmatter style as hours-ui-record-in-place.md); `mise run changeset:check` result recorded in the commit message.
 
 ## CLOSE — QE, security, eval, closing (the gate)
 
