@@ -138,7 +138,7 @@ Derived from these committed files:
 
 ## CODE — refund-api receipt-code API
 
-- [ ] T5: refund-api — `GET /accounting/receipt-codes`, `PUT /accounting/receipt-codes/{userId}`, `GET /accounting/receipt-codes/{userId}/history`, gated by `receipt-code:manage` on every method; `changedAt`/`changedByEmail` (DS-2) and `sharesPrefix` (DS-8) — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.6, AC-4.7, AC-4.9, AC-4.10, AC-4.11 — deps: T2, T3, T4
+- [x] T5: refund-api — `GET /accounting/receipt-codes`, `PUT /accounting/receipt-codes/{userId}`, `GET /accounting/receipt-codes/{userId}/history`, gated by `receipt-code:manage` on every method; `changedAt`/`changedByEmail` (DS-2) and `sharesPrefix` (DS-8) — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.6, AC-4.7, AC-4.9, AC-4.10, AC-4.11 — deps: T2, T3, T4
   - touch: `refund-api/src/accounting/receiptCode.repo.ts`, `refund-api/src/accounting/receiptCode.routes.ts`, `refund-api/src/accounting/receiptCode.schemas.ts`, `refund-api/src/accounting/receiptCode.routes.test.ts`, `refund-api/src/accounting/receiptCode.race.test.ts`, `refund-api/src/index.ts`
   - agent: backend-dev · code
   - Details:

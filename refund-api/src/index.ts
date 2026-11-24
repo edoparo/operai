@@ -22,6 +22,7 @@ import { settingsRouter } from "./settings/routes";
 import { defaultsRouter } from "./accounting/defaults.routes";
 import { classificationRouter } from "./accounting/classification.routes";
 import { exportRouter } from "./accounting/export.routes";
+import { receiptCodeRouter } from "./accounting/receiptCode.routes";
 import { requestLogger } from "./lib/logger";
 import { setupOpenAPI } from "./openapi/registry";
 
@@ -113,6 +114,9 @@ app.route("/", classificationRouter);
 // welld_ch — specs/20261118-refund-accounting-export (T18). Its paths (/batches/{id}/accounting-export…) collide with
 // no batch route, so the registration order does not matter.
 app.route("/", exportRouter);
+// receiptCodeRouter: the receipt code per employee (list, set/change/clear, history), gated by the new receipt-code:manage
+// capability on every method — specs/20261124-receipt-numbers-from-the-register (T5).
+app.route("/", receiptCodeRouter);
 
 // ─── OpenAPI + Scalar UI ─────────────────────────────────────────────────────
 
