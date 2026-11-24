@@ -210,7 +210,7 @@ Derived from these committed files:
 
 ## PAIR — release pure core
 
-- [ ] T9: refund-api — `pairing.ts` (pure): worker → employee proposal, candidates, categories and demotions, splits, number-taken, baseline (AC-3.1), shared-prefix analysis (AC-4.11), deterministic ordering — refs: AC-1.1, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7, AC-1.8, AC-1.9, AC-1.10, AC-1.11, AC-1.12, AC-1.13, AC-1.14, AC-1.15, AC-1.16, AC-3.1, AC-4.11 — deps: T3, T6
+- [x] T9: refund-api — `pairing.ts` (pure): worker → employee proposal, candidates, categories and demotions, splits, number-taken, baseline (AC-3.1), shared-prefix analysis (AC-4.11), deterministic ordering — refs: AC-1.1, AC-1.3, AC-1.4, AC-1.5, AC-1.6, AC-1.7, AC-1.8, AC-1.9, AC-1.10, AC-1.11, AC-1.12, AC-1.13, AC-1.14, AC-1.15, AC-1.16, AC-3.1, AC-4.11 — deps: T3, T6
   - touch: `refund-api/scripts/release/pairing.ts`, `refund-api/scripts/release/pairing.test.ts`
   - agent: backend-dev · pair
   - Details: plan § Pairing (D2) table and demotions, § Counter continuation (D5), § Prefixes and
