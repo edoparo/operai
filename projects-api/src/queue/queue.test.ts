@@ -41,6 +41,8 @@ describe("GET /queue — a won deal waits for someone to take it (AC-1.1)", () =
           company: { id: "co-zeta", name: "Zeta AG" },
           wonAt: "2026-11-02T10:00:00.000Z",
           estimate: { id: "est-7", name: "Portal estimate" },
+          // An older crm-api sends no kind: a standard deal (specs/20261101-crm US-10).
+          kind: "standard",
         },
       ],
       truncated: false,

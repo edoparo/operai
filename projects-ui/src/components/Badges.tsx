@@ -28,3 +28,12 @@ export function ProjectTypeBadge({ type }: { type: ProjectType }) {
 export function EntityBadge({ entity }: { entity: Entity }) {
   return <Badge tone="neutral">{strings.badges.entity[entity]}</Badge>
 }
+
+/** A won public tender in the queue (US-10): metadata worth emphasis, not a status — an accent badge, as in crm-ui. */
+export function TenderBadge({ testId }: { testId?: string }) {
+  return (
+    <Badge tone="accent" data-testid={testId}>
+      {strings.badges.tender}
+    </Badge>
+  )
+}

@@ -40,6 +40,18 @@ const en = {
       submit: 'Create project',
       busy: 'Creating…',
     },
+    /** Taking a won public tender (US-10): no purchase order, the project manager is chosen now. */
+    tender: {
+      title: 'New project from a tender',
+      description: (company: string, entity: string) =>
+        `A planned project for ${company} (${entity}), made from this public tender. The company and the entity come from the deal.`,
+      note: 'A tender becomes a project without a purchase order: no ops manager, no billing. Choose its project manager now.',
+      projectManagerHint: 'Only people with access to Projects can be chosen.',
+      projectManagerReadOnlyHint: 'Only people who manage projects can choose the project manager.',
+      termsLegend: 'Project terms',
+      identityUnavailable:
+        'The user directory cannot be reached right now, so the project manager could not be checked. Nothing was created. Try again in a moment.',
+    },
     terms: {
       legend: 'Purchase order terms',
       estimatedManDaysFromEstimate: 'From the estimate',
@@ -80,6 +92,13 @@ const en = {
         'EstimAI cannot be reached right now, so the estimate’s man-days could not be read. Nothing was created. Try again in a moment.',
       estimai_unconfigured:
         'EstimAI is not set up for Projects, so the estimate’s man-days could not be read. Nothing was created. Ask an administrator.',
+      ops_manager_required: 'Choose who receives this purchase order.',
+      project_manager_required: 'Choose the project manager of this tender.',
+      not_project_user: 'This person has no access to Projects. Choose someone who does.',
+      not_for_tenders:
+        'This deal is now a public tender, so it is taken without a purchase order. The list has been reloaded: take it again from there.',
+      only_for_tenders:
+        'This deal is no longer a public tender, so it needs a purchase order. The list has been reloaded: take it again from there.',
     } as Record<TakeRefusal, string>,
   },
 }
@@ -125,6 +144,17 @@ const it: typeof en = {
       submit: 'Crea progetto',
       busy: 'Creazione…',
     },
+    tender: {
+      title: 'Nuovo progetto da un bando',
+      description: (company: string, entity: string) =>
+        `Un progetto pianificato per ${company} (${entity}), creato da questo bando di gara. L’azienda e l’entità vengono dalla trattativa.`,
+      note: 'Un bando diventa un progetto senza ordine d’acquisto: niente responsabile OPS, niente fatturazione. Scegli ora il suo project manager.',
+      projectManagerHint: 'Si possono scegliere solo persone con accesso a Progetti.',
+      projectManagerReadOnlyHint: 'Solo chi gestisce i progetti può scegliere il project manager.',
+      termsLegend: 'Termini del progetto',
+      identityUnavailable:
+        'L’elenco degli utenti al momento non è raggiungibile, quindi non si è potuto verificare il project manager. Non è stato creato nulla. Riprova tra un attimo.',
+    },
     terms: {
       legend: 'Termini dell’ordine d’acquisto',
       estimatedManDaysFromEstimate: 'Dalla stima',
@@ -165,6 +195,13 @@ const it: typeof en = {
         'Al momento non è possibile raggiungere EstimAI, quindi i giorni-uomo della stima non si sono potuti leggere. Non è stato creato nulla. Riprova tra un attimo.',
       estimai_unconfigured:
         'EstimAI non è configurato per Progetti, quindi i giorni-uomo della stima non si sono potuti leggere. Non è stato creato nulla. Chiedi a un amministratore.',
+      ops_manager_required: 'Scegli chi riceve questo ordine d’acquisto.',
+      project_manager_required: 'Scegli il project manager di questo bando.',
+      not_project_user: 'Questa persona non ha accesso a Progetti. Scegline una che ce l’ha.',
+      not_for_tenders:
+        'Questa trattativa ora è un bando di gara, quindi si prende in carico senza ordine d’acquisto. L’elenco è stato ricaricato: riprendila da lì.',
+      only_for_tenders:
+        'Questa trattativa non è più un bando di gara, quindi richiede un ordine d’acquisto. L’elenco è stato ricaricato: riprendila da lì.',
     },
   },
 }

@@ -150,6 +150,8 @@ export interface FakeDeal {
   company: { id: string; name: string };
   wonAt: string;
   estimate: { id: string; name: string } | null;
+  /** specs/20261101-crm US-10; absent = what an older crm-api sends (a standard deal). */
+  kind?: "standard" | "tender";
 }
 
 let dealSeq = 0;
@@ -233,6 +235,7 @@ function fakeCrmDeals(url: URL, authorization: string): Response {
     company: deal.company,
     wonAt: deal.stage === "won" ? deal.wonAt : null,
     estimate: deal.estimate,
+    ...(deal.kind ? { kind: deal.kind } : {}),
   });
   if (ids) {
     return Response.json({

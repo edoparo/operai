@@ -100,6 +100,10 @@ export const PROJECT_ERROR_CODES = [
   'ops_manager_invalid',
   'estimai_unavailable',
   'estimai_unconfigured',
+  // taking a deal or a public tender: the body of the other kind of take (US-10)
+  'ops_manager_required',
+  'not_for_tenders',
+  'only_for_tenders',
   // the services behind projects-api
   'crm_unavailable',
   'identity_unavailable',
@@ -144,6 +148,12 @@ export const TAKE_REFUSALS = [
   'crm_unavailable',
   'estimai_unavailable',
   'estimai_unconfigured',
+  // US-10: a tender names its project manager, a deal its ops-manager; the other kind's member is refused.
+  'ops_manager_required',
+  'project_manager_required',
+  'not_project_user',
+  'not_for_tenders',
+  'only_for_tenders',
 ] as const satisfies readonly ProjectErrorCode[]
 export type TakeRefusal = (typeof TAKE_REFUSALS)[number]
 

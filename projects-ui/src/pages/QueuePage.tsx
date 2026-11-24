@@ -2,7 +2,7 @@ import { useCallback, useId, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Banner, Button, Card, DataTable, Field, formatDate, PageHeader, StatePanel } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
-import { EntityBadge } from '../components/Badges'
+import { EntityBadge, TenderBadge } from '../components/Badges'
 import { LoadFailure, Loading } from '../components/LoadState'
 import PermissionDenied from '../components/PermissionDenied'
 import TakeDealDialog from '../components/TakeDealDialog'
@@ -12,6 +12,7 @@ import { codeOf } from '../lib/errors'
 import { ENTITIES } from '../lib/domain'
 import { crmDealHref, estimaiEstimateHref } from '../lib/links'
 import { listQueue } from '../lib/projectsApi'
+import { isTender } from '../lib/types'
 import type { Entity, QueueItem } from '../lib/types'
 import { strings } from '../strings'
 
@@ -30,6 +31,9 @@ import { strings } from '../strings'
  * reopened in the CRM (AC-2.1) or taken meanwhile (AC-1.6) is simply absent from
  * the next load. crm-api down is its own state (503 `crm_unavailable`), never an
  * empty queue. The list is capped at the newest 500 (A26) and says so when it is.
+ *
+ * A won public tender (US-10) carries a "Tender" badge: it is taken without a purchase order, and its
+ * dialog asks for the project manager instead of an ops-manager and a referent.
  *
  * A taker with manage projects for a deal's entity takes it (AC-1.2): "New
  * project", a dialog that also asks the PO's dates and terms, its ops-manager and
@@ -63,9 +67,12 @@ function Queue() {
       header: t.columns.deal,
       rowHeader: true,
       render: (item) => (
-        <a href={crmDealHref(item.dealId)} className="link">
-          {item.title}
-        </a>
+        <span className="inline-flex flex-wrap items-center gap-2">
+          <a href={crmDealHref(item.dealId)} className="link">
+            {item.title}
+          </a>
+          {isTender(item) && <TenderBadge testId={`queue-tender-${item.dealId}`} />}
+        </span>
       ),
     },
     { id: 'company', header: t.columns.company, render: (item) => item.company.name ?? t.companyUnavailable },

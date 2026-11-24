@@ -68,6 +68,9 @@ model Project {
   /// `auth` user id; must hold projects:access (checked live at write time). Null only while a
   /// project made from a deal awaits the ops-manager's pick (specs/20261103-projects-handoff D42); the API keeps it so.
   projectManagerId String?
+  /// The CRM tender deal this project was taken from (specs/20261101-crm US-10): a won tender becomes a project with
+  /// no purchase order. Unique, so a tender is taken once; null for any other project (CHECK `project_tender_shape`).
+  tenderDealId     String?       @unique
   /// Optimistic-concurrency counter (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004, AC-1.7).
   version          Int           @default(1)
   createdById      String

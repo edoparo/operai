@@ -166,6 +166,11 @@ export type Project = {
   purchaseOrder: PurchaseOrder | null
   /** Always there with a purchase order; optional on a hand-made project (AC-5.3). */
   terms: Terms | null
+  /**
+   * The CRM deal of the public tender this project was taken from (US-10): such a project has no purchase
+   * order. `null` otherwise; absent from a server that predates tenders.
+   */
+  tenderDealId?: string | null
   /** From the terms; `null` without. */
   startDate: string | null
   endDate: string | null
@@ -185,7 +190,17 @@ export type QueueItem = {
   /** When the deal was won; `null` only if crm-api sends none. */
   wonAt: string | null
   estimate: { id: string; name: string } | null
+  /**
+   * `tender`: a won public tender (US-10), taken without a purchase order, with its project manager chosen at
+   * the take. Absent from a server that predates tenders: read it through `isTender`.
+   */
+  kind?: QueueItemKind
 }
+
+export type QueueItemKind = 'standard' | 'tender'
+
+/** A queued deal is a public tender only when the server says so: an absent `kind` is a standard deal. */
+export const isTender = (item: Pick<QueueItem, 'kind'>): boolean => item.kind === 'tender'
 
 /** `GET /queue`: `truncated` when the CRM has more won deals than the 500 it returns (A26). */
 export type QueueList = { items: QueueItem[]; truncated: boolean }

@@ -9,11 +9,14 @@ import type { TakeDealAsProjectInput } from '../lib/projectsApi'
 import { emptyTermsForm } from '../lib/terms'
 import type { TermsErrors, TermsForm } from '../lib/terms'
 import { termsFieldKey, termsRequestOf } from '../lib/termsRequest'
-import type { DealProjectType, Project, QueueItem } from '../lib/types'
+import { isTender } from '../lib/types'
+import type { DealProjectType, OpsManagerList, Project, QueueItem } from '../lib/types'
 import { first, maxLength, required } from '../lib/validate'
 import { useResource } from '../hooks/useResource'
 import { strings } from '../strings'
 import OpsManagerPicker from './OpsManagerPicker'
+import PersonPicker from './PersonPicker'
+import type { PersonChoice } from './PersonPicker'
 import ReferentPicker from './ReferentPicker'
 import TermsFields, { TermsDateFields } from './TermsFields'
 
@@ -23,12 +26,24 @@ const formFieldOf = (field: string): string | null => {
   if (field === 'type') return 'type'
   if (field === 'opsManagerId') return 'opsManager'
   if (field === 'referentContactId') return 'referent'
+  if (field === 'projectManagerId') return 'projectManager'
   // A take wraps the terms input under `terms` (`terms.startDate`, `terms.terms.deadline`).
   return termsFieldKey(field, 'nested')
 }
 
 /** Refusals after which the deal can no longer be taken: the page reloads the queue behind the dialog. */
 const GONE = ['deal_not_found', 'deal_not_won', 'deal_taken'] as const
+
+/**
+ * Refusals saying the deal changed kind since the queue was read (a deal became a tender, or stopped being one,
+ * US-10): this dialog asked for the other kind's fields, so the page reloads the queue and the person takes it
+ * again from the fresh row.
+ */
+const KIND_CHANGED = ['not_for_tenders', 'only_for_tenders'] as const
+
+/** A tender has no ops-manager: its dialog asks for none, so it reads none. */
+const NO_OPS_MANAGERS: OpsManagerList = { items: [], prefillId: null }
+const noOpsManagers = () => Promise.resolve(NO_OPS_MANAGERS)
 
 /**
  * TakeDealDialog — "New project" from a queued deal (specs/20261103-projects-handoff AC-1.2, AC-1.3, AC-4.1): the name
@@ -51,6 +66,12 @@ const GONE = ['deal_not_found', 'deal_not_won', 'deal_taken'] as const
  * message, never the server's detail: T18), the others sit above the form. One after which the deal
  * cannot be taken any more also tells the page, which reloads the queue while the dialog keeps the
  * message on screen. A take creates, so it has no `If-Match` and cannot be stale.
+ *
+ * A won public tender (`kind: 'tender'`, US-10) becomes a project WITHOUT a purchase order: no ops-manager,
+ * no referent, no billing. Its dialog hides both pickers (and reads neither list) and asks instead for the
+ * project manager, required, among the people who can use Projects (`PersonPicker`, as the project create
+ * form); the request carries `projectManagerId` and never `opsManagerId` or `referentContactId`. The
+ * standard take is unchanged.
  */
 export default function TakeDealDialog({
   deal,
@@ -65,8 +86,12 @@ export default function TakeDealDialog({
   onGone: () => void
 }) {
   const t = strings.queue.take
+  const tender = isTender(deal)
   const estimateBacked = deal.estimate !== null
-  const loadOpsManagers = useCallback((signal: AbortSignal) => listOpsManagers(deal.dealId, { signal }), [deal.dealId])
+  const loadOpsManagers = useCallback(
+    (signal: AbortSignal) => (tender ? noOpsManagers() : listOpsManagers(deal.dealId, { signal })),
+    [deal.dealId, tender],
+  )
   const opsManagers = useResource(loadOpsManagers)
   const loadContacts = useCallback((signal: AbortSignal) => listQueueContacts(deal.dealId, { signal }), [deal.dealId])
 
@@ -75,6 +100,8 @@ export default function TakeDealDialog({
   // `undefined` = untouched: the prefill (the only role holder), if any.
   const [pickedOps, setPickedOps] = useState<string | undefined>(undefined)
   const [referentId, setReferentId] = useState<string | null>(null)
+  // A tender's project manager: no default, the person chooses (US-10).
+  const [projectManager, setProjectManager] = useState<PersonChoice | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [terms, setTerms] = useState<TermsForm>(() => emptyTermsForm('internal'))
@@ -99,7 +126,9 @@ export default function TakeDealDialog({
     const nameError = first(required(name), maxLength(name, 200))
     if (nameError) found['name'] = nameError
     if (type === '') found['type'] = strings.common.validation.required
-    if (opsManagerId === '') found['opsManager'] = t.opsManager.required
+    if (tender) {
+      if (projectManager === null) found['projectManager'] = t.errors.project_manager_required
+    } else if (opsManagerId === '') found['opsManager'] = t.opsManager.required
     // Until a type is chosen there are no terms to check: the dates still are.
     const request = termsRequestOf(type === '' ? 'internal' : type, { startDate, endDate, terms }, { estimateBacked })
     const all = { ...found, ...request.errors }
@@ -108,14 +137,17 @@ export default function TakeDealDialog({
       requestAnimationFrame(() => focusFirstInvalid(fieldsRef.current))
       return
     }
-    const input: TakeDealAsProjectInput = {
-      name: name.trim(),
-      type,
-      terms: request.input,
-      opsManagerId,
-      // No referent is no member at all: the PO is born without one (AC-3.6).
-      ...(referentId !== null ? { referentContactId: referentId } : {}),
-    }
+    const common = { name: name.trim(), type, terms: request.input }
+    const input: TakeDealAsProjectInput =
+      tender && projectManager !== null
+        ? // A tender names its project manager, and never an ops-manager or a referent (US-10).
+          { ...common, projectManagerId: projectManager.id }
+        : {
+            ...common,
+            opsManagerId,
+            // No referent is no member at all: the PO is born without one (AC-3.6).
+            ...(referentId !== null ? { referentContactId: referentId } : {}),
+          }
     setBusy(true)
     setError(null)
     // A refusal that names an input lands on it, and the first invalid input takes the focus.
@@ -134,7 +166,13 @@ export default function TakeDealDialog({
         return refuseField('opsManager', t.errors[refusal])
       }
       if (refusal === 'referent_invalid') return refuseField('referent', t.errors[refusal])
+      if (refusal === 'ops_manager_required') return refuseField('opsManager', t.errors[refusal])
+      if (refusal === 'project_manager_required' || refusal === 'not_project_user') {
+        return refuseField('projectManager', t.errors[refusal])
+      }
+      if (refusal === 'identity_unavailable' && tender) return setError(t.tender.identityUnavailable)
       if (refusal) {
+        if ((KIND_CHANGED as readonly string[]).includes(refusal)) onGone()
         if ((GONE as readonly string[]).includes(refusal)) onGone()
         return setError(t.errors[refusal])
       }
@@ -155,8 +193,8 @@ export default function TakeDealDialog({
 
   return (
     <FormDialog
-      title={t.project.title}
-      description={t.project.description(
+      title={tender ? t.tender.title : t.project.title}
+      description={(tender ? t.tender.description : t.project.description)(
         deal.company.name ?? strings.queue.companyUnavailable,
         strings.badges.entity[deal.entity],
       )}
@@ -212,28 +250,51 @@ export default function TakeDealDialog({
             </select>
           )}
         </Field>
-        <OpsManagerPicker
-          candidates={opsManagers}
-          value={opsManagerId}
-          onChange={(id) => {
-            setPickedOps(id)
-            clearErrors('opsManager')
-          }}
-          error={errors['opsManager']}
-          testId="take-deal-opsmanager"
-        />
-        <ReferentPicker
-          load={loadContacts}
-          value={referentId}
-          onChange={(id) => {
-            setReferentId(id)
-            clearErrors('referent')
-          }}
-          error={errors['referent']}
-          testId="take-deal-referent"
-        />
+        {tender ? (
+          <>
+            <p className="text-sm text-soft" data-testid="take-deal-tender-note">
+              {t.tender.note}
+            </p>
+            <PersonPicker
+              label={strings.projects.form.projectManager}
+              hint={t.tender.projectManagerHint}
+              value={projectManager}
+              onChange={(next) => {
+                setProjectManager(next)
+                clearErrors('projectManager')
+              }}
+              error={errors['projectManager']}
+              required
+              testId="take-deal-projectmanager"
+              forbiddenHint={t.tender.projectManagerReadOnlyHint}
+            />
+          </>
+        ) : (
+          <>
+            <OpsManagerPicker
+              candidates={opsManagers}
+              value={opsManagerId}
+              onChange={(id) => {
+                setPickedOps(id)
+                clearErrors('opsManager')
+              }}
+              error={errors['opsManager']}
+              testId="take-deal-opsmanager"
+            />
+            <ReferentPicker
+              load={loadContacts}
+              value={referentId}
+              onChange={(id) => {
+                setReferentId(id)
+                clearErrors('referent')
+              }}
+              error={errors['referent']}
+              testId="take-deal-referent"
+            />
+          </>
+        )}
         <fieldset className="flex flex-col gap-3" data-testid="take-deal-terms">
-          <legend className="field-label mb-1">{t.terms.legend}</legend>
+          <legend className="field-label mb-1">{tender ? t.tender.termsLegend : t.terms.legend}</legend>
           <TermsDateFields
             startDate={startDate}
             endDate={endDate}

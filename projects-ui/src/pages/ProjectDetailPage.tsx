@@ -17,6 +17,7 @@ import { useResource } from '../hooks/useResource'
 import { useScope } from '../hooks/useScope'
 import { statusOf } from '../lib/errors'
 import { personName } from '../lib/people'
+import { crmDealHref } from '../lib/links'
 import { getProject } from '../lib/projectsApi'
 import { mayRecordOnProject, recordHoursPropsOf } from '../lib/recordHours'
 import type { Project } from '../lib/types'
@@ -77,7 +78,8 @@ function AwaitingNotice({ project, canPick, onPick }: { project: Project; canPic
  * ProjectDetailPage — one project (specs/20261103-projects US-1; specs/20261103-projects-handoff US-2, US-3, US-4, US-5): its details with the dates
  * from its terms, the team, the tasks (specs/20261110-activities), and — by what the project has — a **Purchase order** card (a project made from a
  * won deal: the deal, the "no longer won" notice, the estimate, the Bexio order id, its terms) or a **Terms**
- * card (a hand-made one, which never has a purchase order, AC-5.2). A holder of manage projects for the
+ * card (a hand-made one, which never has a purchase order, AC-5.2; or one taken from a won public tender,
+ * US-10, which has none either and says "From a tender" among its details, linking to the deal in the CRM). A holder of manage projects for the
  * project's entity gets the state actions and the edit dialogs; anyone else reads (the server's 403 is
  * the gate, ADR 20260716-refund-api-authorization-enforcing-resource-server). The type of a project never changes (A30), so there is no control for it. A project
  * awaiting its project manager carries the notice of `AwaitingNotice`, and no control on this page clears a
@@ -241,6 +243,20 @@ export default function ProjectDetailPage() {
                   : personName(project.projectManager, currentUserId),
               },
               ...dateFacts,
+              // A project taken from a won public tender (US-10) has no purchase order: say where it came from.
+              ...(project.tenderDealId
+                ? [
+                    {
+                      id: 'origin',
+                      term: t.details.origin,
+                      value: (
+                        <a href={crmDealHref(project.tenderDealId)} className="link" data-testid="project-from-tender">
+                          {t.details.fromTender}
+                        </a>
+                      ),
+                    },
+                  ]
+                : []),
             ]}
           />
         </Card>

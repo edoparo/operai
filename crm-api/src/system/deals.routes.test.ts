@@ -58,6 +58,7 @@ interface Item {
   company: { id: string; name: string };
   wonAt: string | null;
   estimate: { id: string; name: string } | null;
+  kind: "standard" | "tender";
 }
 interface Body {
   items: Item[];
@@ -161,6 +162,7 @@ describe("GET /system/deals?stage=won — the to-start queue's source (AC-1.1)",
       company: { id: companyId, name: `${PREFIX} Acme` },
       wonAt: day(3).toISOString(),
       estimate: { id: "est-1", name: "Acme platform" },
+      kind: "standard",
     });
     expect(got[1]).toMatchObject({ entity: "welld_it", estimate: null });
   });
@@ -173,7 +175,7 @@ describe("GET /system/deals?stage=won — the to-start queue's source (AC-1.1)",
     expect(text).not.toContain("123456789");
     expect(text).not.toContain("user-owner");
     for (const item of (await body(res)).items) {
-      expect(Object.keys(item).sort()).toEqual(["company", "entity", "estimate", "id", "stage", "title", "wonAt"]);
+      expect(Object.keys(item).sort()).toEqual(["company", "entity", "estimate", "id", "kind", "stage", "title", "wonAt"]);
       expect(Object.keys(item.company).sort()).toEqual(["id", "name"]);
     }
   });

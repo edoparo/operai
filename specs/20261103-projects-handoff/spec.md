@@ -312,6 +312,21 @@ have acted on it.
   reading the source only (`projects-ui/src/components/EndTermsDialog.tsx:50,58,78`: the field
   error is set on a refusal and the date's change handler does not clear it).
 
+### US-8 A won public tender becomes a project without a purchase order
+*(Added 2026-11-24, owner; specs/20261101-crm US-10; ADR 20261124-a-won-public-tender-becomes-a-project-…)*
+As a salesperson, I want a won public tender ("bando di gara") to become a project with its funding
+body as the counterpart, so that the delivery is tracked in Projects without an order, an ops-manager
+hand-over or billing, none of which a tender has.
+
+- AC-8.1 A won tender is in the to-start queue, marked "Tender", with the other won deals.
+- AC-8.2 Taking it makes a `planned` project with the funding body as its company, the terms of the
+  chosen type (the existing types), and its project manager chosen at the take (a Projects user,
+  checked live). No purchase order is made: no ops-manager, no referent, no Bexio order id. An
+  ops-manager or a referent on a tender's take is refused, as is a project manager on a deal's.
+- AC-8.3 A tender is taken once (two takes at the same time: one project, the other 409
+  `deal_taken`), then leaves the queue; the project shows it comes from a tender.
+- AC-8.4 The CRM's deal page shows the project of a won tender like a deal's, without a Bexio id.
+
 ## Non-goals
 
 - **Automatic project creation** when a deal is won: a person takes every deal (D2).

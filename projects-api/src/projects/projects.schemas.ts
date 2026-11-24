@@ -120,8 +120,10 @@ export const ProjectSchema = z.object({
   /** The project has a purchase order and no project manager yet. */
   awaitingProjectManager: z.boolean(),
   team: z.array(PersonSchema),
-  /** `null` for a hand-made project, which never has one (D38). */
+  /** `null` for a hand-made project, which never has one (D38), and for a project taken from a tender (US-10). */
   purchaseOrder: PurchaseOrderSchema.nullable(),
+  /** The CRM tender deal this project was taken from (specs/20261101-crm US-10); `null` otherwise. */
+  tenderDealId: z.string().nullable(),
   /** Always set on a project made from a deal; optional on a hand-made one (D50). */
   terms: TermsSchema.nullable(),
   /** The terms' start; `null` without terms. */

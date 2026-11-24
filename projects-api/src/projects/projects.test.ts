@@ -91,6 +91,7 @@ describe("POST /projects", () => {
       awaitingProjectManager: false,
       team: [],
       purchaseOrder: null,
+      tenderDealId: null,
       terms: null,
       startDate: null,
       endDate: null,
@@ -253,6 +254,7 @@ describe("POST /projects with terms (specs/20261103-projects-handoff T28; AC-5.1
       type,
       state: "planned",
       purchaseOrder: null,
+      tenderDealId: null,
       awaitingProjectManager: false,
       projectManager: { id: "user-pm-ch" },
       startDate: terms.startDate,
@@ -381,6 +383,7 @@ describe("POST /projects, the five types (specs/20261103-projects-handoff T28; A
         projectManager: { id: "user-pm-ch" },
         awaitingProjectManager: false,
         purchaseOrder: null,
+        tenderDealId: null,
         terms: null,
       });
       expect(await db.purchaseOrder.count()).toBe(0);
@@ -485,6 +488,7 @@ describe("GET /projects/:id", () => {
         { id: "user-viewer", name: "Name of user-viewer", deleted: false },
       ],
       purchaseOrder: null,
+      tenderDealId: null,
       terms: {
         id: terms.id,
         type: "saas",

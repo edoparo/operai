@@ -43,6 +43,8 @@ const QueueItemSchema = z.object({
   company: CompanyRefSchema,
   wonAt: z.string().nullable(),
   estimate: z.object({ id: z.string(), name: z.string() }).nullable(),
+  /** specs/20261101-crm US-10: a `tender` is taken without a purchase order, its project manager chosen at the take. */
+  kind: z.enum(["standard", "tender"]),
 });
 
 const QueueSchema = z.object({ items: z.array(QueueItemSchema), truncated: z.boolean() });
@@ -116,14 +118,13 @@ queueRouter.openapi(getQueueRoute, async (c) => {
   const { q, entity } = c.req.valid("query");
   const { items: won, truncated } = await orCrmUnavailable(wonDeals());
 
-  const taken = new Set(
-    (
-      await db.purchaseOrder.findMany({
-        where: { dealId: { in: won.map((deal) => deal.id) } },
-        select: { dealId: true },
-      })
-    ).map((order) => order.dealId),
-  );
+  const wonIds = won.map((deal) => deal.id);
+  // Taken: a deal with a purchase order, or a tender already made a project (US-10).
+  const [orders, tenders] = await Promise.all([
+    db.purchaseOrder.findMany({ where: { dealId: { in: wonIds } }, select: { dealId: true } }),
+    db.project.findMany({ where: { tenderDealId: { in: wonIds } }, select: { tenderDealId: true } }),
+  ]);
+  const taken = new Set([...orders.map((order) => order.dealId), ...tenders.map((project) => project.tenderDealId!)]);
 
   const needle = q?.trim().toLowerCase();
   const items = won
@@ -140,6 +141,7 @@ queueRouter.openapi(getQueueRoute, async (c) => {
       company: { id: deal.company.id, name: deal.company.name },
       wonAt: deal.wonAt,
       estimate: deal.estimate === null ? null : { id: deal.estimate.id, name: deal.estimate.name },
+      kind: deal.kind ?? "standard",
     }));
 
   return c.json({ items, truncated }, 200);

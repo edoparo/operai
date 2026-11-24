@@ -1042,3 +1042,41 @@ describe('the referent on the project page (AC-3.7 – AC-3.10)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
+
+describe('a project taken from a public tender (US-10)', () => {
+  const TENDER_PROJECT = projectDetail({
+    id: 'pt',
+    name: 'Chips JU call 2026',
+    company: { id: 'fb1', name: 'Chips Joint Undertaking' },
+    projectManager: BOB_PERSON,
+    tenderDealId: 'deal-t1',
+    purchaseOrder: null,
+    terms: termsOf('t_and_m', { positions: [{ profile: 'Backend developer', plannedManDays: 30 }] }, {
+      startDate: '2027-01-01',
+    }),
+    startDate: '2027-01-01',
+  })
+
+  it('says "From a tender" among its details, linking to the deal in the CRM', async () => {
+    await renderProject(TENDER_PROJECT)
+    const facts = screen.getByTestId('project-facts')
+    expect(within(facts).getByText('Origin')).not.toBeNull()
+    const link = within(facts).getByRole('link', { name: 'From a tender' })
+    expect(link.getAttribute('href')).toBe('/crm/deals/deal-t1')
+    expect(facts.textContent).toContain('Chips Joint Undertaking')
+    expect(facts.textContent).toContain('Bob Builder')
+  })
+
+  it('shows its terms in the Terms card, with no purchase order and no awaiting notice', async () => {
+    await renderProject(TENDER_PROJECT)
+    expect(screen.getByTestId('project-terms').textContent).toContain('Backend developer')
+    expect(screen.queryByTestId('project-purchase-order')).toBeNull()
+    expect(screen.queryByTestId('project-awaiting')).toBeNull()
+  })
+
+  it('says nothing of a tender for any other project, or one from a server that predates tenders', async () => {
+    await renderProject(projectDetail({ id: 'p-old' }))
+    expect(screen.queryByTestId('project-from-tender')).toBeNull()
+    expect(within(screen.getByTestId('project-facts')).queryByText('Origin')).toBeNull()
+  })
+})

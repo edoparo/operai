@@ -32,6 +32,13 @@
  * written, an estimate EstimAI does not know leaves the figure `null`. The estimate id is copied onto
  * the purchase order: it is the AC-3.2 link.
  *
+ * A public tender (specs/20261101-crm US-10, 2026-11-24, owner) is taken differently: the funding body is the
+ * project's company, there is NO purchase order (no ordine, no ops-manager, no referent, no Bexio, no billing), and the
+ * project manager is chosen at the take (`projectManagerId`, required, checked live as a Projects user like any
+ * project's). The project is linked by `project.tenderDealId`, whose unique index arbitrates two takes as the purchase
+ * order's does. `opsManagerId`/`referentContactId` on a tender, or `projectManagerId` on a deal, are 422 with the
+ * field named.
+ *
  * A body error names the field by its full path in the body (`terms.startDate`,
  * `terms.terms.deadline`): `terms` is `{ startDate, endDate?, terms }`, specs/20261103-projects's contract shape.
  */
@@ -39,7 +46,8 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { HANDOFF_TAKE, authorized, requireCapability, type AuthzSource } from "../auth/guards";
 import type { AuthzVariables } from "../auth/authz.middleware";
-import { assertValidReferent, type CrmDeal } from "../lib/crm";
+import { assertValidReferent, isTender, type CrmDeal } from "../lib/crm";
+import { requireProjectUsers } from "../lib/identities";
 import { db } from "../lib/db";
 import { estimateManDays } from "../lib/estimai";
 import { opsManagerCandidates } from "../lib/holders";
@@ -67,12 +75,22 @@ const TakeAsProjectSchema = z
     type: z.enum(DEAL_PROJECT_TYPES),
     /** The dates and the type's terms, collected in the same step as the take (AC-1.8). */
     terms: CreateTermsSchema,
-    /** The `auth` user the purchase order is assigned to, who picks the project manager (D42). */
-    opsManagerId: IdSchema,
-    /** A CRM contact of the deal's company (D41); optional. */
+    /** The `auth` user the purchase order is assigned to, who picks the project manager (D42). A deal only. */
+    opsManagerId: IdSchema.optional(),
+    /** A CRM contact of the deal's company (D41); optional. A deal only. */
     referentContactId: IdSchema.nullable().optional(),
+    /** A tender only (US-10): the project manager, chosen at the take. */
+    projectManagerId: IdSchema.optional(),
   })
   .strict();
+
+/** A field that belongs to the other kind of take. */
+const notForThisTake = (field: string, tender: boolean) =>
+  unprocessable(
+    tender ? "A tender is taken without a purchase order: no ops-manager or referent" : "A deal's project manager is picked later by its ops-manager",
+    { field },
+    tender ? "not_for_tenders" : "only_for_tenders",
+  );
 
 // ─── Rules ───────────────────────────────────────────────────────────────────
 
@@ -135,7 +153,11 @@ const takeAsProjectRoute = createRoute({
     201: { description: "Created: a planned project with no project manager, its terms and a purchase order made from the deal", ...json(ProjectSchema) },
     404: { description: "deal_not_found" },
     409: { description: "deal_not_won or deal_taken" },
-    422: { description: "ops_manager_invalid, referent_invalid, estimated_man_days_from_estimate or maintenance_needs_sla_or_hours" },
+    422: {
+      description:
+        "ops_manager_invalid, referent_invalid, estimated_man_days_from_estimate, maintenance_needs_sla_or_hours; " +
+        "a tender (US-10): project_manager_required, not_for_tenders; a deal: ops_manager_required, only_for_tenders",
+    },
     ...commonErrors,
     503: { description: "crm_unavailable, identity_unavailable, estimai_unavailable, estimai_unconfigured or authz_unavailable" },
   },
@@ -147,36 +169,52 @@ takeRouter.openapi(takeAsProjectRoute, async (c) => {
   const { dealId } = c.req.valid("param");
   const body = c.req.valid("json");
   const deal = await loadTakeableDeal(c, dealId);
+  const tender = isTender(deal);
+  // The body must be the one of THIS kind of take (US-10), before any remote check.
+  if (tender) {
+    if (body.opsManagerId !== undefined) throw notForThisTake("opsManagerId", true);
+    if (body.referentContactId) throw notForThisTake("referentContactId", true);
+    if (body.projectManagerId === undefined) throw unprocessable("A tender's project manager is chosen at the take", { field: "projectManagerId" }, "project_manager_required");
+  } else {
+    if (body.projectManagerId !== undefined) throw notForThisTake("projectManagerId", false);
+    if (body.opsManagerId === undefined) throw unprocessable("A deal's purchase order needs an ops-manager", { field: "opsManagerId" }, "ops_manager_required");
+  }
   // Cheap refusals about WHO come before the EstimAI call; nothing is written until all have passed.
-  await assertValidOpsManager(c, deal, body.opsManagerId);
-  if (body.referentContactId) await assertValidReferent(body.referentContactId, deal.company.id);
+  if (tender) await requireProjectUsers(c, [body.projectManagerId!]);
+  else await assertValidOpsManager(c, deal, body.opsManagerId!);
+  if (!tender && body.referentContactId) await assertValidReferent(body.referentContactId, deal.company.id);
   const terms = await dealTerms(body.type, body.terms.terms, deal);
   const userId = c.get("userId");
 
   const row = await db.project
     .create({
       data: {
-        // No project manager: the person who took the deal is not made one (D42).
+        // A deal: no project manager, the person who took it is not made one (D42). A tender: the one chosen now.
         ...projectCreateData({
           name: body.name,
           type: body.type,
           entity: deal.entity,
           companyId: deal.company.id,
-          projectManagerId: null,
+          projectManagerId: tender ? body.projectManagerId! : null,
           createdById: userId,
         }),
+        ...(tender ? { tenderDealId: dealId } : {}),
         terms: {
           create: termsCreateData({ type: body.type, startDate: body.terms.startDate, endDate: body.terms.endDate, terms }),
         },
-        purchaseOrder: {
-          create: {
-            dealId,
-            estimateId: deal.estimate?.id ?? null,
-            opsManagerId: body.opsManagerId,
-            referentContactId: body.referentContactId ?? null,
-            createdById: userId,
-          },
-        },
+        ...(tender
+          ? {}
+          : {
+              purchaseOrder: {
+                create: {
+                  dealId,
+                  estimateId: deal.estimate?.id ?? null,
+                  opsManagerId: body.opsManagerId!,
+                  referentContactId: body.referentContactId ?? null,
+                  createdById: userId,
+                },
+              },
+            }),
       },
       include: projectInclude,
     })
@@ -184,9 +222,11 @@ takeRouter.openapi(takeAsProjectRoute, async (c) => {
       throw isUniqueViolation(error) ? dealTaken() : error;
     });
   // The audit line (T18 L6): which event, which project, who — never the name, the ops-manager or the contact.
-  console.log(JSON.stringify({ event: "handoff.taken", projectId: row.id, actorId: userId }));
-  // AC-4.3, AC-4.4: tell the ops-manager once the take has committed — never awaited, never failing it.
-  announcePurchaseOrderAssigned({ projectId: row.id, projectName: row.name, companyName: deal.company.name, opsManagerId: body.opsManagerId });
+  console.log(JSON.stringify({ event: "handoff.taken", kind: tender ? "tender" : "deal", projectId: row.id, actorId: userId }));
+  // AC-4.3, AC-4.4: tell the ops-manager once the take has committed — never awaited, never failing it. A tender has none.
+  if (!tender) {
+    announcePurchaseOrderAssigned({ projectId: row.id, projectName: row.name, companyName: deal.company.name, opsManagerId: body.opsManagerId! });
+  }
   c.header("ETag", etag(row.version));
   return c.json(await toProjectView(c, row), 201);
 });

@@ -164,17 +164,16 @@ describe("POST /queue/:dealId/project — a new project from a won deal (AC-1.2,
     expect(await counts()).toEqual(NOTHING);
   });
 
-  it("refuses a project manager in the body: 400, the take makes none (D42), and nothing is written", async () => {
+  it("refuses a project manager in the body: the take makes none (D42; only a tender's take names one, US-10), and nothing is written", async () => {
     crm.deals = [makeDeal({ id: "d-1" })];
     const res = await takeAsProject("d-1", body({ projectManagerId: "user-colleague" }));
-    expect(res.status).toBe(400);
-    expect(res.json).toMatchObject({ code: "validation_failed" });
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ code: "only_for_tenders", field: "projectManagerId" });
     expect(await counts()).toEqual(NOTHING);
     expect(await inQueue()).toEqual(["d-1"]);
   });
 
   it.each([
-    ["the ops-manager", { opsManagerId: undefined }, "opsManagerId"],
     ["a blank ops-manager", { opsManagerId: "" }, "opsManagerId"],
     ["the terms", { terms: undefined }, "terms"],
     ["terms without a start date", { terms: { terms: TERMS.t_and_m.terms } }, "terms.startDate"],
@@ -188,6 +187,14 @@ describe("POST /queue/:dealId/project — a new project from a won deal (AC-1.2,
     const res = await takeAsProject("d-1", body(over));
     expect(res.status).toBe(400);
     expect(res.json).toMatchObject({ code: "validation_failed", field });
+    expect(await counts()).toEqual(NOTHING);
+  });
+
+  it("needs an ops-manager for a deal: 422 ops_manager_required (optional in the body since a tender has none, US-10)", async () => {
+    crm.deals = [makeDeal({ id: "d-1" })];
+    const res = await takeAsProject("d-1", body({ opsManagerId: undefined }));
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ code: "ops_manager_required", field: "opsManagerId" });
     expect(await counts()).toEqual(NOTHING);
   });
 
@@ -588,7 +595,7 @@ describe("POST /queue/:dealId/project — one structured log line per take (T18 
     expect(res.status).toBe(201);
     const audit = lines.filter((line) => line.includes("handoff.taken"));
     expect(audit).toHaveLength(1);
-    expect(JSON.parse(audit[0]!)).toEqual({ event: "handoff.taken", projectId: res.json.id, actorId: "user-sales-ch" });
+    expect(JSON.parse(audit[0]!)).toEqual({ event: "handoff.taken", kind: "deal", projectId: res.json.id, actorId: "user-sales-ch" });
     for (const line of lines) expect(line).not.toMatch(/Hidden|Person|hidden\.person|c-ok|Secret Portal/);
   });
 

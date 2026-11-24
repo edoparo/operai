@@ -8,7 +8,9 @@
  *
  *   dealIds  comma-separated CRM deal ids, 1-100, each 1-64 characters.
  *
- * Deals without a purchase order are absent from the answer; the rest come back in the order asked.
+ * Deals without a purchase order are absent from the answer; the rest come back in the order asked. A public tender
+ * taken as a project (specs/20261101-crm US-10) has no purchase order: it is answered with its project and
+ * `purchaseOrderId: null`, `bexioOrderId: null`, so the CRM's deal page shows the project of a won tender too.
  * The select is explicit (id, project name, Bexio order id): no terms, dates, referent, ops-manager
  * or other people leave the module through this route.
  */
@@ -37,7 +39,7 @@ const QuerySchema = z.object({ dealIds: DealIdsSchema });
 
 const ItemSchema = z.object({
   dealId: z.string(),
-  purchaseOrderId: z.string(),
+  purchaseOrderId: z.string().nullable(),
   project: z.object({ id: z.string(), name: z.string() }),
   bexioOrderId: z.string().nullable(),
 });
@@ -100,11 +102,19 @@ export const createSystemPurchaseOrdersRouter = (auth: MiddlewareHandler) => {
         project: { select: { id: true, name: true } },
       },
     });
+    const tenders = await db.project.findMany({
+      where: { tenderDealId: { in: unique } },
+      select: { id: true, name: true, tenderDealId: true },
+    });
     const byDeal = new Map(rows.map((row) => [row.dealId, row]));
-    const items = unique.flatMap((dealId) => {
+    const tenderByDeal = new Map(tenders.map((project) => [project.tenderDealId!, project]));
+    type Item = { dealId: string; purchaseOrderId: string | null; project: { id: string; name: string }; bexioOrderId: string | null };
+    const items = unique.flatMap((dealId): Item[] => {
       const row = byDeal.get(dealId);
-      if (!row) return [];
-      return [{ dealId, purchaseOrderId: row.id, project: row.project, bexioOrderId: row.bexioOrderId }];
+      if (row) return [{ dealId, purchaseOrderId: row.id, project: row.project, bexioOrderId: row.bexioOrderId }];
+      const project = tenderByDeal.get(dealId);
+      if (project) return [{ dealId, purchaseOrderId: null, project: { id: project.id, name: project.name }, bexioOrderId: null }];
+      return [];
     });
     return c.json({ items }, 200);
   });

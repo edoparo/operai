@@ -22,6 +22,9 @@ const en = {
     startDate: 'Starts',
     endDate: 'Ends',
     openEnded: 'Open-ended',
+    /** A project taken from a won public tender (US-10): it has no purchase order. */
+    origin: 'Origin',
+    fromTender: 'From a tender',
   },
   actions: {
     label: 'Project actions',
@@ -140,6 +143,8 @@ const it: typeof en = {
     startDate: 'Inizio',
     endDate: 'Fine',
     openEnded: 'Senza scadenza',
+    origin: 'Origine',
+    fromTender: 'Da un bando',
   },
   actions: {
     label: 'Azioni sul progetto',

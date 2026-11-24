@@ -1,7 +1,7 @@
 ---
 spec: 20261103
 generated: 2026-11-04
-synced: 2026-11-05
+synced: 2026-11-24
 ---
 
 # Tasks: Projects hand-off — a won deal reaches OPS "in series"
@@ -452,6 +452,13 @@ are specs/20261103-projects's and 2026-11-04's, renamed from `contract` to `term
 - [x] T17: QE-light verification; all gates green; spec status → done — refs: every AC — deps: T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32, T33, T34, T35, T36, T37, T38, T39
   - touch: `specs/20261103-projects-handoff/qe-report.md`, `specs/20261103-projects-handoff/spec.md`
   - done when: the quality-engineer's QE-light verdict is PASS in `qe-report.md` — including a live pass: as `sales`, take a won deal into a new fixed-price project with a referent and the prefilled ops-manager and see the estimate's man-days; as that ops-manager, see the notification, fail to activate the project, pick its project manager; as a project manager, see no queue; open the PO's referent as a user without CRM access; reopen and re-win the deal and see the notice come and go; open the estimate link as a user without EstimAI access; see project and Bexio id on the CRM deal page; create a hand-made `saas` project with terms — every local gate it lists is green (auth, crm-api on `crm_test`, notify-api, notify-ui, crm-ui, projects-api, projects-ui, estimai-api, env-doctor, shared copies, changeset, secret scan), and `/wellforge:done 20261103-projects-handoff` accepts the feature.
+
+- [x] T40: crm-api + projects-api — a won tender taken as a project without a purchase order (US-8): `kind` on `GET /system/deals`; `project.tenderDealId` UNIQUE + CHECK `project_tender_shape` (migration `20261124160000_project_tender_deal`); the queue marks tenders and subtracts both links; the take's tender branch (`projectManagerId` required and checked, `not_for_tenders` / `only_for_tenders` / `ops_manager_required`); `/system/purchase-orders` answers a tender project with null ids; ADR 20261124 — refs: AC-8.1, AC-8.2, AC-8.3, AC-8.4 — deps: none
+  - touch: `crm-api/src/system/deals.routes*.ts`, `projects-api/prisma/**`, `projects-api/src/{lib/crm,queue/*,system/purchaseOrders.routes*,projects/projects.*,test-support/world,migration.purchaseOrder.test}.ts`, `docs/adr/20261124-*.md`, `AGENTS.md`
+  - done when: crm-api system deals tests and projects-api `bun test` pass on their `*_test` databases; typecheck clean
+- [x] T41: projects-ui — the tender in the queue ("Tender" badge) and its take (project manager picker, no ops-manager or referent), "From a tender" on the project page — refs: AC-8.1, AC-8.2, AC-8.3 — deps: T40
+  - touch: `projects-ui/src/**`
+  - done when: `cd projects-ui && pnpm lint && pnpm build && pnpm test` pass
 
 ## Coverage
 

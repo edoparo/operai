@@ -85,12 +85,19 @@ describe('takeRefusalOf', () => {
     'crm_unavailable',
     'estimai_unavailable',
     'estimai_unconfigured',
+    // US-10: a tender names its project manager, a deal its ops-manager.
+    'ops_manager_required',
+    'project_manager_required',
+    'not_project_user',
+    'not_for_tenders',
+    'only_for_tenders',
   ])('recognises the refusal %s of taking a deal (AC-1.11, AC-4.2, AC-3.6)', (code) => {
     expect(takeRefusalOf(problem(409, code))).toBe(code)
   })
 
-  it.each(['not_project_user', 'contracts_not_allowed', 'project_not_open', 'company_mismatch'])(
-    'no longer knows %s: a take has no project manager and attaches nothing (D39, D42)',
+  // `not_project_user` is known again since US-10: a tender's take names its project manager.
+  it.each(['contracts_not_allowed', 'project_not_open', 'company_mismatch'])(
+    'no longer knows %s: a take attaches nothing (D39)',
     (code) => {
       expect(takeRefusalOf(problem(422, code))).toBeNull()
     },

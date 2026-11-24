@@ -38,9 +38,11 @@ export async function loadDealForCaller(c: AuthzSource, dealId: string): Promise
  */
 export async function loadTakeableDeal(c: AuthzSource, dealId: string): Promise<CrmDeal> {
   const deal = await loadDealForCaller(c, dealId);
-  if (await db.purchaseOrder.findUnique({ where: { dealId }, select: { id: true } })) {
-    throw dealTaken();
-  }
+  const [order, tenderProject] = await Promise.all([
+    db.purchaseOrder.findUnique({ where: { dealId }, select: { id: true } }),
+    db.project.findUnique({ where: { tenderDealId: dealId }, select: { id: true } }),
+  ]);
+  if (order || tenderProject) throw dealTaken();
   if (deal.stage !== "won") {
     throw conflict("deal_not_won", "This deal is no longer won in the CRM, so it cannot be taken", { stage: deal.stage });
   }

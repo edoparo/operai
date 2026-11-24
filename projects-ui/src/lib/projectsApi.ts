@@ -125,15 +125,29 @@ export const listPurchaseOrderContacts = (projectId: string, init?: Init) =>
 
 export type QueueQuery = { q?: string; entity?: Entity | '' }
 
-/** AC-1.2, AC-1.8, AC-4.1: sales fills everything; there is no `projectManagerId` (D42, strict → 400). */
+/**
+ * AC-1.2, AC-1.8, AC-4.1: sales fills everything. A standard deal names its ops-manager and never a project
+ * manager (D42; 422 `only_for_tenders`); a public tender (US-10) names its project manager and never an
+ * ops-manager or a referent (422 `not_for_tenders`), because it has no purchase order.
+ */
 export type TakeDealAsProjectInput = {
   name: string
   type: DealProjectType
   terms: TermsInput
-  /** Required: one of `listOpsManagers`'s items. */
-  opsManagerId: string
-  referentContactId?: string | null
-}
+} & (
+  | {
+      /** Required: one of `listOpsManagers`'s items (422 `ops_manager_required` without). */
+      opsManagerId: string
+      referentContactId?: string | null
+      projectManagerId?: never
+    }
+  | {
+      /** A tender only, required (422 `project_manager_required`): a person who can use Projects. */
+      projectManagerId: string
+      opsManagerId?: never
+      referentContactId?: never
+    }
+)
 
 /** Won deals no project has taken, newest won first; read live from the CRM, so 503 `crm_unavailable` when it is down. */
 export const listQueue = (params: QueueQuery, init?: Init) => getJson<QueueList>(`/queue${query(params)}`, init)

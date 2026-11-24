@@ -116,6 +116,7 @@ export async function toProjectView(c: ViewContext, row: ProjectRow) {
     awaitingProjectManager: isAwaitingProjectManager(row),
     team: row.members.map((member) => people.person(member.userId)),
     purchaseOrder: order === null ? null : purchaseOrderView(order, deal, people.person, referent),
+    tenderDealId: row.tenderDealId,
     terms: row.terms === null ? null : toTermsView(row.terms),
     startDate: toDateOnly(row.terms?.startDate ?? null),
     endDate: toDateOnly(row.terms?.endDate ?? null),

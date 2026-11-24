@@ -17,6 +17,8 @@ const en = {
     cancelled: 'Cancelled',
   } as Record<ProjectState, string>,
   entity: { welld_ch: 'wellD CH', welld_it: 'wellD IT' } as Record<Entity, string>,
+  /** A won public tender in the queue (US-10): crm-ui's word for it. */
+  tender: 'Tender',
 }
 
 const it: typeof en = {
@@ -35,6 +37,7 @@ const it: typeof en = {
     cancelled: 'Annullato',
   },
   entity: { welld_ch: 'wellD CH', welld_it: 'wellD IT' },
+  tender: 'Bando',
 }
 
 export const badges = { en, it }

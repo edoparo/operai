@@ -50,7 +50,7 @@ const get = async (query = "", token?: string, target: Hono = app): Promise<Resp
 
 interface Item {
   dealId: string;
-  purchaseOrderId: string;
+  purchaseOrderId: string | null;
   project: { id: string; name: string };
   bexioOrderId: string | null;
 }
@@ -78,6 +78,7 @@ const makeOrder = async (dealId: string, o: { projectName?: string; bexioOrderId
 
 const cleanup = async () => {
   await db.projectTerms.deleteMany({ where: { project: { name: { startsWith: PREFIX } } } });
+  await db.project.deleteMany({ where: { tenderDealId: { startsWith: PREFIX } } });
   await db.purchaseOrder.deleteMany({ where: { dealId: { startsWith: PREFIX } } });
   await db.project.deleteMany({ where: { name: { startsWith: PREFIX } } });
 };
@@ -101,6 +102,25 @@ beforeAll(async () => {
 afterAll(cleanup);
 
 describe("GET /system/purchase-orders?dealIds= — the deal page's source (AC-3.4)", () => {
+  it("answers a tender taken as a project (no purchase order) with its project and null ids (specs/20261101-crm US-10)", async () => {
+    const project = await db.project.create({
+      data: {
+        name: `${PREFIX} tender project`,
+        type: "t_and_m",
+        entity: "welld_ch",
+        companyId: "co-system-test",
+        projectManagerId: "user-pm-ch",
+        tenderDealId: `${PREFIX}-tender`,
+        createdById: "user-sales-it",
+      },
+    });
+    const res = await get(`?dealIds=${PREFIX}-tender,${PREFIX}-none`, await serviceJwt());
+    expect(res.status).toBe(200);
+    expect((await body(res)).items).toEqual([
+      { dealId: `${PREFIX}-tender`, purchaseOrderId: null, project: { id: project.id, name: `${PREFIX} tender project` }, bexioOrderId: null },
+    ]);
+  });
+
   it("returns the purchase order of each asked deal with its project's name and Bexio order id, and omits deals without one", async () => {
     const a = await makeOrder(`${PREFIX}-a`, { projectName: `${PREFIX} Alpha`, bexioOrderId: "BX-1001" });
     const b = await makeOrder(`${PREFIX}-b`, { projectName: `${PREFIX} Beta` });

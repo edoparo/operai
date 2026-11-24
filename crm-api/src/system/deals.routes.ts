@@ -14,7 +14,7 @@
  *   ids        comma-separated deal ids (at most 100, 1-64 characters each), any stage.
  *
  * A deal is a `DealSummary`: id, title, stage, entity, company { id, name }, `wonAt` (the
- * win date while the stage is `won`, else null) and `estimate` { id, name } | null. NO amount,
+ * win date while the stage is `won`, else null), `estimate` { id, name } | null and `kind` (standard | tender). NO amount,
  * currency, owner or notes: the select below is explicit so none can leak (D14).
  */
 
@@ -46,6 +46,8 @@ const DealSummarySchema = z.object({
   company: z.object({ id: z.string(), name: z.string() }),
   wonAt: z.string().nullable(),
   estimate: z.object({ id: z.string(), name: z.string() }).nullable(),
+  /** specs/20261101-crm US-10: a public tender is taken as a project without a purchase order. */
+  kind: z.enum(["standard", "tender"]),
 });
 
 const ProblemSchema = z.object({
@@ -64,6 +66,7 @@ const SUMMARY_SELECT = {
   stage: true,
   entity: true,
   closedAt: true,
+  kind: true,
   company: { select: { id: true, name: true } },
   estimate: { select: { estimateId: true, estimateName: true } },
 } as const;
@@ -74,6 +77,7 @@ type SummaryRow = {
   stage: (typeof DEAL_STAGES)[number];
   entity: "welld_ch" | "welld_it";
   closedAt: Date | null;
+  kind: "standard" | "tender";
   company: { id: string; name: string };
   estimate: { estimateId: string; estimateName: string } | null;
 };
@@ -87,6 +91,7 @@ const toSummary = (row: SummaryRow) => ({
   // The win date only while the deal is won: a reopened deal has none.
   wonAt: row.stage === "won" ? (row.closedAt?.toISOString() ?? null) : null,
   estimate: row.estimate ? { id: row.estimate.estimateId, name: row.estimate.estimateName } : null,
+  kind: row.kind,
 });
 
 const dealsRoute = (auth: MiddlewareHandler) =>

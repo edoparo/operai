@@ -228,3 +228,56 @@ describe('after the take', () => {
     expect(await screen.findByText('Nothing waiting to start')).not.toBeNull()
   })
 })
+
+describe('a won public tender (US-10)', () => {
+  const TENDER: QueueItem = {
+    ...CH,
+    dealId: 't1',
+    title: 'Chips JU call 2026',
+    company: { id: 'fb1', name: 'Chips Joint Undertaking' },
+    estimate: null,
+    kind: 'tender',
+  }
+
+  it('carries a "Tender" badge; a standard deal, or one with no kind (an older server), carries none', async () => {
+    await renderQueue({ 'GET /queue': () => queue([TENDER, CH, { ...IT, kind: 'standard' }]) }, SALES_CH)
+    expect(within(screen.getByRole('rowheader', { name: /^Chips JU call 2026/ })).getByTestId('queue-tender-t1').textContent).toBe('Tender')
+    expect(screen.queryByTestId('queue-tender-d1')).toBeNull()
+    expect(screen.queryByTestId('queue-tender-d2')).toBeNull()
+  })
+
+  it('"New project" opens the tender dialog, and the take sends the project manager and lands on the project', async () => {
+    await renderQueue(
+      {
+        'GET /queue': () => queue([TENDER]),
+        'GET /authz/users/directory': () => ({
+          status: 200,
+          body: { users: [{ id: 'u-bob', name: 'Bob Builder', email: 'bob@welld.ch', entity: 'welld_ch' }] },
+        }),
+        'POST /queue/t1/project': () => ({
+          status: 201,
+          body: projectDetail({ id: 'pT', name: 'Chips JU call 2026', tenderDealId: 't1' }),
+        }),
+        'GET /projects/pT': () => ({
+          status: 200,
+          body: projectDetail({ id: 'pT', name: 'Chips JU call 2026', tenderDealId: 't1' }),
+        }),
+        'GET /tasks': () => ({ status: 200, body: { items: [], total: 0, page: 1, pageSize: 25 } }),
+      },
+      SALES_CH,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'New project: Chips JU call 2026' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New project from a tender' })
+    expect(within(dialog).queryByLabelText(/^Ops manager/)).toBeNull()
+    fillFixedPrice(dialog)
+    fireEvent.focus(within(dialog).getByRole('combobox', { name: /Project manager/ }))
+    fireEvent.click(await within(dialog).findByRole('option', { name: /Bob Builder/ }))
+    fireEvent.click(within(dialog).getByTestId('take-deal-submit'))
+    expect(await screen.findByTestId('project-from-tender')).not.toBeNull()
+    const post = apiFetch.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST')!
+    const body = JSON.parse(String((post[1] as RequestInit).body)) as Record<string, unknown>
+    expect(body['projectManagerId']).toBe('u-bob')
+    expect(body).not.toHaveProperty('opsManagerId')
+    expect(body).not.toHaveProperty('referentContactId')
+  })
+})

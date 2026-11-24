@@ -169,7 +169,12 @@ export interface CrmDeal {
   readonly company: { readonly id: string; readonly name: string };
   readonly wonAt: string | null;
   readonly estimate: { readonly id: string; readonly name: string } | null;
+  /** specs/20261101-crm US-10; absent from an older crm-api, which means `standard`. */
+  readonly kind?: "standard" | "tender";
 }
+
+/** A public tender (US-10): taken as a project without a purchase order. */
+export const isTender = (deal: Pick<CrmDeal, "kind">): boolean => deal.kind === "tender";
 
 /**
  * The won deals, newest win first (crm-api caps the list at 500 and says so with `truncated`).
