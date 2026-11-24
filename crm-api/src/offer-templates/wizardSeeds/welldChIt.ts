@@ -32,6 +32,13 @@ export interface WizardSeed {
   readonly previousKey: `welld-ch-it-v1:${WizardSeedCode}`;
   /** The key a first-set row an author had edited keeps, decided once and left as written (DD-60). */
   readonly keptKey: `welld-ch-it-v1-kept:${WizardSeedCode}`;
+  /**
+   * The shipped revision of this v2 text (1 = as first released). A newer revision replaces a stored row only while
+   * that row's text is byte-identical to one of `previousRevisions` (wizardSeeds/revise.ts, ADR 20261115-seeded-content-…).
+   */
+  readonly revision: number;
+  /** SHA-256 of every earlier shipped v2 text of this code, oldest first (empty while `revision` is 1). */
+  readonly previousRevisions: readonly string[];
   readonly name: string;
   readonly description: string;
   readonly uses: readonly string[];
@@ -45,6 +52,7 @@ const seed = (
   description: string,
   uses: readonly string[],
   source: string,
+  history: { revision: number; previousRevisions: readonly string[] } = { revision: 1, previousRevisions: [] },
 ): WizardSeed => ({
   code,
   mockupId,
@@ -55,7 +63,15 @@ const seed = (
   description,
   uses,
   source,
+  ...history,
 });
+
+/**
+ * Revision 2 of T1 and T1+T3 (2026-11-24): the cost line has its own field, `VOCE_DI_COSTO`, instead of repeating
+ * `OGGETTO_A_CORPO` (the object of the supply is descriptive, the cost line short). Revision 1 is the text first
+ * released under the v2 keys (commit 33ebd929, the only one in the files' history).
+ */
+const COST_LINE_SPLIT = (revision1: string) => ({ revision: 2, previousRevisions: [revision1] });
 
 /** The seven seeds, in the mockup's order. */
 export const WELLD_CH_IT_V1: readonly WizardSeed[] = [
@@ -66,6 +82,7 @@ export const WELLD_CH_IT_V1: readonly WizardSeed[] = [
     "Progetti, MVP, PoC ed evolutive a prezzo fisso, con collaudo e garanzia di 6 mesi.",
     ["Sviluppo", "MVP e PoC", "Evolutive"],
     welldChItT1Text,
+    COST_LINE_SPLIT("7f01c41c05ef3a74830f6029df2473db1744ee9fbef2c1dc000f7d1f29dfd097"),
   ),
   seed(
     "T2",
@@ -114,6 +131,7 @@ export const WELLD_CH_IT_V1: readonly WizardSeed[] = [
     "Un solo contratto per progetto, garanzia e manutenzione, con Allegato SLA.",
     ["Sviluppo", "Canone", "Allegato SLA"],
     welldChItT1T3Text,
+    COST_LINE_SPLIT("29eb6e18828c24d79a6b569a28b550a4970bfd6a3a5dc3967b797650a1adab11"),
   ),
 ];
 

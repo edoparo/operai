@@ -317,6 +317,9 @@ model OfferTemplate {
   documentTitleEn String?
   /// Set on a seeded template, e.g. `welld-ch-it-v1:T1`; a seed is created once per key, archived rows counting.
   seedKey         String?
+  /// The shipped revision of its seed text this seeded template was last decided against (null = 1): an untouched row
+  /// is moved to a newer revision once, an edited one is only marked, never revisited (wizardSeeds/revise.ts).
+  seedRevision    Int?
   /// If-Match concurrency counter (ADR 20260807-optimistic-concurrency-version-if-match-cas-amends-0004 posture).
   version         Int                 @default(1)
   archivedAt      DateTime?

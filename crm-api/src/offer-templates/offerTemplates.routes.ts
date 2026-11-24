@@ -63,6 +63,7 @@ import { legacyContent } from "../offers/legacyContent";
 import { DocumentTitleSchema, DocumentTitleViewSchema, documentTitleData, documentTitleFrom, documentTitleView } from "../offers/documentTitle";
 import { DEFAULT_TEMPLATES_EN } from "../offers/defaultTemplates.en";
 import { DEFAULT_TEMPLATES_IT } from "../offers/defaultTemplates";
+import { behindWhere, reviseWizardSeeds } from "./wizardSeeds/revise";
 import { upgradeWizardSeeds } from "./wizardSeeds/upgrade";
 import { WELLD_CH_IT_V1 } from "./wizardSeeds/welldChIt";
 import {
@@ -337,15 +338,18 @@ export async function seedWizardTemplates(entity: Entity): Promise<void> {
   const total = WELLD_CH_IT_V1.length;
   // The common case, no lock: no row still carries a first-set key (nothing to upgrade) and every code has a row under
   // its v2 or kept key. A database that never held the first set, or one already decided, stops here.
-  const [firstSet, decided] = await Promise.all([
+  const [firstSet, decided, behind] = await Promise.all([
     db.offerTemplate.count({ where: { entity, seedKey: { in: WELLD_CH_IT_V1.map((seed) => seed.previousKey) } } }),
     db.offerTemplate.count({ where: { entity, seedKey: { in: WELLD_CH_IT_V1.flatMap((seed) => [seed.seedKey, seed.keptKey]) } } }),
+    db.offerTemplate.count({ where: behindWhere(entity) }),
   ]);
-  if (firstSet === 0 && decided >= total) return;
+  if (firstSet === 0 && decided >= total && behind === 0) return;
   await inTemplateTransaction(entity, async (tx) => {
     // The one-time upgrade of the first set (DD-60), before anything is inserted: it changes keys, so the step below
     // sees an upgraded or kept row where the first release's row was and never inserts a second template for the code.
     await upgradeWizardSeeds(tx, entity);
+    // A v2 row behind its seed's current revision (2026-11-24): moved forward if untouched, marked if edited.
+    await reviseWizardSeeds(tx, entity);
     const have = new Set(
       (await tx.offerTemplate.findMany({ where: { entity, seedKey: { not: null } }, select: { seedKey: true } })).map((row) => row.seedKey),
     );
@@ -375,6 +379,7 @@ export async function seedWizardTemplates(entity: Entity): Promise<void> {
           source: seed.source,
         }),
         seedKey: seed.seedKey,
+        seedRevision: seed.revision,
         createdBy: SEED_AUTHOR,
         updatedBy: SEED_AUTHOR,
       })),

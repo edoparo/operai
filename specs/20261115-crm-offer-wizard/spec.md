@@ -137,6 +137,19 @@ amends: 20261102
 >   counted 70; the five ACs for the address (AC-12.9 to AC-12.13) were added after the
 >   owner's review.
 
+> **Amendment (2026-11-24, owner): the object and the cost line are separate (OA-5).** In
+> "Progetto a corpo" (T1) and "Progetto a corpo + servizi" (T1+T3) the object of the supply and
+> the first cost line were one field (`OGGETTO_A_CORPO`), so changing one changed the other; the
+> object is usually descriptive and the cost line short. Revision 2 of the two seed texts gives
+> the cost line its own text field, `VOCE_DI_COSTO` ("Voce di costo", asked in the costs step,
+> required, empty at the start); the object's hint no longer says it appears in the cost table.
+> Templates already stored are moved to revision 2 on the first read after the release **only
+> when their text is still revision 1 byte for byte** (AC-12.5's rule, recorded by SHA-256); an
+> edited template keeps its text and is marked so it is never replaced later (AC-12.6's rule), the
+> column `seedRevision` recording what was decided. A draft started from a moved template gets the
+> template-changed notice (AC-8.4) and asks for the new field. The golden fixtures answer
+> `VOCE_DI_COSTO` with the object's value, so the printed text and AC-9.1/AC-9.6 are unchanged.
+
 ## Problem
 
 An offer template today is a full contract text. To make an offer, a person reads every

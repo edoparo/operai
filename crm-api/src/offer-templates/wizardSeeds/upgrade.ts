@@ -88,7 +88,7 @@ export async function upgradeWizardSeeds(
     const { count } = untouched
       ? await tx.offerTemplate.updateMany({
           where: { id: row.id, version: row.version },
-          data: { source: seed.source, seedKey: seed.seedKey, version: row.version + 1, updatedBy: SEED_AUTHOR },
+          data: { source: seed.source, seedKey: seed.seedKey, seedRevision: seed.revision, version: row.version + 1, updatedBy: SEED_AUTHOR },
         })
       : await tx.offerTemplate.updateMany({
           // the kept mark is not an edit: version, text and the row's timestamp stay exactly as they were

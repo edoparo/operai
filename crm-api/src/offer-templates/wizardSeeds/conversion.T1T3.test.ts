@@ -258,7 +258,8 @@ const T1T3_EXPECT: Expectation = {
     "CLIENTE": field({ source: "client" }),
     "EMITTENTE": field({ source: "issuer" }),
     "INDIRIZZO_EMITTENTE": field({ source: "issuerAddress" }),
-    "OGGETTO_A_CORPO": field({ label: "Oggetto a corpo", hint: "Completa la frase «Oggetto della fornitura è …». Compare anche nella tabella costi.", example: "es. la progettazione e lo sviluppo dell'app …", kind: "text" }),
+    "OGGETTO_A_CORPO": field({ label: "Oggetto a corpo", hint: "Completa la frase «Oggetto della fornitura è …». La riga della tabella costi ha una voce sua.", example: "es. la progettazione e lo sviluppo dell'app …", kind: "text" }),
+    "VOCE_DI_COSTO": field({ label: "Voce di costo", hint: "La riga della tabella costi, di solito più sintetica dell'oggetto della fornitura.", example: "es. Sviluppo app mobile", kind: "text" }),
     "DESCRIZIONE_IN_UNA_FRASE": field({ label: "Descrizione in una frase", kind: "longtext" }),
     "PIATTAFORMA": field({ label: "Piattaforma", example: "Nome del software in manutenzione", kind: "text" }),
     "PROFILO": field({ label: "Profilo SLA", hint: "Scegliendo il profilo si compilano tempi di presa in carico e copertura oraria.", kind: "text", options: ["Base", "Standard", "Premium"], fills: {"Base": {"TEMPO_S1": "1 giorno lavorativo", "TEMPO_S2": "2 giorni lavorativi", "TEMPO_S3": "5 giorni lavorativi", "TEMPO_S4": "10 giorni lavorativi", "COPERTURA_ORARIA": "dal lunedì al venerdì, 09:00–18:00"}, "Standard": {"TEMPO_S1": "6 ore lavorative", "TEMPO_S2": "1 giorno lavorativo", "TEMPO_S3": "2 giorni lavorativi", "TEMPO_S4": "5 giorni lavorativi", "COPERTURA_ORARIA": "dal lunedì al venerdì, 09:00–18:00"}, "Premium": {"TEMPO_S1": "2 ore lavorative", "TEMPO_S2": "4 ore lavorative", "TEMPO_S3": "1 giorno lavorativo", "TEMPO_S4": "3 giorni lavorativi", "COPERTURA_ORARIA": "dal lunedì al venerdì, 08:00–20:00"}} }),
@@ -430,6 +431,7 @@ const T1T3_EXPECT: Expectation = {
       ],
       "items": [
         "costTable",
+        "field:VOCE_DI_COSTO",
         "field:VALIDITA_GIORNI",
         "field:ACCONTO",
         "field:SALDO",

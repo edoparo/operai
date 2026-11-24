@@ -107,7 +107,7 @@ La manutenzione successiva alla messa in produzione è regolata da un contratto 
 ## COSTI
 @@step costs
 @@costs position unit
-@@line oggetto one_off | **[OGGETTO_A_CORPO]**, secondo quanto al par. 2, a corpo | unit=deal | qty=1
+@@line oggetto one_off | **[VOCE_DI_COSTO]**, secondo quanto al par. 2, a corpo | unit=deal | qty=1
 @@OPT_START voce2
 @@line voce2 one_off | **[SECONDA_VOCE]**, a corpo | unit=? | qty=1
 @@OPT_END
@@ -212,8 +212,13 @@ source: issuer
 
 @@field OGGETTO_A_CORPO
 label: Oggetto a corpo
-hint: Completa la frase «Oggetto della fornitura è …». Compare anche nella tabella costi.
+hint: Completa la frase «Oggetto della fornitura è …». La riga della tabella costi ha una voce sua.
 example: es. la progettazione e lo sviluppo dell'app …
+
+@@field VOCE_DI_COSTO
+label: Voce di costo
+hint: La riga della tabella costi, di solito più sintetica dell'oggetto della fornitura.
+example: es. Sviluppo app mobile
 
 @@field DESCRIZIONE_IN_UNA_FRASE
 label: Descrizione in una frase

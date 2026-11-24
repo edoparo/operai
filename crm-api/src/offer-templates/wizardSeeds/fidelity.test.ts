@@ -472,3 +472,19 @@ describe("the deal's currency replaces a literal CHF (AC-9.6, AC-2.5)", () => {
     expect(named).toEqual([]);
   });
 });
+
+describe("the object and the cost line are separate answers (2026-11-24, revision 2 of T1 and T1+T3)", () => {
+  for (const code of ["T1", "T1+T3"] as const) {
+    it(`${code}: the object prints in its section, the cost line prints its own voice`, () => {
+      const testCase = ALL.find((entry) => entry.file === code)!;
+      const answers = { ...testCase.answers, f: { ...testCase.answers.f, VOCE_DI_COSTO: "Sviluppo portale, a corpo breve" } };
+      const { parts } = printed({ ...testCase, answers });
+      const text = parts.map((part) => part.text).join("\n");
+      const object = String(testCase.answers.f.OGGETTO_A_CORPO);
+      expect(text).toContain(`Oggetto della fornitura è ${object}`);
+      // The object is printed once, in its section; the cost line carries the voice instead (before: twice).
+      expect(text.split(object).length - 1).toBe(1);
+      expect(text).toContain("Sviluppo portale, a corpo breve");
+    });
+  }
+});

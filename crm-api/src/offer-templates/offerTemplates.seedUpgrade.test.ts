@@ -5,6 +5,7 @@
  * created, resurrected, archived or deleted by it, and it takes effect once.
  */
 
+import { firstV2Text } from "./wizardSeeds/revisions";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { sha256 } from "../../scripts/seed-digests";
 import { readyDealWithProfiles, call, db, makeDraftTemplate, resetWorld } from "../test-support/world";
@@ -31,7 +32,7 @@ async function storeV1(seed: WizardSeed, over: Record<string, unknown> = {}, ent
       language: "it",
       description: seed.description,
       uses: [...seed.uses],
-      source: toV1(seed.source),
+      source: toV1(firstV2Text(seed)),
       seedKey: seed.previousKey,
       createdBy: SYSTEM,
       updatedBy: SYSTEM,
@@ -138,7 +139,7 @@ describe("an untouched first-set row (AC-12.5, AC-12.11)", () => {
 describe("what a person wrote is never overwritten (AC-12.6, AC-12.11)", () => {
   it("an edited first-set row keeps its text, version and timestamps, and is marked kept", async () => {
     const t1 = seedOf("T1");
-    const edited = await storeV1(t1, { source: `${toV1(t1.source)}\nUna riga aggiunta da una persona.\n`, updatedBy: "user-admin", version: 4 });
+    const edited = await storeV1(t1, { source: `${toV1(firstV2Text(t1))}\nUna riga aggiunta da una persona.\n`, updatedBy: "user-admin", version: 4 });
     await Promise.all(WELLD_CH_IT_V1.filter((seed) => seed.code !== "T1").map((seed) => storeV1(seed)));
     const before = await db.offerTemplate.findUniqueOrThrow({ where: { id: edited.id } });
     await read();
@@ -149,11 +150,11 @@ describe("what a person wrote is never overwritten (AC-12.6, AC-12.11)", () => {
 
   it("a whitespace-only change is an edit: the comparison is exact, not normalised", async () => {
     const t2 = seedOf("T2");
-    await storeV1(t2, { source: `${toV1(t2.source)} ` });
+    await storeV1(t2, { source: `${toV1(firstV2Text(t2))} ` });
     await read();
     const row = await byCode("T2");
     expect(row.seedKey).toBe(t2.keptKey);
-    expect(row.source).toBe(`${toV1(t2.source)} `);
+    expect(row.source).toBe(`${toV1(firstV2Text(t2))} `);
   });
 
   it("the text of the CURRENT (v2) seed under a v1 key is not a first-set text: kept, not rewritten", async () => {
@@ -165,21 +166,21 @@ describe("what a person wrote is never overwritten (AC-12.6, AC-12.11)", () => {
 
   it("a kept row is decided once: editing it back to the first-set text later is never upgraded", async () => {
     const t1 = seedOf("T1");
-    await storeV1(t1, { source: `${toV1(t1.source)}x` });
+    await storeV1(t1, { source: `${toV1(firstV2Text(t1))}x` });
     await read();
     const kept = await byCode("T1");
     expect(kept.seedKey).toBe(t1.keptKey);
     const put = await call("PUT", `/offer-templates/${kept.id}`, {
       as: "admin",
       ifMatch: kept.version,
-      body: { name: kept.name, language: "it", description: kept.description ?? "", uses: kept.uses, source: toV1(t1.source) },
+      body: { name: kept.name, language: "it", description: kept.description ?? "", uses: kept.uses, source: toV1(firstV2Text(t1)) },
     });
     expect(put.status).toBe(200);
     const edited = await db.offerTemplate.findUniqueOrThrow({ where: { id: kept.id } });
     await read();
     await read();
     expect(await db.offerTemplate.findUniqueOrThrow({ where: { id: kept.id } })).toEqual(edited);
-    expect(edited.source).toBe(toV1(t1.source));
+    expect(edited.source).toBe(toV1(firstV2Text(t1)));
   });
 
   it("a kept code is never inserted again, even when the person renamed the row so its seed name is free", async () => {
@@ -195,10 +196,10 @@ describe("what a person wrote is never overwritten (AC-12.6, AC-12.11)", () => {
   it("a duplicate with the first-set text (no seed key) and a template that took a seed's name are never touched", async () => {
     const t1 = seedOf("T1");
     const duplicate = await db.offerTemplate.create({
-      data: { entity: "welld_ch", format: "wizard", name: "Progetto a corpo (copia)", language: "it", description: "copia", uses: [], source: toV1(t1.source), createdBy: "user-admin", updatedBy: "user-admin" },
+      data: { entity: "welld_ch", format: "wizard", name: "Progetto a corpo (copia)", language: "it", description: "copia", uses: [], source: toV1(firstV2Text(t1)), createdBy: "user-admin", updatedBy: "user-admin" },
     });
     const squatter = await db.offerTemplate.create({
-      data: { entity: "welld_ch", format: "wizard", name: "Formazione", language: "it", description: null, uses: [], source: toV1(seedOf("T4").source), createdBy: "user-admin", updatedBy: "user-admin" },
+      data: { entity: "welld_ch", format: "wizard", name: "Formazione", language: "it", description: null, uses: [], source: toV1(firstV2Text(seedOf("T4"))), createdBy: "user-admin", updatedBy: "user-admin" },
     });
     await storeV1(t1);
     await read();
@@ -245,17 +246,17 @@ describe("a first-set row that coexists with a decided one for its code (securit
 
   it("a v1 row beside a KEPT row, and one beside both a kept and a v2 key, never fail the listing either", async () => {
     // T1 is kept (edited first-set row), T2 has v2 and kept both (one row each), and a stray v1 row exists for each
-    await storeV1(seedOf("T1"), { source: `${toV1(seedOf("T1").source)}\n` });
+    await storeV1(seedOf("T1"), { source: `${toV1(firstV2Text(seedOf("T1")))}\n` });
     await storeV1(seedOf("T2"));
     expect((await read()).status).toBe(200);
     await db.offerTemplate.create({
-      data: { entity: "welld_ch", format: "wizard", name: "Stray T1", language: "it", uses: [], source: toV1(seedOf("T1").source), seedKey: seedOf("T1").previousKey, archivedAt: new Date(), createdBy: SYSTEM, updatedBy: SYSTEM },
+      data: { entity: "welld_ch", format: "wizard", name: "Stray T1", language: "it", uses: [], source: toV1(firstV2Text(seedOf("T1"))), seedKey: seedOf("T1").previousKey, archivedAt: new Date(), createdBy: SYSTEM, updatedBy: SYSTEM },
     });
     await db.offerTemplate.create({
       data: { entity: "welld_ch", format: "wizard", name: "Kept T2", language: "it", uses: [], source: "x", seedKey: seedOf("T2").keptKey, archivedAt: new Date(), createdBy: SYSTEM, updatedBy: SYSTEM },
     });
     await db.offerTemplate.create({
-      data: { entity: "welld_ch", format: "wizard", name: "Stray T2", language: "it", uses: [], source: toV1(seedOf("T2").source), seedKey: seedOf("T2").previousKey, archivedAt: new Date(), createdBy: SYSTEM, updatedBy: SYSTEM },
+      data: { entity: "welld_ch", format: "wizard", name: "Stray T2", language: "it", uses: [], source: toV1(firstV2Text(seedOf("T2"))), seedKey: seedOf("T2").previousKey, archivedAt: new Date(), createdBy: SYSTEM, updatedBy: SYSTEM },
     });
     expect((await read()).status).toBe(200);
     expect(await db.offerTemplate.count({ where: { entity: "welld_ch", seedKey: { in: WELLD_CH_IT_V1.map((seed) => seed.previousKey) } } })).toBe(0);
@@ -271,7 +272,7 @@ describe("drafts on an upgraded template (AC-8.4, AC-12.5)", () => {
     const edited = await makeDraftTemplate();
     const t1 = seedOf("T1");
     const t2 = seedOf("T2");
-    const source = toV1(t1.source);
+    const source = toV1(firstV2Text(t1));
     await db.offerTemplate.update({ where: { id: untouched.id }, data: { seedKey: t1.previousKey, source, name: t1.name } });
     await db.offerTemplate.update({ where: { id: edited.id }, data: { seedKey: t2.previousKey, name: t2.name } });
     const draft = await call("POST", `/deals/${deal.id}/offer-draft`, { as: "admin", body: { templateId: untouched.id }, headers: { "If-None-Match": "*" } });

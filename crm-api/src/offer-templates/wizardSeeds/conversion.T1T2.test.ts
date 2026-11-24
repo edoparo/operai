@@ -256,7 +256,8 @@ const T1_EXPECT: Expectation = {
   fields: {
     "CLIENTE": field({ source: "client" }),
     "EMITTENTE": field({ source: "issuer" }),
-    "OGGETTO_A_CORPO": field({ label: "Oggetto a corpo", hint: "Completa la frase «Oggetto della fornitura è …». Compare anche nella tabella costi.", example: "es. la progettazione e lo sviluppo dell'app …", kind: "text" }),
+    "OGGETTO_A_CORPO": field({ label: "Oggetto a corpo", hint: "Completa la frase «Oggetto della fornitura è …». La riga della tabella costi ha una voce sua.", example: "es. la progettazione e lo sviluppo dell'app …", kind: "text" }),
+    "VOCE_DI_COSTO": field({ label: "Voce di costo", hint: "La riga della tabella costi, di solito più sintetica dell'oggetto della fornitura.", example: "es. Sviluppo app mobile", kind: "text" }),
     "DESCRIZIONE_IN_UNA_FRASE": field({ label: "Descrizione in una frase", kind: "longtext" }),
     "FUNZIONALITÀ_RINVIATE": field({ label: "Funzionalità rinviate", hint: "Ciò che resta fuori e potrà essere sviluppato in una fase successiva.", kind: "longtext" }),
     "DURATA": field({ label: "Durata prevista", example: "es. 4 mesi", kind: "text" }),
@@ -412,6 +413,7 @@ const T1_EXPECT: Expectation = {
       ],
       "items": [
         "costTable",
+        "field:VOCE_DI_COSTO",
         "block:voce2",
         "block:voce2 > field:SECONDA_VOCE",
         "block:sconto",

@@ -1,7 +1,7 @@
 ---
 spec: 20261115
 generated: 2026-11-15
-synced: 2026-11-16
+synced: 2026-11-24
 ---
 
 
@@ -468,6 +468,15 @@ Conventions every task follows:
   - domain: devops
   - touch: `specs/20261115-crm-offer-wizard/spec.md` (frontmatter `status:` only, after the gates)
   - done when: `cd crm-api && bun run typecheck` and `[crm_test] bun test` pass; `cd crm-ui && pnpm lint && pnpm build && pnpm test` pass; `mise run ui:check` passes; `bun scripts/check-shared-copies.ts` and `bun test scripts/check-shared-copies.test.ts` pass; `mise run changeset:check` passes; `cd shell && pnpm e2e crm-offer-wizard.spec.ts crm-offer-wizard-revise.spec.ts` passes with the stack up; the owner has reviewed the T37 sample PDFs, the delegated amendments SA-1…SA-6, O3, O4 and the OWNER REVIEW items in decisions.md; O7 (each entity profile's address lines) checked; then spec `status: done`
+
+## Amendment 2026-11-24 — the object and the cost line are separate (spec OA-5)
+
+> Re-synced 2026-11-24 after spec OA-5 (owner decision 2026-11-24). Built directly on `main`.
+
+- [x] T78: T1 and T1+T3 revision 2: the cost line `oggetto` reads `[VOCE_DI_COSTO]`, a new text field asked in the costs step; `seedRevision` column (migration `20261124120000_offer_template_seed_revision`); `wizardSeeds/revise.ts` moves an untouched v2 row (SHA-256 of revision 1) to revision 2 under the template lock and marks an edited one, once; inserts and the v1 upgrade write the revision; revision-1 texts kept as test fixtures (`wizardSeeds/revisions/`); golden answers carry `VOCE_DI_COSTO` = the object — refs: AC-9.1, AC-12.5, AC-12.6, AC-8.4 — deps: none
+  - domain: backend
+  - touch: `crm-api/prisma/**`, `crm-api/src/offer-templates/wizardSeeds/**`, `crm-api/src/offer-templates/offerTemplates.routes.ts`, `crm-api/src/offer-templates/offerTemplates.{seedUpgrade,seedRevision}.test.ts`
+  - done when: `cd crm-api && bun run typecheck` and `[crm_test] bun test` pass; `bun scripts/check-shared-copies.ts` passes
 
 ## Coverage
 

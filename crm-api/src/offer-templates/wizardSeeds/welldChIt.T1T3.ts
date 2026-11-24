@@ -149,7 +149,7 @@ Gli interventi richiesti per iscritto dal Cliente e non compresi nella garanzia,
 ## COSTI
 @@step costs
 @@costs position unit
-@@line oggetto one_off | **[OGGETTO_A_CORPO]**, secondo quanto al par. 2.1, a corpo | unit=deal | qty=1
+@@line oggetto one_off | **[VOCE_DI_COSTO]**, secondo quanto al par. 2.1, a corpo | unit=deal | qty=1
 @@total **TOTALE progetto, una tantum**
 @@line canone yearly | Canone SLA, profilo **[PROFILO]**, annuale | unit=? | qty=1
 @@line pacchetto yearly | Pacchetto ore annuale | unit=150 | qty=[ORE]
@@ -568,8 +568,13 @@ source: issuerAddress
 
 @@field OGGETTO_A_CORPO
 label: Oggetto a corpo
-hint: Completa la frase «Oggetto della fornitura è …». Compare anche nella tabella costi.
+hint: Completa la frase «Oggetto della fornitura è …». La riga della tabella costi ha una voce sua.
 example: es. la progettazione e lo sviluppo dell'app …
+
+@@field VOCE_DI_COSTO
+label: Voce di costo
+hint: La riga della tabella costi, di solito più sintetica dell'oggetto della fornitura.
+example: es. Sviluppo app mobile
 
 @@field DESCRIZIONE_IN_UNA_FRASE
 label: Descrizione in una frase

@@ -4,6 +4,7 @@
  * git history of the seed files by `scripts/seed-digests.ts`; `toV1` is the inverse of the v1 → v2 conversion, so
  * `toV1(v2)` hashing into the record proves the conversion changed nothing but the issuer.
  */
+import { firstV2Text } from "./revisions";
 import { describe, expect, it } from "bun:test";
 import { NO_HISTORY_NOTE, codesWithHistory, sha256, v1Revisions } from "../../../scripts/seed-digests";
 import { WELLD_CH_IT_V1 } from "./welldChIt";
@@ -15,7 +16,7 @@ const CODES = WELLD_CH_IT_V1.map((seed) => seed.code);
 describe("toV1 is the inverse of the issuer conversion (DD-63)", () => {
   it("a v2 text turns into a text with the literals back and no trace of the issuer fields", () => {
     for (const seed of WELLD_CH_IT_V1) {
-      const v1 = toV1(seed.source);
+      const v1 = toV1(firstV2Text(seed));
       expect(v1, seed.code).toContain("WellD Sagl");
       expect(v1, seed.code).not.toContain("EMITTENTE");
     }
@@ -31,7 +32,7 @@ describe("toV1 is the inverse of the issuer conversion (DD-63)", () => {
     for (const seed of WELLD_CH_IT_V1) {
       const recorded = V1_DIGESTS[seed.code];
       expect(recorded.length, seed.code).toBeGreaterThanOrEqual(1);
-      expect(sha256(toV1(seed.source)), seed.code).toBe(recorded[recorded.length - 1]!.sha256);
+      expect(sha256(toV1(firstV2Text(seed))), seed.code).toBe(recorded[recorded.length - 1]!.sha256);
     }
   });
 });
