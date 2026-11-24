@@ -302,7 +302,7 @@ Derived from these committed files:
 
 ## RUI — refund-ui Receipt codes view
 
-- [ ] T16: refund-ui — the whole copy catalog for the feature (en + it) from design § Copy keys, with DS-8's `receiptCodes.shareNote` — refs: AC-4.8, AC-4.9 — deps: none
+- [x] T16: refund-ui — the whole copy catalog for the feature (en + it) from design § Copy keys, with DS-8's `receiptCodes.shareNote` — refs: AC-4.8, AC-4.9 — deps: none
   - touch: `refund-ui/src/strings.ts`
   - agent: frontend-dev · rui
   - Details: every key of design § Copy keys, plus `settings.history.loading` and
@@ -311,6 +311,7 @@ Derived from these committed files:
     condivide il prefisso con un altro dipendente.` / `${n} dipendenti condividono il prefisso con un
     altro dipendente.` (DS-8). No text names the other employee or the cause of a 409.
   - done when: `cd $WT/refund-ui && pnpm exec vitest run src/lib/noHardcodedStrings.test.ts && pnpm exec tsc -b && pnpm lint` is green, and the en/it parity holds (the `it: typeof en` type is the check).
+  - evidence: refund-ui vitest 77 files / 1340 tests green (incl. strings.parity and noHardcodedStrings), tsc -b clean, eslint clean; keys under settings.receiptCodes, settings.sections.receiptCodes, settings.descriptionReceiptCodes, settings.history.{loading,loadError,columns.before/after}.
 
 - [ ] T17: refund-ui — `receiptCodesApi.ts` client (list, put, history) with the DS-2 and DS-8 row type and error codes — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.7 — deps: none
   - touch: `refund-ui/src/lib/receiptCodesApi.ts`, `refund-ui/src/lib/receiptCodesApi.test.ts`

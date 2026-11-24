@@ -145,12 +145,14 @@ const en = {
     dismiss: 'Dismiss',
     /** specs/20261118-refund-accounting-export: the page description once it has more than the mileage rates. */
     descriptionAll: 'The mileage rates and the default classification of expense types.',
+    descriptionReceiptCodes: 'The codes that start the receipt numbers of each employee.',
     /** The Settings views (UX-1). */
     sections: {
       label: 'Settings sections',
       general: 'General',
       /** specs/20261119-accounting UX-16: the second Settings view. */
       defaults: 'Default classification',
+      receiptCodes: 'Receipt codes',
     },
     /** The note that heads the Default classification view (specs/20261119-accounting, AC-4.6, UX-16, UX-17). */
     accountingLink: {
@@ -172,7 +174,9 @@ const en = {
       title: (subject: string) => `History — ${subject}`,
       description: 'Every change, newest first.',
       empty: 'No changes recorded yet.',
-      columns: { when: 'When', by: 'By', account: 'Account' },
+      columns: { when: 'When', by: 'By', account: 'Account', before: 'Before', after: 'After' },
+      loading: 'Loading the history…',
+      loadError: 'Could not load the history.',
       open: 'History',
       openLabel: (subject: string) => `Show the history of ${subject}`,
       closeLabel: 'Close the history',
@@ -233,6 +237,71 @@ const en = {
         accountInactive: 'That account has been deactivated. Choose another.',
         accountNotFound: 'That account is no longer in Accounting. Choose another.',
       },
+    },
+    /** specs/20261124-receipt-numbers-from-the-register (US-4, design.md § Copy keys, plan DS-8): the Receipt codes view. */
+    receiptCodes: {
+      title: 'Receipt codes',
+      description: 'A code replaces the initials in new receipt numbers. Numbers already issued never change.',
+      caption: 'Receipt codes by employee',
+      loading: 'Loading the receipt codes…',
+      loadError: 'Could not load the receipt codes.',
+      empty: {
+        title: 'No employees yet',
+        body: 'An employee appears here after their first request.',
+      },
+      columns: {
+        employee: 'Employee',
+        code: 'Code',
+        prefix: 'Prefix in use',
+        lastNumber: 'Last number',
+        changed: 'Last changed',
+        status: 'Status',
+        actions: 'Actions',
+      },
+      none: 'None',
+      fromInitials: 'from initials',
+      noNumberYet: 'No number yet',
+      notSet: 'Not set yet',
+      changedBy: (by: string, on: string) => `${by} · ${on}`,
+      sharesPrefix: 'Shares prefix',
+      sharesPrefixHint: 'Another employee uses the same letters. Set a code to tell the numbers apart.',
+      /** DS-8: counts every flagged row, with or without a code; names nobody. */
+      shareNote: (n: number) =>
+        n === 1
+          ? '1 employee shares a prefix with another employee.'
+          : `${n} employees share a prefix with another employee.`,
+      shareNoteLabel: 'Employees sharing a prefix',
+      setLabel: (name: string) => `Set a receipt code for ${name}`,
+      changeLabel: (name: string) => `Change the receipt code of ${name}`,
+      clearLabel: (name: string) => `Clear the receipt code of ${name}`,
+      historyLabel: (name: string) => `Show the receipt code history of ${name}`,
+      set: 'Set code',
+      change: 'Change',
+      clear: 'Clear',
+      dialog: {
+        title: (name: string) => `Receipt code — ${name}`,
+        description: (initials: string) =>
+          `New numbers use this code instead of the initials (${initials}). The sequence continues. Numbers already issued do not change.`,
+        field: 'Code',
+        hint: 'Two or three letters, A to Z.',
+        save: 'Save',
+        busy: 'Saving…',
+      },
+      clearDialog: {
+        title: (name: string) => `Clear the code of ${name}`,
+        body: (initials: string) =>
+          `New numbers will use the initials (${initials}) again. The sequence continues. Numbers already issued do not change.`,
+        confirm: 'Clear code',
+        busy: 'Clearing…',
+      },
+      errors: {
+        invalid: 'A code is two or three letters, A to Z.',
+        inUse: 'This code is already in use. Choose another.',
+        notFound: 'This employee is no longer listed. Close this window to refresh the list.',
+      },
+      saved: (name: string, code: string) => `Receipt code for ${name} is now ${code}.`,
+      cleared: (name: string, initials: string) => `Receipt code for ${name} cleared. New numbers use ${initials}.`,
+      unchanged: (name: string) => `The receipt code for ${name} was already this.`,
     },
   },
   pages: {
@@ -1170,10 +1239,12 @@ const it: Strings = {
     },
     dismiss: 'Chiudi',
     descriptionAll: 'Le tariffe chilometriche e la classificazione predefinita dei tipi di spesa.',
+    descriptionReceiptCodes: 'I codici con cui iniziano i numeri di ricevuta di ogni dipendente.',
     sections: {
       label: 'Sezioni delle impostazioni',
       general: 'Generale',
       defaults: 'Classificazione predefinita',
+      receiptCodes: 'Codici ricevuta',
     },
     accountingLink: {
       withAccess: 'I conti contabili, i codici IVA e i tassi di cambio sono tenuti nell’app Contabilità.',
@@ -1192,7 +1263,9 @@ const it: Strings = {
       title: (subject: string) => `Cronologia — ${subject}`,
       description: 'Tutte le modifiche, dalla più recente.',
       empty: 'Ancora nessuna modifica registrata.',
-      columns: { when: 'Quando', by: 'Da', account: 'Conto' },
+      columns: { when: 'Quando', by: 'Da', account: 'Conto', before: 'Prima', after: 'Dopo' },
+      loading: 'Caricamento della cronologia…',
+      loadError: 'Impossibile caricare la cronologia.',
       open: 'Cronologia',
       openLabel: (subject: string) => `Mostra la cronologia di ${subject}`,
       closeLabel: 'Chiudi la cronologia',
@@ -1251,6 +1324,70 @@ const it: Strings = {
         accountInactive: 'Questo conto è stato disattivato. Sceglierne un altro.',
         accountNotFound: 'Questo conto non è più presente in Contabilità. Sceglierne un altro.',
       },
+    },
+    receiptCodes: {
+      title: 'Codici ricevuta',
+      description: 'Un codice sostituisce le iniziali nei nuovi numeri di ricevuta. I numeri già emessi non cambiano mai.',
+      caption: 'Codici ricevuta per dipendente',
+      loading: 'Caricamento dei codici ricevuta…',
+      loadError: 'Impossibile caricare i codici ricevuta.',
+      empty: {
+        title: 'Ancora nessun dipendente',
+        body: 'Un dipendente compare qui dopo la sua prima richiesta.',
+      },
+      columns: {
+        employee: 'Dipendente',
+        code: 'Codice',
+        prefix: 'Prefisso in uso',
+        lastNumber: 'Ultimo numero',
+        changed: 'Ultima modifica',
+        status: 'Stato',
+        actions: 'Azioni',
+      },
+      none: 'Nessuno',
+      fromInitials: 'dalle iniziali',
+      noNumberYet: 'Ancora nessun numero',
+      notSet: 'Mai impostato',
+      changedBy: (by: string, on: string) => `${by} · ${on}`,
+      sharesPrefix: 'Prefisso condiviso',
+      sharesPrefixHint: 'Un altro dipendente usa le stesse lettere. Impostare un codice per distinguere i numeri.',
+      shareNote: (n: number) =>
+        n === 1
+          ? '1 dipendente condivide il prefisso con un altro dipendente.'
+          : `${n} dipendenti condividono il prefisso con un altro dipendente.`,
+      shareNoteLabel: 'Dipendenti con prefisso condiviso',
+      setLabel: (name: string) => `Imposta un codice ricevuta per ${name}`,
+      changeLabel: (name: string) => `Modifica il codice ricevuta di ${name}`,
+      clearLabel: (name: string) => `Rimuovi il codice ricevuta di ${name}`,
+      historyLabel: (name: string) => `Mostra la cronologia del codice ricevuta di ${name}`,
+      set: 'Imposta codice',
+      change: 'Modifica',
+      clear: 'Rimuovi',
+      dialog: {
+        title: (name: string) => `Codice ricevuta — ${name}`,
+        description: (initials: string) =>
+          `I nuovi numeri usano questo codice al posto delle iniziali (${initials}). La sequenza continua. I numeri già emessi non cambiano.`,
+        field: 'Codice',
+        hint: 'Due o tre lettere, da A a Z.',
+        save: 'Salva',
+        busy: 'Salvataggio…',
+      },
+      clearDialog: {
+        title: (name: string) => `Rimuovi il codice di ${name}`,
+        body: (initials: string) =>
+          `I nuovi numeri useranno di nuovo le iniziali (${initials}). La sequenza continua. I numeri già emessi non cambiano.`,
+        confirm: 'Rimuovi codice',
+        busy: 'Rimozione…',
+      },
+      errors: {
+        invalid: 'Un codice è di due o tre lettere, da A a Z.',
+        inUse: 'Questo codice è già in uso. Sceglierne un altro.',
+        notFound: 'Questo dipendente non è più in elenco. Chiudere questa finestra per aggiornare l’elenco.',
+      },
+      saved: (name: string, code: string) => `Il codice ricevuta di ${name} è ora ${code}.`,
+      cleared: (name: string, initials: string) =>
+        `Codice ricevuta di ${name} rimosso. I nuovi numeri usano ${initials}.`,
+      unchanged: (name: string) => `Il codice ricevuta di ${name} era già questo.`,
     },
   },
   pages: {
