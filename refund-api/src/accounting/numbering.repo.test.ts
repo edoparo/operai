@@ -284,7 +284,7 @@ describe("classification copy", () => {
       vatCode: { from: null, to: null, fromDefault: false, toDefault: false },
     });
     const assigned = audit.find((a) => a.action === "receipt_number_assigned")!;
-    expect(assigned.detail).toEqual({ cause: "approval", receiptNumber: "MC26/001", year: 2026, seq: 1 });
+    expect(assigned.detail).toEqual({ cause: "approval", receiptNumber: "MC26/001", year: 2026, seq: 1, origin: "new" });
   });
 
   it("(D11) a default takes the entry's name as Accounting holds it NOW, not the name Refund recorded", async () => {
@@ -519,5 +519,101 @@ describe("(AC-4.7) a number issued stays", () => {
     expect(after.receiptNumber).toBe(before.receiptNumber);
     expect(after.numberedAt).toEqual(before.numberedAt);
     expect(await db.refundAuditEntry.count({ where: { action: "receipt_number_assigned" } })).toBe(1);
+  });
+});
+
+describe("receipt codes: the prefix of a new number (T4, specs/20261124; AC-4.4, AC-4.5, AC-4.10, AC-4.12)", () => {
+  const OWNER = { userId: "owner-1", name: "Matteo Codogno", email: "matteo.codogno@welld.ch" };
+  const setCode = (code: string, ownerUserId = "owner-1") =>
+    db.receiptCode.create({ data: { ownerUserId, code, updatedByUserId: "acct-1", updatedByEmail: "acct@welld.ch" } });
+
+  it("(AC-4.4) a code replaces the initials in the NEXT number and the sequence continues; the issued number stays as issued", async () => {
+    // An employee whose paper register ended at 38 and who got LC26/039 under the derived initials.
+    const first = await makeRequest("owner-1", [{ date: "2026-03-02", id: "old" }], { name: "Luca Conti", status: "approved" });
+    await db.receiptNumberBaseline.create({ data: { emailKey: "owner-1@welld.ch", year: 2026, lastIssuedSeq: 38, ...by } });
+    const luca = { userId: "owner-1", name: "Luca Conti", email: "owner-1@welld.ch" };
+    const r1 = await run([first.request.id], luca);
+    expect(r1.ok && r1.lines.map((l) => l.receiptNumber)).toEqual(["LC26/039"]);
+
+    await setCode("LCX");
+    const second = await makeRequest("owner-1", [{ date: "2026-03-03", id: "new" }], { name: "Luca Conti", status: "approved" });
+    const r2 = await run([second.request.id], luca);
+    expect(r2.ok && r2.lines.map((l) => l.receiptNumber)).toEqual(["LCX26/040"]);
+    expect(await numberOf("old")).toBe("LC26/039"); // issued, never recomputed
+    expect((await db.receiptCounter.findUniqueOrThrow({ where: { ownerUserId_year: { ownerUserId: "owner-1", year: 2026 } } })).lastSeq).toBe(40);
+  });
+
+  it("(AC-4.5) a 2027 line takes the code too and restarts at 001", async () => {
+    await setCode("LCX");
+    const r = await makeRequest("owner-1", [{ date: "2027-01-05", id: "l27" }, { date: "2026-12-30", id: "l26" }]);
+    const res = await run([r.request.id], OWNER);
+    expect(res.ok && res.lines.map((l) => [l.lineId, l.receiptNumber])).toEqual([
+      ["l26", "LCX26/001"],
+      ["l27", "LCX27/001"],
+    ]);
+  });
+
+  it("another employee's code is not mine, and clearing the code returns to the derived initials", async () => {
+    await setCode("ZZZ", "owner-2");
+    const r = await makeRequest("owner-1", [{ date: "2026-03-02", id: "a" }]);
+    await run([r.request.id], OWNER);
+    expect(await numberOf("a")).toBe("MC26/001");
+    await setCode("MCX");
+    const r2 = await makeRequest("owner-1", [{ date: "2026-03-03", id: "b" }]);
+    await run([r2.request.id], OWNER);
+    expect(await numberOf("b")).toBe("MCX26/002");
+    await db.receiptCode.delete({ where: { ownerUserId: "owner-1" } });
+    const r3 = await makeRequest("owner-1", [{ date: "2026-03-04", id: "c" }]);
+    await run([r3.request.id], OWNER);
+    expect(await numberOf("c")).toBe("MC26/003");
+  });
+
+  it("(AC-4.10) the code is read once per call: a code changed in another connection while the call runs does not split its numbers", async () => {
+    await setCode("LCX");
+    const r = await makeRequest("owner-1", [{ date: "2026-03-02", id: "a" }, { date: "2026-03-03", id: "b" }, { date: "2026-03-04", id: "c" }]);
+    let reads = 0;
+    const res = await db.$transaction((tx) => {
+      // Every read of the code is followed, on ANOTHER connection, by a change of it: a call that read the code per line would mix.
+      const spied = new Proxy(tx, {
+        get(target, prop, receiver) {
+          if (prop !== "receiptCode") return Reflect.get(target, prop, receiver);
+          return new Proxy(target.receiptCode, {
+            get(codeTarget, codeProp, codeReceiver) {
+              const value = Reflect.get(codeTarget, codeProp, codeReceiver);
+              if (codeProp !== "findUnique") return value;
+              return async (...args: unknown[]) => {
+                reads++;
+                const seen = await (value as (...a: unknown[]) => Promise<unknown>).apply(codeTarget, args);
+                await db.receiptCode.update({ where: { ownerUserId: "owner-1" }, data: { code: reads % 2 ? "LCY" : "LCZ" } });
+                return seen;
+              };
+            },
+          });
+        },
+      });
+      return classifyAndNumber(spied, { owner: OWNER, requestIds: [r.request.id], cause: "approval", actor, reference });
+    });
+    expect(res.ok && res.lines.map((l) => l.receiptNumber)).toEqual(["LCX26/001", "LCX26/002", "LCX26/003"]);
+    expect(reads).toBe(1);
+    // the next call sees what was committed meanwhile
+    const r2 = await makeRequest("owner-1", [{ date: "2026-03-05", id: "d" }]);
+    await run([r2.request.id], OWNER);
+    expect(await numberOf("d")).toBe("LCY26/004");
+  });
+
+  it("a call with nothing to number from the counter does not even read the code", async () => {
+    const r = await makeRequest("owner-1", [{ date: "2026-03-02", id: "a" }], { status: "approved" });
+    await run([r.request.id], OWNER);
+    const again = await run([r.request.id], OWNER);
+    expect(again.ok && again.lines).toEqual([]);
+  });
+
+  it("(AC-4.4) the audit detail of a counter number says origin new, with the prefix in the number", async () => {
+    await setCode("LCX");
+    const r = await makeRequest("owner-1", [{ date: "2026-03-02", id: "a" }]);
+    await run([r.request.id], OWNER);
+    const audit = await db.refundAuditEntry.findFirstOrThrow({ where: { lineId: "a", action: "receipt_number_assigned" } });
+    expect(audit.detail).toEqual({ cause: "approval", receiptNumber: "LCX26/001", year: 2026, seq: 1, origin: "new" });
+    expect(await db.refundLine.findUniqueOrThrow({ where: { id: "a" } })).toMatchObject({ receiptOrigin: "issued", receiptSplitPart: 1 });
   });
 });

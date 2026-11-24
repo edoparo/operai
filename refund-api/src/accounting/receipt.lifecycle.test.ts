@@ -63,6 +63,7 @@ const { batchDecideRouter } = (await import("../batches/decide.routes?qe-receipt
 // @ts-expect-error -- the query suffix is a runtime-only cache-buster
 const { classificationRouter } = (await import("./classification.routes?qe-receipt-lifecycle")) as typeof import("./classification.routes");
 const { db } = await import("../lib/db");
+const { loadExportSource } = await import("./export.repo");
 const { __resetAuthzCacheForTests } = await import("../auth/authz.middleware");
 const { notifyTransport } = await import("../lib/notifyPost");
 const { createStandardFakeAccounting, useFakeAccounting, restoreAccounting } = await import("../test-support/fakeAccounting");
@@ -225,5 +226,62 @@ describe("AC-4.7: a number issued stays, through the whole lifecycle", () => {
       const body = (await res.json()) as { employees: { requests: { receiptNumbers: string[] }[] }[] };
       expect(body.employees.flatMap((e) => e.requests.flatMap((r) => r.receiptNumbers))).toEqual(["MC26/001"]);
     }
+  });
+});
+
+describe("a receipt code through the real lifecycle (T4, specs/20261124; AC-4.4, AC-4.5)", () => {
+  const issuedLine = async (requestId: string, number: string, seq: number, date: string) =>
+    db.refundLine.create({
+      data: {
+        requestId,
+        date: new Date(date),
+        type: "office_material",
+        motivo: "Cancelleria",
+        entity: "welld_ch",
+        currency: "CHF",
+        requestedAmountCents: 2080,
+        approvedTotalCents: 2080,
+        accountNumber: "6101",
+        accountName: "Spese materiale ufficio",
+        ledgerAccountIsDefault: true,
+        receiptNumber: number,
+        receiptOwnerUserId: OWNER.id,
+        receiptYear: 2026,
+        receiptSeq: seq,
+        receiptOrigin: "issued",
+        receiptSplitPart: 1,
+        numberedAt: new Date(),
+      },
+    });
+
+  it("a code set after LC26/039 gives the next approval LCX26/040; LC26/039 stays as issued in the line, the batch and the export reads", async () => {
+    // The employee already holds LC26/039 under the derived initials of "Luca Conti" (an approved request, 2026).
+    const old = await db.refundRequest.create({
+      data: { ownerUserId: OWNER.id, ownerEmail: OWNER.email, ownerName: "Luca Conti", status: "approved", decidedAt: new Date(), decidedByUserId: "a", decidedByEmail: "a@welld.ch" },
+    });
+    const oldLine = await issuedLine(old.id, "LC26/039", 39, "2026-03-02");
+    await db.receiptCounter.create({ data: { ownerUserId: OWNER.id, year: 2026, lastSeq: 39, startAfter: 38, startAfterSetBy: "baseline" } });
+    const batchId = ((await (await compile()).json()) as { id: string }).id;
+
+    await db.receiptCode.create({ data: { ownerUserId: OWNER.id, code: "LCX", updatedByUserId: "acct-1", updatedByEmail: "acct-1@welld.ch" } });
+    const next = await submittedRequest([{ date: "2026-03-10" }]);
+    await db.refundRequest.update({ where: { id: next.requestId }, data: { ownerName: "Luca Conti" } });
+    expect((await approve(next.requestId)).status).toBe(200);
+
+    expect((await numbersOf(next.lineIds))[0]!.split("|")[0]).toBe("LCX26/040");
+    // the issued number, read four ways: the line, the batch detail, the export source and the file's row key
+    expect((await db.refundLine.findUniqueOrThrow({ where: { id: oldLine.id } })).receiptNumber).toBe("LC26/039");
+    const detail = (await (await call(batchesRouter, `/batches/${batchId}`)).json()) as { employees: { requests: { receiptNumbers: string[] }[] }[] };
+    expect(detail.employees.flatMap((e) => e.requests.flatMap((r) => r.receiptNumbers))).toEqual(["LC26/039"]);
+    const source = (await loadExportSource(batchId))!;
+    expect(source.rows.map((row) => row.line.receiptNumber)).toEqual(["LC26/039"]);
+    expect(await counter()).toBe(40);
+
+    // clearing the code returns the NEXT number to the initials, with the counter unbroken
+    await db.receiptCode.delete({ where: { ownerUserId: OWNER.id } });
+    const third = await submittedRequest([{ date: "2026-03-11" }]);
+    await db.refundRequest.update({ where: { id: third.requestId }, data: { ownerName: "Luca Conti" } });
+    expect((await approve(third.requestId)).status).toBe(200);
+    expect((await numbersOf(third.lineIds))[0]!.split("|")[0]).toBe("LC26/041");
   });
 });

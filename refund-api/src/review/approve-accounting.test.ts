@@ -272,7 +272,7 @@ describe("approve: copies and numbering", () => {
     expect(classified[0]!.detail).not.toHaveProperty("fxRate"); // a CHF line has no rate
     const numbered = await db.refundAuditEntry.findMany({ where: { requestId: r.id, action: "receipt_number_assigned" } });
     expect(numbered).toHaveLength(1);
-    expect(numbered[0]!.detail).toEqual({ cause: "approval", receiptNumber: "MC26/001", year: 2026, seq: 1 });
+    expect(numbered[0]!.detail).toEqual({ cause: "approval", receiptNumber: "MC26/001", year: 2026, seq: 1, origin: "new" });
   });
 
   it("(AC-5.1) a request with a CH CHF line on defaults, a hand copy, an EUR line with a rate and a rejected line: each copy as the plan says", async () => {

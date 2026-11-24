@@ -38,6 +38,11 @@
  * 5. Audits: `line_classified` (WellD CH lines, detail v2: the copies from and to, and `fxRate` for a foreign-currency line)
  *    and `receipt_number_assigned`.
  *
+ * specs/20261124-receipt-numbers-from-the-register (T4): the prefix of a NEW number is the employee's receipt code, else the derived
+ * initials (`receiptPrefix`), read ONCE per call inside the transaction (AC-4.4, AC-4.10); the optional `paper` input gives lines of a
+ * release the number written in the accountant's register instead of the counter's (they do not move the counter, AC-1.6); every
+ * numbered line stores its origin and split part, and `receipt_number_assigned` says which (AC-1.17).
+ *
  * Numbering order is the expense date, then the line's `createdAt`, then its id (AC-4.4 of 20261118), across all the lines
  * of one call. Lines of two years are numbered in two independent sequences (AC-4.5). WellD Italia lines are numbered like any
  * other (AC-4.1) but never classified (AC-4.9); a rejected line is neither.
@@ -45,7 +50,13 @@
 
 import type { Prisma } from "../lib/generated/prisma/client";
 import type { Entity, ExpenseType } from "../lib/generated/prisma/enums";
-import { writeAuditEntry, type AuditFxRate, type ClassifiedCause, type LineClassifiedDetail } from "../requests/audit";
+import {
+  writeAuditEntry,
+  type AuditFxRate,
+  type ClassifiedCause,
+  type LineClassifiedDetail,
+  type ReceiptNumberAssignedDetail,
+} from "../requests/audit";
 import { ratePairKey } from "./accountingClient";
 import type { RatePairWire } from "./accountingWire";
 import {
@@ -58,7 +69,8 @@ import {
 } from "./classification";
 import { loadRecordedDefaults } from "./defaults.repo";
 import type { ReferenceSnapshot } from "./referenceSnapshot";
-import { formatReceiptNumber, initials } from "./receiptNumber";
+import { receiptPrefix } from "./receiptCode.repo";
+import { formatReceiptNumber, parseReceiptNumber } from "./receiptNumber";
 
 export type NumberingCause = "approval" | "release";
 
@@ -72,6 +84,18 @@ export interface AccountingReads {
   readonly snapshot: ReferenceSnapshot;
   /** The rate in effect of each (currency, month) pair of the request's foreign-currency WellD CH lines, by `ratePairKey`. */
   readonly rates: ReadonlyMap<string, RatePairWire>;
+}
+
+/**
+ * A number taken from the accountant's register instead of the counter (the release only; specs/20261124 T4, AC-1.2, AC-1.6).
+ * `number` is the paper text, trimmed and upper-cased by the caller or here; its sequence is the paper sequence (0 is allowed);
+ * `splitPart` is 1, or 2..n for the further lines of a confirmed split receipt, whose lines all carry the same number.
+ * `registerRows` are the row positions of the register that the line was paired with (audited as positions only, AC-1.17).
+ */
+export interface PaperAssignment {
+  readonly number: string;
+  readonly splitPart: number;
+  readonly registerRows: readonly number[];
 }
 
 export interface ClassifyAndNumberInput {
@@ -89,6 +113,12 @@ export interface ClassifyAndNumberInput {
   readonly reference: AccountingReads | null;
   /** Only lines of these entities are handled; the release script passes `["welld_ch"]` (AC-7.3 of 20261118). Default: all. */
   readonly entities?: readonly Entity[];
+  /**
+   * The release only: lines that take the paper number written in the register instead of the counter's next number. They are
+   * classified like any other line, in the same single `UPDATE`, and do not move the counter. A key that is not a line of this call
+   * (not found, already numbered, rejected, another entity) is an error, never a silently dropped number.
+   */
+  readonly paper?: ReadonlyMap<string, PaperAssignment>;
 }
 
 export interface MissingLine {
@@ -107,6 +137,9 @@ export interface NumberedLine {
   readonly receiptNumber: string;
   readonly year: number;
   readonly seq: number;
+  /** Where the number came from: the counter (`issued`) or the register (`paper`, `paper_split`). */
+  readonly origin: "issued" | "paper" | "paper_split";
+  readonly splitPart: number;
   /** `null` for a WellD Italia line. `missing` is empty when the line is fully classified. */
   readonly missing: readonly MissingPart[] | null;
   /** The exchange-rate copy this call wrote: `null` for a CHF line, a WellD Italia line, or a line left "rate pending". */
@@ -174,7 +207,12 @@ export async function classifyAndNumber(
   tx: Prisma.TransactionClient,
   input: ClassifyAndNumberInput,
 ): Promise<ClassifyAndNumberResult> {
-  if (input.requestIds.length === 0) return { ok: true, lines: [] };
+  // A paper number for a line this call does not number is an error, also when there is nothing to number at all (never dropped).
+  const noLines = (): ClassifyAndNumberResult => {
+    for (const lineId of input.paper?.keys() ?? []) throw new Error(`paper number given for line ${lineId}, which this call does not number`);
+    return { ok: true, lines: [] };
+  };
+  if (input.requestIds.length === 0) return noLines();
 
   // ── 1. Candidates, locked ────────────────────────────────────────────────
   const candidates = await tx.refundLine.findMany({
@@ -186,7 +224,7 @@ export async function classifyAndNumber(
     },
     select: { id: true },
   });
-  if (candidates.length === 0) return { ok: true, lines: [] };
+  if (candidates.length === 0) return noLines();
   const lockedIds = (
     await tx.$queryRaw<{ id: string }[]>`
       SELECT "id" FROM "refund_line" WHERE "id" = ANY(${candidates.map((l) => l.id)}::text[]) ORDER BY "id" FOR UPDATE`
@@ -217,7 +255,7 @@ export async function classifyAndNumber(
       a.createdAt.getTime() - b.createdAt.getTime() ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
-  if (lines.length === 0) return { ok: true, lines: [] };
+  if (lines.length === 0) return noLines();
 
   // ── 2. Resolve ───────────────────────────────────────────────────────────
   const classifiesSomething = lines.some((l) => l.entity === "welld_ch");
@@ -257,10 +295,38 @@ export async function classifyAndNumber(
     return { ok: false, reason: "classification_missing", missing: missingLines };
   }
 
-  // ── 3. Counters, years ascending, one upsert each ────────────────────────
+  // ── 3. Paper assignments, the prefix, the counters ───────────────────────
+  // A paper line takes the text written in the register and skips the counter (AC-1.6): its sequence is the paper's, so the
+  // counter is not moved by it and the baseline (written by the release) is what keeps later numbers above it (AC-3.3).
+  const paper = input.paper ?? new Map<string, PaperAssignment>();
+  const paperOf = new Map<string, { parsed: NonNullable<ReturnType<typeof parseReceiptNumber>>; assignment: PaperAssignment }>();
+  const lineIds = new Set(lines.map((l) => l.id));
+  for (const [lineId, assignment] of paper) {
+    if (!lineIds.has(lineId)) throw new Error(`paper number given for line ${lineId}, which this call does not number`);
+    const parsed = parseReceiptNumber(assignment.number);
+    if (parsed === null) throw new RangeError(`paper number of line ${lineId} is not a receipt number`);
+    if (!Number.isInteger(assignment.splitPart) || assignment.splitPart < 1) {
+      throw new RangeError(`paper split part of line ${lineId} must be an integer of 1 or more`);
+    }
+    paperOf.set(lineId, { parsed, assignment });
+  }
+  // One number on several lines is a confirmed split: parts 1..n, each once. A part above 1 with no part 1 is refused here (the
+  // database checks the same at commit).
+  const partsOf = new Map<string, number[]>();
+  for (const { parsed, assignment } of paperOf.values()) {
+    partsOf.set(parsed.text, [...(partsOf.get(parsed.text) ?? []), assignment.splitPart]);
+  }
+  for (const [text, parts] of partsOf) {
+    const sorted = [...parts].sort((a, b) => a - b);
+    if (sorted.some((part, i) => part !== i + 1)) throw new RangeError(`paper number ${text}: split parts must be 1..${parts.length}, once each`);
+  }
+
   const yearOf = (line: { date: Date }) => line.date.getUTCFullYear();
   const perYear = new Map<number, number>();
-  for (const line of lines) perYear.set(yearOf(line), (perYear.get(yearOf(line)) ?? 0) + 1);
+  for (const line of lines) if (!paperOf.has(line.id)) perYear.set(yearOf(line), (perYear.get(yearOf(line)) ?? 0) + 1);
+  // The prefix of the NEW numbers: read ONCE per call, here, inside the transaction (AC-4.4, AC-4.10, AC-4.12). A code changed
+  // by someone else while this call runs is seen by the next call, never by half of this one.
+  const prefix = perYear.size > 0 ? await receiptPrefix(tx, input.owner) : null;
   const nextSeq = new Map<number, number>();
   for (const year of [...perYear.keys()].sort((a, b) => a - b)) {
     const count = perYear.get(year)!;
@@ -280,14 +346,26 @@ export async function classifyAndNumber(
   }
 
   // ── 4 + 5. One UPDATE per line, then the audit rows ──────────────────────
-  const initialsOfOwner = initials(input.owner.name, input.owner.email);
   const numberedAt = new Date();
   const out: NumberedLine[] = [];
   for (const line of lines) {
     const year = yearOf(line);
-    const seq = nextSeq.get(year)!;
-    nextSeq.set(year, seq + 1);
-    const receiptNumber = formatReceiptNumber(initialsOfOwner, year, seq);
+    const paperLine = paperOf.get(line.id);
+    let receiptNumber: string;
+    let seq: number;
+    let origin: NumberedLine["origin"];
+    let splitPart = 1;
+    if (paperLine) {
+      receiptNumber = paperLine.parsed.text;
+      seq = paperLine.parsed.seq;
+      splitPart = paperLine.assignment.splitPart;
+      origin = partsOf.get(paperLine.parsed.text)!.length > 1 ? "paper_split" : "paper";
+    } else {
+      seq = nextSeq.get(year)!;
+      nextSeq.set(year, seq + 1);
+      receiptNumber = formatReceiptNumber(prefix!, year, seq);
+      origin = "issued";
+    }
     const classification = resolved.get(line.id) ?? null;
 
     // The rate of a foreign-currency line of WellD CH: copied when Accounting has one in effect for the expense month, else
@@ -313,9 +391,9 @@ export async function classifyAndNumber(
         receiptYear: year,
         receiptSeq: seq,
         numberedAt,
-        // T2 of 20261124: the origin and part are set with the number (CHECK refund_line_receipt_origin_all_or_none).
-        receiptOrigin: "issued",
-        receiptSplitPart: 1,
+        // Origin and split part are set with the number, in the same statement (CHECK refund_line_receipt_origin_all_or_none).
+        receiptOrigin: origin,
+        receiptSplitPart: splitPart,
         ...(classification
           ? {
               accountNumber: classification.bookable.account?.number ?? null,
@@ -362,13 +440,22 @@ export async function classifyAndNumber(
         detail: detail as unknown as Record<string, unknown>,
       });
     }
+    const assigned: ReceiptNumberAssignedDetail = {
+      cause: input.cause,
+      receiptNumber,
+      year,
+      seq,
+      origin: origin === "issued" ? "new" : origin,
+      ...(paperLine ? { registerRows: [...paperLine.assignment.registerRows] } : {}),
+      ...(origin === "paper_split" ? { splitPart } : {}),
+    };
     await writeAuditEntry(tx, {
       requestId: line.requestId,
       lineId: line.id,
       actorUserId: input.actor.userId,
       actorEmail: input.actor.email,
       action: "receipt_number_assigned",
-      detail: { cause: input.cause, receiptNumber, year, seq },
+      detail: assigned as unknown as Record<string, unknown>,
     });
 
     out.push({
@@ -378,6 +465,8 @@ export async function classifyAndNumber(
       receiptNumber,
       year,
       seq,
+      origin,
+      splitPart,
       missing: classification ? classification.missing : null,
       fxRate: fxCopy,
       ratePending,

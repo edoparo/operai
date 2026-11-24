@@ -106,6 +106,22 @@ export interface LineClassifiedDetail {
   readonly fxRate?: AuditFxRate;
 }
 
+/**
+ * `receipt_number_assigned` (specs/20261124 T4): how a line got its number. `origin` is `new` for a number from the counter,
+ * `paper` for a number imported as written in the accountant's register, `paper_split` for a part of a confirmed split receipt
+ * (then `splitPart` too). `registerRows` are row positions of the register only, never its content (AC-1.17).
+ * Rows written before 20261124 have only `{ cause, receiptNumber, year, seq }`.
+ */
+export interface ReceiptNumberAssignedDetail {
+  readonly cause: "approval" | "release";
+  readonly receiptNumber: string;
+  readonly year: number;
+  readonly seq: number;
+  readonly origin: "new" | "paper" | "paper_split";
+  readonly registerRows?: readonly number[];
+  readonly splitPart?: number;
+}
+
 /** `line_rate_copied`, detail v2: the rate copied at the first successful export of a batch (AC-5.6). */
 export interface LineRateCopiedDetail {
   readonly v: 2;

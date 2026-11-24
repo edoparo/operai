@@ -119,7 +119,7 @@ Derived from these committed files:
       against `^[A-Za-z]{2,3}$` **before** upper-casing. `initials()` unchanged.
   - done when: `$ST $WT refund_rn_t3 src/accounting/receiptNumber.test.ts` is green with vectors: `formatReceiptNumber("LCX", 2026, 40)` → `LCX26/040`, `("LCX", 2027, 1)` → `LCX27/001`, seq 1000 → `LCX26/1000`; parse of `AB26/005`, ` ab26/5 `, `LG25/003`, `AB26/000`, and `null` for `AA99/9A`, `ABCD26/001`, `A26/001`; code vectors `A`, `ABCD`, `A1`, `ÀB`, `A B`, `ßA` → invalid, ` lcx ` → `LCX`, `""` and `null` → clear; the existing `initials` vectors unchanged.
 
-- [ ] T4: refund-api — numbering core: prefix from the receipt code read once per call inside the transaction, paper assignments that skip the counter, `receiptOrigin`/`receiptSplitPart` on every numbered line, the richer `receipt_number_assigned` detail — refs: AC-1.2, AC-1.6, AC-1.17, AC-3.3, AC-3.5, AC-4.4, AC-4.5, AC-4.10, AC-4.12 — deps: T2, T3
+- [x] T4: refund-api — numbering core: prefix from the receipt code read once per call inside the transaction, paper assignments that skip the counter, `receiptOrigin`/`receiptSplitPart` on every numbered line, the richer `receipt_number_assigned` detail — refs: AC-1.2, AC-1.6, AC-1.17, AC-3.3, AC-3.5, AC-4.4, AC-4.5, AC-4.10, AC-4.12 — deps: T2, T3
   - touch: `refund-api/src/accounting/numbering.repo.ts`, `refund-api/src/accounting/numbering.repo.test.ts`, `refund-api/src/accounting/numbering.paper.test.ts`, `refund-api/src/accounting/receiptCode.repo.ts`, `refund-api/src/requests/audit.ts`, `refund-api/src/accounting/receipt.lifecycle.test.ts`
   - agent: backend-dev · core
   - Details:
