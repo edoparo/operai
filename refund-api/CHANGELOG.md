@@ -1,5 +1,11 @@
 # @operai/refund-api
 
+## 0.5.0
+
+### Minor Changes
+
+- 827e343: Receipt numbers now continue the accountant's paper register, and accounting sets each employee's receipt code (specs/20261124-receipt-numbers-from-the-register). auth gains the capability `receipt-code:manage` (resource `receipt-code`, no conditions), seeded to `accounting` and `admin` only and logged as `+ receipt-code grants`; it must be live before codes are set. refund-api stores one current receipt code per employee (2 or 3 ASCII letters, unique) with an append-only history, exposes it under `/accounting/receipt-codes` (list with last change, set, clear, history), and uses the code instead of the derived initials for new numbers only; numbers already issued never change. The one-off `bun run accounting:release` now runs as propose, check, run: `--register <xlsx>` with `--propose <csv>` writes a pairing file, `--pairing <csv>` checks or runs it, `--offsets` is optional, `--show-emails` is gone, and the exit statuses are 0, 1, 2, 4, 5, 6, 7, 8 and 9 (3 is retired). Paper numbers from the register are imported as written for the lines accounting pairs with them. refund-ui adds Refund Settings, Receipt codes (Set, Change, Clear and History, with a flag when two employees share a prefix) for holders of the capability, in English and Italian. The release is the owner's step: see infra/README.md, Accounting release runbook.
+
 ## 0.4.0
 
 ### Minor Changes
