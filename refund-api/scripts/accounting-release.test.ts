@@ -451,7 +451,9 @@ describe("Accounting is read first (AC-7.4, AC-6.8)", () => {
     });
     const error = await runAccountingRelease({ ...base, register: inputs.register, pairing: inputs.pairing }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ReleaseError);
-    expect((error as InstanceType<typeof ReleaseError>).code).toBe("legacy_lines_changed");
+    // The line is not in the pairing file: a new proposal is needed (AC-2.7), exit 7. Never numbered from data not read.
+    expect((error as InstanceType<typeof ReleaseError>).code).toBe("stale");
+    expect((error as InstanceType<typeof ReleaseError>).exit).toBe(7);
     const after = await snapshot();
     expect({ ...after, lines: "" }).toEqual({ ...before, lines: "" });
     expect((await line("known")).receiptNumber).toBeNull();
@@ -540,12 +542,16 @@ describe("backfill (AC-7.1, AC-7.4)", () => {
     ).rejects.toThrow(/locked/);
   });
 
-  it("numbers each employee in their own sequence, two years as two sequences, initials from the name", async () => {
+  it("numbers each employee in their own sequence, two years as two sequences, the prefix from the receipt code or else the name's initials", async () => {
     await request("u1", [{ id: "x1", date: "2025-12-30" }, { id: "x2", date: "2026-01-02" }]);
     await request("u2", [{ id: "y1", date: "2026-03-02" }], { name: "Marco Cattaneo" });
     await request("u3", [{ id: "z1", date: "2026-03-02" }], { name: null, email: "anna.rossi@welld.ch" });
+    // u1 and u2 both derive the initials MC: before they are numbered each needs a receipt code of its own (AC-4.11); u3 needs none.
+    for (const [ownerUserId, code] of [["u1", "MCO"], ["u2", "MCA"]] as const) {
+      await db.receiptCode.create({ data: { ownerUserId, code, updatedByUserId: "admin-1", updatedByEmail: "admin@welld.ch", updatedAt: new Date() } });
+    }
     await run();
-    expect(await Promise.all(["x1", "x2", "y1", "z1"].map(async (id) => (await line(id)).receiptNumber))).toEqual(["MC25/001", "MC26/001", "MC26/001", "AR26/001"]);
+    expect(await Promise.all(["x1", "x2", "y1", "z1"].map(async (id) => (await line(id)).receiptNumber))).toEqual(["MCO25/001", "MCO26/001", "MCA26/001", "AR26/001"]);
   });
 
   it("(AC-7.2, AC-8.3) numbers but leaves without an account the gifts line (no default account), and reports it; a missing VAT code never leaves a line unclassified", async () => {

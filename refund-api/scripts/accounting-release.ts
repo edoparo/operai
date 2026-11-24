@@ -73,14 +73,17 @@ import {
 import {
   decisionsOf,
   excludedEmployees,
+  formatProblems,
   linesDigest,
   outsideEmails,
   PairingFileError,
   readPairingCsv,
+  validatePairing,
   workerOwnersFromFile,
   writePairingCsv,
   type PairingFile,
   type PairingFileData,
+  type Problem,
 } from "./release/pairingFile";
 import { readRegisterExport, RegisterExportRefusal } from "./release/registerExport";
 import { buildReportInput, employeeRef, formatPairingReport, type EmployeeReportRow, type ReportInput } from "./release/report";
@@ -151,6 +154,39 @@ export class InputUnreadableError extends ReleaseError {
   constructor(message: string) {
     super("input_unreadable", message, EXIT_INPUT_UNREADABLE);
     this.name = "InputUnreadableError";
+  }
+}
+
+/** The register export or the pre-release lines are not those the pairing file was built from (AC-2.7): exit 7, nothing written. */
+export class StaleError extends ReleaseError {
+  constructor(message: string) {
+    super("stale", message, EXIT_STALE);
+    this.name = "StaleError";
+  }
+}
+
+/** The pairing file is not fully decided or is inconsistent (AC-2.6): exit 8. `problems` name ids only; nothing was written. */
+export class NotDecidedError extends ReleaseError {
+  constructor(readonly problems: readonly Problem[]) {
+    super(
+      "not_decided",
+      `the pairing file is not fully decided or is inconsistent (${problems.length} ${problems.length === 1 ? "problem" : "problems"}); nothing was written:\n${formatProblems(problems).join("\n")}`,
+      EXIT_NOT_DECIDED,
+    );
+    this.name = "NotDecidedError";
+  }
+}
+
+/** A new number would go to an employee who shares a prefix with another and holds no receipt code (AC-4.11): exit 9. */
+export class SharedPrefixError extends ReleaseError {
+  constructor(readonly employees: readonly string[]) {
+    super(
+      "shared_prefix",
+      `a new number would be issued to an employee whose prefix is shared with another employee and who holds no receipt code that settles it (AC-4.11): ${employees.join(", ")}. ` +
+        "Set the receipt codes in Settings (runbook step 6), then run again. Nothing was written",
+      EXIT_SHARED_PREFIX,
+    );
+    this.name = "SharedPrefixError";
   }
 }
 
@@ -298,6 +334,11 @@ export interface ReleaseReport {
   readonly pairing: ReportInput | null;
   /** The pairing file the propose mode built, for the caller to write with mode 0600 (never over an existing file). */
   readonly pairingCsv: string | null;
+  /**
+   * The decisions of the file that differ from the proposal RECOMPUTED from the workbook and the database (never from the file's own
+   * `proposed` columns, which a person could edit, AC-2.4), by line id: what was proposed and what the file decides. Paper numbers only.
+   */
+  readonly differsFromProposal: { lineId: string; proposed: string; decided: string }[];
   /** One entry per employee whose 2026 baseline row the run wrote (or would write), by reference. */
   readonly baseline: { employeeRef: string; baseline: number; outcome: "written" | "unchanged" }[];
   readonly numbered: { employeeRef: string; year: number; count: number; first: string; last: string }[];
@@ -351,6 +392,11 @@ export interface ReleaseOptions {
   readonly accounting?: AccountingPort;
   /** How auth is asked for the names of employees whose requests have none (T84); default: the real client of `AUTH_BASE_URL`. */
   readonly ownerNames?: OwnerNamePort;
+  /**
+   * TEST HOOK, never a CLI flag (AC-5.2): called after each employee's lines are numbered, with the number of employees done so far.
+   * A test throws from it to prove the whole run is rolled back and a rerun on the same inputs completes.
+   */
+  readonly afterEmployeeNumbered?: (employeesDone: number) => void;
 }
 
 type Tx = Prisma.TransactionClient;
@@ -696,6 +742,7 @@ function completedReport(mode: ReleaseReport["mode"], dryRun: boolean, at: strin
     seeded: { typeDefaults: [], warnings: [] },
     pairing: null,
     pairingCsv: null,
+    differsFromProposal: [],
     baseline: [],
     numbered: [],
     lines: [],
@@ -783,6 +830,7 @@ async function propose(args: {
     seeded: { typeDefaults: [], warnings: [] },
     pairing,
     pairingCsv: writePairingCsv(data),
+    differsFromProposal: [],
     baseline: [],
     numbered: [],
     lines: [],
@@ -809,6 +857,11 @@ async function checkOrRun(args: {
   const { read, inputs, resolvedNames, dryRun, mode } = args;
   const file = inputs.pairing!;
 
+  // 5. Stale? The register export or the sheet is not the one the file was built from: refused before the database is touched (AC-2.7).
+  if (file.meta.register !== args.registerDigest || file.meta.sheet !== (args.options.sheet ?? "2026")) {
+    throw new StaleError("stale: the register export is not the one the pairing file was built from. Run the dry run again to get a new proposal (AC-2.7). Nothing was written");
+  }
+
   try {
     return await db.$transaction(
       async (tx) => {
@@ -818,6 +871,13 @@ async function checkOrRun(args: {
         if (again?.value != null && again.value !== "") return completedReport(mode, dryRun, again.value);
 
         const world = await loadWorld(tx, resolvedNames);
+        // 5. Stale? The pre-release lines are not those of the file (a request approved since, a line rejected): a new proposal is needed.
+        if (linesDigest(world.lines) !== file.meta.lines) {
+          throw new StaleError("stale: the pre-release lines are not those of the pairing file. Run the dry run again to get a new proposal (AC-2.7). Nothing was written");
+        }
+        // 6. Decided? Every problem of the file, named by id (AC-2.6).
+        const problems = validatePairing({ file, lines: world.lines, employees: world.employees, rows: inputs.rows, offsets: inputs.offsets });
+        if (problems.length > 0) throw new NotDecidedError(problems);
         const excluded = excludedEmployees(file);
         const employees = withOutsideEmployees(world.employees, [...outsideEmails(file, world.employees), ...inputs.offsets.map((o) => o.email)]);
         checkOffsetsAmbiguity(world.employees, inputs.offsets);
@@ -825,6 +885,12 @@ async function checkOrRun(args: {
         const decisions = decisionsOf(file) as Map<string, Decided>;
         const plan: Plan = { employees, owners, excluded, offsets: inputs.offsets, rows: inputs.rows };
         const a = analyse(world, plan, decisions);
+        // 7. Shared prefix (AC-4.11): the codes as they are NOW, before the first write.
+        if (a.prefixes.blocked.length > 0) {
+          const byKey = new Map(plan.employees.map((e) => [e.key, e] as const));
+          throw new SharedPrefixError(a.prefixes.blocked.map((key) => refOf(byKey.get(key)!)));
+        }
+        const differs = differsFromProposal(world, plan, decisions);
 
         // 1. Owner names, so every number's prefix and every reference comes from the NAME (T84).
         const namesReport = await fillOwnerNames(tx, resolvedNames);
@@ -833,7 +899,9 @@ async function checkOrRun(args: {
         // 3. Baseline rows (AC-3.1).
         const baselineReport = await writeBaselines(tx, world, plan, a.baselines);
         // 4. Number the lines, per employee.
-        const backfill = await numberLines(tx, world, plan, decisions, { snapshot: read.snapshot, rates: read.rates });
+        const backfill = await numberLines(tx, world, plan, decisions, { snapshot: read.snapshot, rates: read.rates }, args.options.afterEmployeeNumbered);
+        // AC-1.2: every pre-release line holds exactly one number and no number was issued that no line holds.
+        await assertOneNumberPerLine(tx, world, plan, decisions, a.baselines);
         // 5. The marker.
         await tx.refundSetting.create({
           data: { key: RELEASE_MARKER_KEY, value: args.now().toISOString(), createdByUserId: RELEASE_ACTOR.userId, createdByEmail: RELEASE_ACTOR.email },
@@ -848,6 +916,7 @@ async function checkOrRun(args: {
           seeded,
           pairing: null,
           pairingCsv: null,
+          differsFromProposal: differs,
           baseline: baselineReport,
           numbered: backfill.numbered,
           lines: backfill.lines,
@@ -969,7 +1038,9 @@ async function numberLines(
   plan: Plan,
   decisions: ReadonlyMap<string, Decided>,
   reference: AccountingReads,
+  afterEmployee?: (employeesDone: number) => void,
 ): Promise<{ numbered: ReleaseReport["numbered"]; lines: ReleaseLineReport[]; itLinesLeftUnnumbered: number }> {
+  let employeesDone = 0;
   const lines: ReleaseLineReport[] = [];
   const employeeOfUser = new Map(world.employees.map((e) => [e.userId!, e] as const));
   const mappedRows = rowsByEmployee({ rows: plan.rows, workerOwners: plan.owners, excluded: plan.excluded });
@@ -989,10 +1060,13 @@ async function numberLines(
       if (d.decision === "split") partOfGroup.set(d.group ?? line.id, part);
       const same = registerRows.filter((r) => r.number.kind === "paper" && r.number.text === d.paperNumber);
       const sameDay = same.filter((r) => r.date === line.date);
+      // The rows this line is paired with: the row of its own total when there is one (a split of two lines), else every row of that
+      // number on its date (one line, two rows), else every row of the number (a pairing made by hand). Positions only (AC-1.17).
+      const ownRows = sameDay.filter((r) => r.totalCents === line.approvedTotalCents);
       paper.set(line.id, {
         number: d.paperNumber,
         splitPart: part,
-        registerRows: (sameDay.length > 0 ? sameDay : same).map((r) => r.position).sort((x, y) => x - y),
+        registerRows: (ownRows.length > 0 ? ownRows : sameDay.length > 0 ? sameDay : same).map((r) => r.position).sort((x, y) => x - y),
         ...(d.decision === "split" ? { split: true } : {}),
       });
     }
@@ -1038,6 +1112,7 @@ async function numberLines(
         rate: d.currency === "CHF" ? null : d.fxRateMicros !== null ? formatRate(d.fxRateMicros) : "pending",
       });
     }
+    afterEmployee?.(++employeesDone);
   }
 
   const groups = new Map<string, ReleaseReport["numbered"][number]>();
@@ -1053,6 +1128,72 @@ async function numberLines(
     lines,
     itLinesLeftUnnumbered: await countItLines(tx),
   };
+}
+
+/**
+ * The decisions of the file that differ from the proposal recomputed here, from the workbook and the database with the file's own
+ * worker mapping and exclusions (AC-2.4): the file's `proposed` columns are never read, a person could have edited them. Only a
+ * proposal that named something is compared; a doubtful line with none is simply decided.
+ */
+function differsFromProposal(world: World, plan: Plan, decisions: ReadonlyMap<string, Decided>): ReleaseReport["differsFromProposal"] {
+  const result = proposePairing({ lines: world.lines, rows: plan.rows, employees: plan.employees, workerOwners: plan.owners, excluded: plan.excluded });
+  const text = (kind: string | null, number: string | null) => (kind === null ? "none" : number === null ? kind : `${kind} ${number}`);
+  const out: ReleaseReport["differsFromProposal"] = [];
+  for (const p of result.proposals) {
+    if (p.proposed === null) continue;
+    const d = decisions.get(p.lineId)!;
+    const proposed = text(p.proposed, p.proposedNumber);
+    const decided = text(d.decision, d.paperNumber);
+    if (proposed !== decided) out.push({ lineId: p.lineId, proposed, decided });
+  }
+  return out.sort((a, b) => compareText(a.lineId, b.lineId));
+}
+
+/**
+ * AC-1.2, checked before the transaction commits: every pre-release line carries exactly one number (the CHECK keeps it to one column
+ * set), a line that took a paper number consumed no counter number, and no counter number was issued that no line holds. Per employee
+ * and expense year: counter `lastSeq - startAfter` is the number of lines that took a NEW number, and the 2026 counter started after
+ * the baseline. Anything else is an internal error: the run is rolled back, exit 1.
+ */
+async function assertOneNumberPerLine(
+  tx: Tx,
+  world: World,
+  plan: Plan,
+  decisions: ReadonlyMap<string, Decided>,
+  baselines: ReturnType<typeof analyse>["baselines"],
+): Promise<void> {
+  const fail = (what: string): never => {
+    throw new ReleaseError("assertion", `internal check failed after numbering (${what}): nothing was changed`);
+  };
+  const numbered = await tx.refundLine.findMany({ where: { id: { in: world.lines.map((l) => l.id) } }, select: { id: true, receiptNumber: true, receiptOrigin: true } });
+  if (numbered.length !== world.lines.length || numbered.some((l) => l.receiptNumber === null)) fail("a pre-release line has no number");
+  const originOf = new Map(numbered.map((l) => [l.id, l.receiptOrigin] as const));
+  const employeeOfUser = new Map(world.employees.map((e) => [e.userId!, e] as const));
+  const expected = new Map<string, number>(); // `${userId}|${year}` -> lines that take a new number
+  for (const line of world.lines) {
+    const d = decisions.get(line.id);
+    const isNew = d === undefined || d.decision === "new" || d.paperNumber === null;
+    if (isNew !== (originOf.get(line.id) === "issued")) fail("a line took the wrong kind of number");
+    if (isNew) {
+      const key = `${line.ownerUserId}|${line.date.slice(0, 4)}`;
+      expected.set(key, (expected.get(key) ?? 0) + 1);
+    }
+  }
+  const counters = await tx.receiptCounter.findMany();
+  const seen = new Set<string>();
+  for (const counter of counters) {
+    const key = `${counter.ownerUserId}|${counter.year}`;
+    seen.add(key);
+    if (counter.lastSeq - counter.startAfter !== (expected.get(key) ?? 0)) fail("a counter moved by a different count than the lines that took a new number");
+    if (counter.year === BASELINE_YEAR) {
+      const employee = employeeOfUser.get(counter.ownerUserId);
+      const baseline = employee === undefined ? 0 : (baselines.get(employee.key)?.baseline ?? 0);
+      if (!plan.excluded.has(employee?.key ?? "") && counter.startAfter !== baseline) fail("a counter did not start after the baseline");
+    } else if (counter.startAfter !== 0) {
+      fail("a counter of another year started after a baseline");
+    }
+  }
+  for (const key of expected.keys()) if (!seen.has(key)) fail("lines took new numbers and no counter exists");
 }
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────
@@ -1103,6 +1244,9 @@ export function formatReport(report: ReleaseReport): string {
       "Default accounts of Refund (by natural key, each only where Refund held no row)",
       `  type defaults set (${s.typeDefaults.length}): ${s.typeDefaults.join(", ") || "none"}`,
       ...s.warnings.map((w) => `  WARNING: ${w}`),
+      "",
+      `Decisions that differ from the proposal (${report.differsFromProposal.length}), recomputed from the register and the database`,
+      ...report.differsFromProposal.map((d) => `  ${d.lineId}: proposed ${d.proposed}, the file decides ${d.decided}`),
       "",
       `Baseline rows (${report.baseline.length}): the counter of each employee continues after the baseline`,
       ...(report.baseline.length === 0 ? ["  none: numbering starts at 001 (AC-4.12)"] : report.baseline.map((b) => `  ${b.employeeRef} ${BASELINE_YEAR}: numbering continues after ${b.baseline} (${b.outcome})`)),

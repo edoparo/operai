@@ -62,3 +62,60 @@ export async function proposeAndConfirm<Options extends object>(args: {
   return { register, pairing: confirmProposed(report.pairingCsv), alreadyCompleted: false };
 }
 
+
+// ─── Deciding a pairing file in code ─────────────────────────────────────────
+
+/** One record of a pairing file as the test sees it: the header names as keys, every value text. */
+export type PairingRecord = Record<string, string>;
+
+/**
+ * Rewrites a pairing file record by record, the way a person edits it in a spreadsheet: `edit` receives each record (by reference, change
+ * it in place) and the file comes back as text with the same header. Used to decide the doubtful lines, map workers, exclude an
+ * employee, break the file on purpose.
+ */
+export function editPairing(csv: string, edit: (record: PairingRecord) => void): string {
+  const rows = parseCsvRows(csv);
+  const header = rows[0]!.map((c) => c.trim());
+  const out = rows.map((row, index) => {
+    if (index === 0) return row;
+    const record: PairingRecord = {};
+    header.forEach((name, i) => (record[name] = row[i] ?? ""));
+    edit(record);
+    return header.map((name) => record[name] ?? "");
+  });
+  return `\uFEFF${out.map((row) => row.map(quote).join(",")).join("\r\n")}\r\n`;
+}
+
+/** The records of a pairing file, for a test to read (a decision, a reason, a state). */
+export function pairingRecords(csv: string): PairingRecord[] {
+  const rows = parseCsvRows(csv);
+  const header = rows[0]!.map((c) => c.trim());
+  return rows.slice(1).map((row) => Object.fromEntries(header.map((name, i) => [name, row[i] ?? ""])));
+}
+
+/** Confirms every worker, line and row record WHATEVER its state (a test that decided them in code), acknowledging rows. */
+export function confirmAll(csv: string): string {
+  return editPairing(csv, (r) => {
+    if (r["record"] === "worker" || r["record"] === "line" || r["record"] === "row") r["state"] = "confirmed";
+    if (r["record"] === "row") r["decision"] = "acknowledged";
+  });
+}
+
+export interface LineDecision {
+  readonly decision: "paper" | "new" | "split";
+  readonly paperNumber?: string;
+  readonly split?: string;
+}
+
+/** Decides lines by id (the others are left as the proposal had them) and confirms everything. */
+export function decideLines(csv: string, decisions: Readonly<Record<string, LineDecision>>): string {
+  const decided = editPairing(csv, (r) => {
+    if (r["record"] !== "line") return;
+    const d = decisions[r["id"]!];
+    if (d === undefined) return;
+    r["decision"] = d.decision;
+    r["paperNumber"] = d.decision === "new" ? "" : (d.paperNumber ?? "");
+    r["split"] = d.decision === "split" ? (d.split ?? "") : "";
+  });
+  return confirmAll(decided);
+}

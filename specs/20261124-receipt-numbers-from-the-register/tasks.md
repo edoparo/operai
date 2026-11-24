@@ -259,7 +259,7 @@ Derived from these committed files:
     - `.gitignore`: `**/*pairing*.csv`, `**/Recap_RS*`.
   - done when: `$ST $WT refund_rn_t12 scripts/accounting-release.test.ts scripts/accounting-release.cli.test.ts src/accounting/accounting-unavailable.matrix.test.ts src/accounting/classification.inactive-default.test.ts src/accounting/natural-keys.test.ts src/accounting/no-cache.test.ts` is green, covering: after completion, any inputs → exit 0 "already completed" with zero calls to the Accounting and auth fakes; Accounting read before the workbook (call order), failing port → exit 2 and no file; real run without `--register` or `--pairing`, or with `--offsets` alone → exit 5 "run the dry run first"; a dry run without exactly one mode → 5; an unreadable workbook, sheet, header, pairing format or offsets → 6 quoting no cell; propose writes the file 0600 and refuses an existing path (exit 1, file unchanged); every refund table's row counts unchanged after propose; `--show-emails` refused naming the reason; a path inside a git worktree → stderr warning. The whole suite `$ST $WT refund_rn_t12` is green.
 
-- [ ] T13: refund-api — `accounting-release.ts` rewrite, part 2: check mode and real run (stale 7, validation 8, shared prefix 9, the transaction, baseline rows, paper and new numbering, assertions, marker, "differs from the proposal") — refs: AC-1.1, AC-1.2, AC-1.3, AC-1.5, AC-1.6, AC-1.7, AC-1.8, AC-1.9, AC-1.10, AC-1.11, AC-1.13, AC-1.14, AC-1.15, AC-1.16, AC-1.17, AC-1.18, AC-2.4, AC-2.5, AC-2.6, AC-2.7, AC-2.9, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-3.6, AC-4.11, AC-4.12, AC-5.1, AC-5.2, AC-5.4, AC-5.5, AC-5.7 — deps: T12
+- [x] T13: refund-api — `accounting-release.ts` rewrite, part 2: check mode and real run (stale 7, validation 8, shared prefix 9, the transaction, baseline rows, paper and new numbering, assertions, marker, "differs from the proposal") — refs: AC-1.1, AC-1.2, AC-1.3, AC-1.5, AC-1.6, AC-1.7, AC-1.8, AC-1.9, AC-1.10, AC-1.11, AC-1.13, AC-1.14, AC-1.15, AC-1.16, AC-1.17, AC-1.18, AC-2.4, AC-2.5, AC-2.6, AC-2.7, AC-2.9, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5, AC-3.6, AC-4.11, AC-4.12, AC-5.1, AC-5.2, AC-5.4, AC-5.5, AC-5.7 — deps: T12
   - touch: `refund-api/scripts/accounting-release.ts`, `refund-api/scripts/accounting-release.test.ts`, `refund-api/scripts/accounting-release.cli.test.ts`, `refund-api/scripts/accounting-release.run.test.ts`, `refund-api/src/test-support/releaseRun.ts`
   - agent: backend-dev · run
   - Details:
@@ -630,3 +630,17 @@ Deviations and findings recorded while a task closed (branch `rn/release`, T6 to
 - **T12, marker-first and old tests.** A release that has completed does nothing (D11), so the old "a second run completes what was
   left" semantics are retired: tests that ran the release on a database that already carried the marker now start from the
   pre-release state (`classification.inactive-default.test.ts` empties the standalone `refund_setting` table in a `beforeEach`).
+- **T13, where each check runs.** The register fingerprint and the sheet are compared before the transaction opens (7); the lines
+  digest, the validator (8) and the shared-prefix rule (9) run inside it, after the advisory lock and the marker re-check and before
+  the first write, so a refusal rolls back nothing because nothing was written. The check mode (`--dry-run --pairing`) throws the same
+  errors, so it ends with the status the real run would.
+- **T13, the fault hook.** `ReleaseOptions.afterEmployeeNumbered(employeesDone)` is the in-process test hook of AC-5.2; there is no CLI flag.
+- **T13, register rows of an audit entry.** For a paper line the audited positions are the rows of that number on the line's expense date
+  whose total equals the line's (a split of two lines gets one row each), else every row of the number on that date (one line, two rows),
+  else every row of the number (a pairing made by hand). Positions only (AC-1.17).
+- **T13, AC-1.15.** A worker mapped to an excluded employee is refused (plan D3), so the operator marks the worker `not-operai` and
+  gives the excluded account's lines `new`; the proposal had paired them when the worker carried the account's name. The test account
+  needs its own code only when its derived initials meet another employee's prefix (AC-4.11 at the release).
+- **T13, the assertion of AC-1.2.** After numbering, every pre-release line has a number, a line took the kind of number its decision
+  says (`issued` iff `new`), every counter moved by exactly the number of lines that took a new number in its year and the 2026
+  counter started after the baseline; otherwise the run is rolled back (exit 1).

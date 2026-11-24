@@ -27,7 +27,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { db } from "../src/lib/db";
 import { isAccountingReleased } from "../src/accounting/release";
-import { confirmProposed } from "../src/test-support/releaseRun";
+import { confirmProposed, editPairing } from "../src/test-support/releaseRun";
 import { buildRegisterWorkbook, headerOnlyRegisterWorkbook } from "../src/test-support/registerWorkbook";
 import { truncateRefundTables } from "../src/test-support/dbCleanup";
 
@@ -757,5 +757,115 @@ describe("the baseline from --offsets, run as the operator runs it", () => {
     expect(res.exitCode).toBe(6);
     expect(res.stderr).not.toContain("not-an-email");
     expect(await released()).toBe(false);
+  });
+});
+
+describe("the refusal families, each with a status of its own and nothing written (AC-5.1, AC-2.6, AC-2.7, AC-4.11)", () => {
+  /** The file of a PROPOSE on the header-only register, every proposed record confirmed: what the operator ends with. */
+  async function decidedFile() {
+    const proposal = fresh("matrix-proposal.csv");
+    expect((await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", proposal)).exitCode).toBe(0);
+    const confirmed = fresh("matrix-confirmed.csv");
+    writeFileSync(confirmed, confirmProposed(readFileSync(proposal, "utf8")), { mode: 0o600 });
+    return confirmed;
+  }
+
+  it("exit 7 stale: a line approved into the pre-release set after the proposal, or a register that is not the proposal's; then a new proposal works", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const file = await decidedFile();
+    await db.refundLine.create({ data: { requestId: (await db.refundRequest.findFirstOrThrow()).id, date: new Date("2026-04-02"), type: "travel_train", motivo: "m", entity: "welld_ch", currency: "CHF", requestedAmountCents: 100, approvedTotalCents: 100 } });
+    const before = await footprint();
+    const lines = await cliBare({}, "--register", REGISTER, "--pairing", file);
+    expect(lines.exitCode).toBe(7);
+    expect(lines.stderr).toContain("accounting:release stopped (exit 7)");
+    expect(lines.stderr).toContain("stale");
+    expect(lines.stderr).toContain("Run the dry run again");
+    const other = fresh("other.xlsx");
+    writeFileSync(other, buildRegisterWorkbook([{ worker: "Worker Gamma", number: "GG26/001", date: "2026-03-02", total: "10" }]));
+    const register = await cliBare({}, "--dry-run", "--register", other, "--pairing", file);
+    expect(register.exitCode).toBe(7);
+    expect(await footprint()).toEqual(before);
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
+    // A new proposal starts clean and succeeds.
+    expect((await cli()).exitCode).toBe(0);
+    expect(await released()).toBe(true);
+  });
+
+  it("exit 8 not decided: a line with no decision and a record not confirmed are named by id, no name or amount is printed, and nothing is written", async () => {
+    const { ids } = await legacyRequest(["2026-03-02", "2026-03-10"]);
+    const file = await decidedFile();
+    const broken = fresh("broken.csv");
+    writeFileSync(
+      broken,
+      editPairing(readFileSync(file, "utf8"), (r) => {
+        if (r["record"] === "line" && r["expenseDate"] === "2026-03-10") Object.assign(r, { decision: "", state: "unresolved" });
+      }),
+    );
+    const before = await footprint();
+    for (const dry of [true, false]) {
+      const res = await cliBare({}, ...(dry ? ["--dry-run"] : []), "--register", REGISTER, "--pairing", broken);
+      expect(res.exitCode).toBe(8);
+      expect(res.stderr).toContain("accounting:release stopped (exit 8)");
+      expect(res.stderr).toContain(`line ${ids[1]} is not confirmed`);
+      expect(res.stderr).toContain(`line ${ids[1]} has no decision`);
+      expect(res.stderr).not.toMatch(/@|Matteo|Codogno|10\.00/);
+      expect(res.stdout).not.toContain("Accounting release completed");
+    }
+    expect(await footprint()).toEqual(before);
+    expect(await released()).toBe(false);
+  });
+
+  it("exit 9 shared prefix: two employees with the same initials and no codes, a new number for one of them; the message names references only", async () => {
+    await legacyRequest(["2026-03-02"]); // Matteo Codogno: MC
+    const other = await db.refundRequest.create({
+      data: { ownerUserId: "u-marco", ownerEmail: "marco.cattaneo@welld.ch", ownerName: "Marco Cattaneo", status: "approved", submittedAt: new Date("2026-03-01") },
+    });
+    await db.refundLine.create({ data: { requestId: other.id, date: new Date("2026-03-03"), type: "travel_train", motivo: "m", entity: "welld_ch", currency: "CHF", requestedAmountCents: 1000, approvedTotalCents: 1000 } });
+    const before = await footprint();
+    const propose = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", fresh("p.csv"));
+    expect(propose.exitCode).toBe(0);
+    expect(propose.stdout).toContain("Employees that need a receipt code (a prefix shared with another employee, AC-4.11): 2");
+    for (const res of [await cli(), await cli("--dry-run")]) {
+      expect(res.exitCode).toBe(9);
+      expect(res.stderr).toContain("accounting:release stopped (exit 9)");
+      expect(res.stderr).toContain("MC · u-marco");
+      expect(res.stderr).toContain("MC · u-matteo");
+      expect(res.stderr).not.toMatch(/@|Marco|Cattaneo|Matteo|Codogno/);
+    }
+    expect(await footprint()).toEqual(before);
+    expect(await released()).toBe(false);
+  });
+
+  it("the matrix: every family ends with its own status, and the footprint of every refund table is as it was", async () => {
+    const { ids } = await legacyRequest(["2026-03-02"]);
+    const before = await footprint();
+    const file = await decidedFile();
+    const results: [number, number][] = [];
+    // 2 Accounting unreadable, 4 auth unreadable, 5 inputs missing, 6 inputs unreadable, 7 stale, 8 not decided
+    world.down = true;
+    results.push([2, (await cliBare({}, "--dry-run", "--register", REGISTER, "--pairing", file)).exitCode]);
+    world.down = false;
+    world.contactStatus = 503;
+    await db.refundRequest.updateMany({ data: { ownerName: null } });
+    const namesBefore = await footprint();
+    results.push([4, (await cliBare({}, "--register", REGISTER, "--pairing", file)).exitCode]);
+    world.contactStatus = 200;
+    await db.refundRequest.updateMany({ data: { ownerName: "Matteo Codogno" } });
+    expect(namesBefore.named).toBe(0);
+    results.push([5, (await cliBare({})).exitCode]);
+    results.push([6, (await cliBare({}, "--register", "/does/not/exist.xlsx", "--pairing", file)).exitCode]);
+    const other = fresh("matrix-other.xlsx");
+    writeFileSync(other, buildRegisterWorkbook([{ worker: "Worker Gamma", number: "GG26/001", date: "2026-03-02", total: "10" }]));
+    results.push([7, (await cliBare({}, "--register", other, "--pairing", file)).exitCode]);
+    const undecided = fresh("matrix-undecided.csv");
+    writeFileSync(undecided, editPairing(readFileSync(file, "utf8"), (r) => {
+      if (r["record"] === "line") r["state"] = "unresolved";
+    }));
+    results.push([8, (await cliBare({}, "--register", REGISTER, "--pairing", undecided)).exitCode]);
+    expect(results.map(([want, got]) => `${want}:${got}`)).toEqual(results.map(([want]) => `${want}:${want}`));
+    expect(await footprint()).toEqual(before);
+    expect(await released()).toBe(false);
+    expect(await numbers(ids)).toEqual([null]);
   });
 });
