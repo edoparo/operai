@@ -425,6 +425,24 @@ describe('CostTableEditor — extra lines (AC-4.3)', () => {
     expect(screen.getByText(t.costs.addLimit)).not.toBeNull()
     await user.click(add())
     expect(stored().costs.extra).toHaveLength(8)
+    // the option shortcut obeys the same limit
+    const addOption = screen.getByRole('button', { name: t.costs.addOption })
+    expect(addOption.getAttribute('aria-disabled')).toBe('true')
+    await user.click(addOption)
+    expect(stored().costs.extra).toHaveLength(8)
+  })
+
+  it('"Add option line" adds a line already of the option kind, focused, flagged as counted in no total', async () => {
+    const user = userEvent.setup()
+    render(<Form start={filled(() => undefined)} />)
+    await user.click(screen.getByRole('button', { name: t.costs.addOption }))
+    expect(stored().costs.extra).toHaveLength(1)
+    expect(stored().costs.extra[0]!.kind).toBe('option')
+    const description = document.activeElement as HTMLElement
+    expect(description.tagName).toBe('INPUT')
+    expect((screen.getByLabelText(t.costs.kindLabel) as HTMLSelectElement).value).toBe('option')
+    const line = description.closest<HTMLElement>('[role="group"]')!
+    expect(within(line).getByText(t.costs.optionNote)).not.toBeNull()
   })
 
   it('changes the kind of an extra line and offers percent only for a discount', async () => {

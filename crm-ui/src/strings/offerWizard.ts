@@ -210,6 +210,7 @@ const en = {
   costs: {
     card: 'Cost table',
     add: 'Add cost line',
+    addOption: 'Add option line',
     addLimit: 'Limit of 10 lines, counting option lines and table rows.',
     kind: {
       one_off: 'One-off',
@@ -644,6 +645,7 @@ const it: typeof en = {
   costs: {
     card: 'Tabella costi',
     add: 'Aggiungi voce di costo',
+    addOption: 'Aggiungi voce a scelta',
     addLimit: 'Limite di 10 righe, comprese le voci a scelta e le righe delle tabelle.',
     kind: {
       one_off: 'Una tantum',

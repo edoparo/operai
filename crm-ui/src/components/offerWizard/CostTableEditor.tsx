@@ -207,14 +207,16 @@ export default function CostTableEditor(props: StepPanelProps) {
     patchCosts({ extra: answers.costs.extra.map((extra) => (extra.id === id ? { ...extra, ...patch } : extra)) })
 
   const atLimit = lineCount >= MAX_COST_LINES
-  const addExtra = () => {
+  // "Add option line" (2026-11-24) is the same row with the kind `option` already chosen: printed with a box to tick,
+  // counted in no total.
+  const addExtra = (kind: CostKind = 'one_off') => {
     if (atLimit) return
     const id = newExtraId()
     request(`cost:extra:${id}`, 'description')
     patchCosts({
       extra: [
         ...answers.costs.extra,
-        { id, description: '', kind: 'one_off', unitCents: null, percentBp: null, quantity: 1 },
+        { id, description: '', kind, unitCents: null, percentBp: null, quantity: 1 },
       ],
     })
   }
@@ -646,15 +648,26 @@ export default function CostTableEditor(props: StepPanelProps) {
         <Card
           title={t.costs.card}
           action={
-            <Button
-              variant="secondary"
-              size="sm"
-              data-control="add"
-              aria-disabled={atLimit ? true : undefined}
-              onClick={atLimit ? undefined : addExtra}
-            >
-              <Icon name="plus" /> {t.costs.add}
-            </Button>
+            <span className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                data-control="add"
+                aria-disabled={atLimit ? true : undefined}
+                onClick={atLimit ? undefined : () => addExtra()}
+              >
+                <Icon name="plus" /> {t.costs.add}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-disabled={atLimit ? true : undefined}
+                onClick={atLimit ? undefined : () => addExtra('option')}
+                data-testid="offer-wizard-add-option"
+              >
+                <Icon name="plus" /> {t.costs.addOption}
+              </Button>
+            </span>
           }
         >
           <div data-wizard-field="cost:*" tabIndex={-1} className="outline-none">

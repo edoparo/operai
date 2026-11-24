@@ -478,6 +478,11 @@ Conventions every task follows:
   - touch: `crm-api/prisma/**`, `crm-api/src/offer-templates/wizardSeeds/**`, `crm-api/src/offer-templates/offerTemplates.routes.ts`, `crm-api/src/offer-templates/offerTemplates.{seedUpgrade,seedRevision}.test.ts`
   - done when: `cd crm-api && bun run typecheck` and `[crm_test] bun test` pass; `bun scripts/check-shared-copies.ts` passes
 
+- [x] T79: Cost step "Add option line" beside "Add cost line" (2026-11-24, owner: option lines existed but were hard to find): the same extra row with the kind `option` already chosen, focused, same 10-line limit — refs: AC-4.3, AC-4.7 — deps: none
+  - domain: frontend
+  - touch: `crm-ui/src/components/offerWizard/CostTableEditor.tsx`, `crm-ui/src/components/offerWizard/CostTableEditor.test.tsx`, `crm-ui/src/strings/offerWizard.ts`
+  - done when: `cd crm-ui && pnpm lint && pnpm build && pnpm test` pass
+
 ## Coverage
 
 | AC | Tasks |
