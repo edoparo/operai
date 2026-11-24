@@ -273,7 +273,7 @@ const en = {
           ? '1 employee shares a prefix with another employee.'
           : `${n} employees share a prefix with another employee.`,
       shareNoteLabel: 'Employees sharing a prefix',
-      setLabel: (name: string) => `Set a receipt code for ${name}`,
+      setLabel: (name: string) => `Set code for ${name}`,
       changeLabel: (name: string) => `Change the receipt code of ${name}`,
       clearLabel: (name: string) => `Clear the receipt code of ${name}`,
       historyLabel: (name: string) => `Show the receipt code history of ${name}`,
@@ -1028,7 +1028,7 @@ const en = {
     },
     batchPdfLink: {
       buttonLabel: 'Download PDF',
-      downloadLabel: (reference: string) => `Download compiled PDF for batch ${reference}`,
+      downloadLabel: (reference: string) => `Download PDF of compiled batch ${reference}`,
       downloadError: 'Could not open this PDF. Try again.',
       /**
        * Shown in place of the download control when `BatchDetail.pdf` is
@@ -1359,7 +1359,7 @@ const it: Strings = {
           ? '1 dipendente condivide il prefisso con un altro dipendente.'
           : `${n} dipendenti condividono il prefisso con un altro dipendente.`,
       shareNoteLabel: 'Dipendenti con prefisso condiviso',
-      setLabel: (name: string) => `Imposta un codice ricevuta per ${name}`,
+      setLabel: (name: string) => `Imposta codice per ${name}`,
       changeLabel: (name: string) => `Modifica il codice ricevuta di ${name}`,
       clearLabel: (name: string) => `Rimuovi il codice ricevuta di ${name}`,
       historyLabel: (name: string) => `Mostra la cronologia del codice ricevuta di ${name}`,
@@ -1965,7 +1965,7 @@ const it: Strings = {
     },
     batchPdfLink: {
       buttonLabel: 'Scarica PDF',
-      downloadLabel: (reference: string) => `Scarica il PDF del lotto ${reference}`,
+      downloadLabel: (reference: string) => `Scarica PDF del lotto ${reference}`,
       downloadError: 'Impossibile aprire il PDF. Riprovare.',
       unavailable: 'PDF temporaneamente non disponibile',
     },

@@ -68,6 +68,6 @@ describe('BatchPdfLink', () => {
 
   it('has an accessible name including the batch reference', () => {
     render(<BatchPdfLink batchId="batch-1" />)
-    expect(screen.getByRole('button', { name: 'Download compiled PDF for batch batch-1' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Download PDF of compiled batch batch-1' })).not.toBeNull()
   })
 })

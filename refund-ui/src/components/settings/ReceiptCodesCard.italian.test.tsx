@@ -121,7 +121,7 @@ describe('ReceiptCodesCard (it)', () => {
       '2 dipendenti condividono il prefisso con un altro dipendente.',
     )
     expect(screen.getByTestId('receipt-code-edit-u-luca').getAttribute('aria-label')).toBe(
-      'Imposta un codice ricevuta per Luca Conti',
+      'Imposta codice per Luca Conti',
     )
     expect(screen.getByTestId('receipt-code-clear-u-anna').getAttribute('aria-label')).toBe(
       'Rimuovi il codice ricevuta di Anna Rossi',

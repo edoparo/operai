@@ -211,9 +211,9 @@ describe('ReceiptCodesCard: the rows (S2, DS-2)', () => {
     expect(button('u-anna', 'edit').textContent).toBe('Change')
     expect(button('u-anna', 'clear').getAttribute('aria-label')).toBe('Clear the receipt code of Anna Rossi')
     expect(button('u-anna', 'history').getAttribute('aria-label')).toBe('Show the receipt code history of Anna Rossi')
-    expect(button('u-luca', 'edit').getAttribute('aria-label')).toBe('Set a receipt code for Luca Conti')
+    expect(button('u-luca', 'edit').getAttribute('aria-label')).toBe('Set code for Luca Conti')
     expect(button('u-luca', 'edit').textContent).toBe('Set code')
-    expect(button('u-mail', 'edit').getAttribute('aria-label')).toBe('Set a receipt code for new.joiner@welld.ch')
+    expect(button('u-mail', 'edit').getAttribute('aria-label')).toBe('Set code for new.joiner@welld.ch')
     expect(screen.queryByTestId('receipt-code-clear-u-luca')).toBeNull()
     expect(screen.queryByTestId('receipt-code-clear-u-mail')).toBeNull()
     expect(screen.getAllByRole('button', { name: /^Clear the receipt code of/ })).toHaveLength(2) // Anna and Paolo

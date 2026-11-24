@@ -245,7 +245,7 @@ Convention of the file: sentence case, a sentence with a value is a function, It
 | `receiptCodes.sharesPrefixHintWithCode` *(added 2026-11-24, eval round 2: a flagged row that has a code)* | Another employee uses the same letters. Choose another code, or set a code for the colleague. | Un altro dipendente usa le stesse lettere. Scegliere un altro codice o impostarne uno per il collega. |
 | `receiptCodes.shareNote(n)` | n=1: `1 employee shares a prefix with another employee.` n>1: `${n} employees share a prefix with another employee.` (changed 2026-11-24, DS-8) | n=1: `1 dipendente condivide il prefisso con un altro dipendente.` n>1: `${n} dipendenti condividono il prefisso con un altro dipendente.` (changed 2026-11-24, DS-8) |
 | `receiptCodes.shareNoteLabel` | Employees sharing a prefix | Dipendenti con prefisso condiviso |
-| `receiptCodes.setLabel(name)` | `Set a receipt code for ${name}` | `Imposta un codice ricevuta per ${name}` |
+| `receiptCodes.setLabel(name)` *(changed 2026-11-24, live e2e: the name must contain the visible "Set code", WCAG 2.5.3)* | `Set code for ${name}` | `Imposta codice per ${name}` |
 | `receiptCodes.changeLabel(name)` | `Change the receipt code of ${name}` | `Modifica il codice ricevuta di ${name}` |
 | `receiptCodes.clearLabel(name)` | `Clear the receipt code of ${name}` | `Rimuovi il codice ricevuta di ${name}` |
 | `receiptCodes.historyLabel(name)` | `Show the receipt code history of ${name}` | `Mostra la cronologia del codice ricevuta di ${name}` |
