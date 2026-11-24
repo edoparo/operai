@@ -160,7 +160,7 @@ async function createRequest(
         createdAt: new Date(Date.UTC(2026, 2, 5, 10, 0, n)),
         ...(spec.rejected ? { rejectionReason: "no", rejectedAt: new Date(), rejectedByUserId: "a", rejectedByEmail: "a@x", approvedTotalCents: 0 } : {}),
         ...(spec.receiptNumber
-          ? { receiptNumber: spec.receiptNumber, receiptOwnerUserId: request.ownerUserId, receiptYear: 2026, receiptSeq: n, numberedAt: new Date() }
+          ? { receiptNumber: spec.receiptNumber, receiptOwnerUserId: request.ownerUserId, receiptYear: 2026, receiptSeq: n, receiptOrigin: "issued", receiptSplitPart: 1, numberedAt: new Date() }
           : {}),
         ...(spec.stored ?? {}),
       },

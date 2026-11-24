@@ -368,13 +368,18 @@ model RefundLine {
   receiptYear        Int? // year of `date`
   receiptSeq         Int?
   numberedAt         DateTime?
+  // specs/20261124-receipt-numbers-from-the-register: where the number came from ('issued' by the counter, 'paper' as written
+  // in the accountant's register, 'paper_split' for a confirmed split receipt) and its part (1; 2..n for a split's further lines).
+  // Set with the number, frozen by the guard (v3); CHECKs in migration 20261124090000.
+  receiptOrigin      String?
+  receiptSplitPart   Int?      @db.SmallInt
 
   attachments Attachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([receiptOwnerUserId, receiptYear, receiptSeq]) // AC-4.3/4.10 backstop
+  @@unique([receiptOwnerUserId, receiptYear, receiptSeq, receiptSplitPart], map: "refund_line_receipt_owner_year_seq_part_key") // AC-4.3/4.10 backstop; a confirmed split shares one number across parts
   @@index([requestId])
   @@index([requestId, entity]) // backs the per-request "at least one line matches" entity-scope predicate (ADR 20260716-entity-scoped-abac-refund-api)
   @@index([appliedRateEntryId]) // FK lookup / provenance queries
@@ -601,4 +606,33 @@ model RefundAuditEntry {
   @@index([requestId, createdAt])
   @@index([batchId]) // AC-7.1 "the full set of request IDs affected" per (batchId, action)
   @@map("refund_audit_entry")
+}
+
+// specs/20261124-receipt-numbers-from-the-register (T2, D8): an employee's receipt code, replacing the derived initials in NEW
+// numbers only. The current value; mutable on purpose (a cleared code is a deleted row). Its history is ReceiptCodeChange.
+// CHECK receipt_code_shape: two or three letters A-Z (hand-written SQL, migration 20261124090000).
+model ReceiptCode {
+  ownerUserId     String   @id
+  code            String   @unique
+  updatedByUserId String
+  updatedByEmail  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("receipt_code")
+}
+
+// Append-only history of receipt codes (AC-4.7): accounting_history_immutable() triggers refuse UPDATE and DELETE. A set has
+// codeBefore null, a clear has codeAfter null; CHECK codeBefore is distinct from codeAfter.
+model ReceiptCodeChange {
+  id              String   @id @default(cuid())
+  ownerUserId     String
+  codeBefore      String?
+  codeAfter       String?
+  createdByUserId String
+  createdByEmail  String
+  createdAt       DateTime @default(now())
+
+  @@index([ownerUserId, createdAt])
+  @@map("receipt_code_change")
 }

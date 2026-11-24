@@ -672,6 +672,8 @@ async function seedExportBatch(opts: { pendingLine?: boolean; month?: string } =
           receiptOwnerUserId: owner,
           receiptYear: 2026,
           receiptSeq: i + 1,
+          receiptOrigin: "issued",
+          receiptSplitPart: 1,
           numberedAt: new Date(),
         },
       })
@@ -889,7 +891,7 @@ describe("the employee's own request is the same, and shows no accounting, while
       );
       await db.refundLine.update({
         where: { id: r.lineIds[0]! },
-        data: { receiptNumber: "MC26/001", receiptOwnerUserId: r.owner, receiptYear: 2026, receiptSeq: 1, numberedAt: new Date() },
+        data: { receiptNumber: "MC26/001", receiptOwnerUserId: r.owner, receiptYear: 2026, receiptSeq: 1, receiptOrigin: "issued", receiptSplitPart: 1, numberedAt: new Date() },
       });
       peer.mode = kind;
       __resetAuthzCacheForTests();

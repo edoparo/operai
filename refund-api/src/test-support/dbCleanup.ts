@@ -27,6 +27,8 @@
  * release marker back (see `accountingRelease.ts`), because approving is refused
  * without it; `truncateRefundTables({ released: false })` leaves it out.
  *
+ * specs/20261124-receipt-numbers-from-the-register (T2): `receipt_code` and the append-only `receipt_code_change` are listed too.
+ *
  * `refund_batch`, `mileage_rate`, and `refund_setting` are all listed
  * explicitly (not just left to CASCADE): each sits on the "referenced" side
  * of an `onDelete: Restrict` FK, or has no incoming FK at all
@@ -53,7 +55,7 @@ export interface TruncateOptions {
 
 export async function truncateRefundTables(options: TruncateOptions = {}): Promise<void> {
   await db.$executeRawUnsafe(
-    'TRUNCATE TABLE "refund_audit_entry", "attachment", "refund_line", "refund_batch_item", "refund_request", "refund_batch", "mileage_rate", "refund_setting", "receipt_counter", "refund_batch_export", "expense_type_accounting_default", "receipt_number_baseline" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "refund_audit_entry", "attachment", "refund_line", "refund_batch_item", "refund_request", "refund_batch", "mileage_rate", "refund_setting", "receipt_counter", "refund_batch_export", "expense_type_accounting_default", "receipt_number_baseline", "receipt_code", "receipt_code_change" RESTART IDENTITY CASCADE',
   );
   if (options.released !== false) await markAccountingReleased();
 }

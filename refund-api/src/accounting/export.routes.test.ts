@@ -238,6 +238,8 @@ async function addLine(requestId: string, owner: Owner, spec: LineSpec) {
             receiptOwnerUserId: owner.id,
             receiptYear: year,
             receiptSeq: seq,
+            receiptOrigin: "issued",
+            receiptSplitPart: 1,
             numberedAt: new Date(),
           }
         : {}),
@@ -1252,6 +1254,8 @@ describe("the golden file, through the route and the database (AC-7.2, AC-6.2)",
           receiptOwnerUserId: line.ownerUserId,
           receiptYear: line.receiptYear,
           receiptSeq: line.receiptSeq,
+          receiptOrigin: "issued",
+          receiptSplitPart: 1,
           numberedAt: new Date(),
         },
       });

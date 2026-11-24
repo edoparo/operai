@@ -976,7 +976,7 @@ describe("GET /batches/:id — receiptNumbers per request", () => {
         requestedAmountCents: 1000,
         approvedTotalCents: opts.rejected ? 0 : 1000,
         ...(number
-          ? { receiptNumber: number, receiptOwnerUserId: owner, receiptYear: Number(date.slice(0, 4)), receiptSeq: seq, numberedAt: new Date() }
+          ? { receiptNumber: number, receiptOwnerUserId: owner, receiptYear: Number(date.slice(0, 4)), receiptSeq: seq, receiptOrigin: "issued", receiptSplitPart: 1, numberedAt: new Date() }
           : {}),
         ...(opts.rejected ? { rejectionReason: "no", rejectedAt: new Date(), rejectedByUserId: "a", rejectedByEmail: "a@x" } : {}),
       },

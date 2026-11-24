@@ -52,6 +52,12 @@ async function apply(sql: SQL, to: string, from?: string) {
   }
 }
 
+/** The migrations written after this round's last one (`M_VAT`), up to the head of the chain; none when there is none. */
+async function applyAfterTheRound(sql: SQL) {
+  const next = migrationNames[migrationNames.indexOf(M_VAT) + 1];
+  if (next) await apply(sql, "99999999999999", next);
+}
+
 const created = new Set<string>();
 const admin = new SQL(urlOf(baseUrl.pathname.slice(1)), { max: 1 });
 
@@ -494,8 +500,13 @@ describe("the sign-off migrations carry a 20261119130000 database with realistic
     await expect(sql.unsafe(`UPDATE refund_line SET "vatCode" = 'X' WHERE id = 'L-draft'`)).rejects.toThrow(/refund_line_vat_copy_pair/);
   });
 
-  it("the database ends in the shape of schema.prisma: `prisma migrate diff` finds no difference", () => {
-    const { code, out } = prismaDiff(url);
+  it("the database ends in the shape of schema.prisma: `prisma migrate diff` finds no difference", async () => {
+    // schema.prisma describes the head of the chain, so the migrations written after this round (T2 of 20261124 and later)
+    // are applied on a carried database of its own before the comparison.
+    const head = await carriedToTheEnd("refund_mig_so_head");
+    await applyAfterTheRound(head);
+    await head.close();
+    const { code, out } = prismaDiff(urlOf("refund_mig_so_head"));
     expect(out).toContain("No difference detected");
     expect(code).toBe(0);
   }, 120_000);
@@ -512,6 +523,7 @@ describe("the sign-off migrations carry a 20261119130000 database with realistic
     expect(a.functions).toEqual(b.functions);
     expect(a.types).toEqual(b.types);
     expect(expenseTypeLabels(a)).toBe(EXPENSE_TYPES_AFTER.join(","));
+    await applyAfterTheRound(fresh); // schema.prisma describes the head of the chain (see the carried case above)
     const { code, out } = prismaDiff(urlOf("refund_mig_so_zero"));
     expect(out).toContain("No difference detected");
     expect(code).toBe(0);

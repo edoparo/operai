@@ -200,6 +200,8 @@ async function compiledRequest(owner: string, seq: number) {
       receiptOwnerUserId: owner,
       receiptYear: 2026,
       receiptSeq: seq,
+      receiptOrigin: "issued",
+      receiptSplitPart: 1,
       numberedAt: new Date(),
     },
   });

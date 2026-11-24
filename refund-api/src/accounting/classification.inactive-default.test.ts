@@ -265,6 +265,8 @@ describe("the review view and the PUT agree on a default Accounting no longer of
         receiptOwnerUserId: "owner-1",
         receiptYear: 2026,
         receiptSeq: 1,
+        receiptOrigin: "issued",
+        receiptSplitPart: 1,
         numberedAt: new Date(),
       },
     });

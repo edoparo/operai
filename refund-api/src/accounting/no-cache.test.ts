@@ -444,6 +444,8 @@ describe("each listed operation reads Accounting afresh (AC-4.8, D2)", () => {
         receiptOwnerUserId: owner,
         receiptYear: 2026,
         receiptSeq: 1,
+        receiptOrigin: "issued",
+        receiptSplitPart: 1,
         numberedAt: new Date(),
       },
     });

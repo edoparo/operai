@@ -85,7 +85,7 @@ Derived from these committed files:
 
 ## CORE — refund-api migration and numbering core
 
-- [ ] T2: refund-api — the single migration `20261124090000_receipt_numbers_from_register` (origin and split columns with backfill, CHECKs, the 4-column unique index, guard v3, the deferred split trigger, `receipt_code`, `receipt_code_change`), schema, cleanup and DB tests — refs: AC-1.6, AC-1.11, AC-1.18, AC-4.3, AC-4.7 — deps: none
+- [x] T2: refund-api — the single migration `20261124090000_receipt_numbers_from_register` (origin and split columns with backfill, CHECKs, the 4-column unique index, guard v3, the deferred split trigger, `receipt_code`, `receipt_code_change`), schema, cleanup and DB tests — refs: AC-1.6, AC-1.11, AC-1.18, AC-4.3, AC-4.7 — deps: none
   - touch: `refund-api/prisma/schema.prisma`, `refund-api/prisma/migrations/20261124090000_receipt_numbers_from_register/migration.sql`, `refund-api/src/lib/db.receipt-register.test.ts`, `refund-api/src/lib/migration.receipt-register.test.ts`, `refund-api/src/test-support/dbCleanup.ts`
   - agent: backend-dev · core
   - Details:

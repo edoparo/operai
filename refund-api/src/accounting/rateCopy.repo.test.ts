@@ -52,6 +52,8 @@ async function pendingLine(options: { currency?: "EUR" | "USD" | "CHF"; date?: s
       receiptOwnerUserId: owner,
       receiptYear: 2026,
       receiptSeq: seq,
+      receiptOrigin: "issued",
+      receiptSplitPart: 1,
       numberedAt: new Date(),
     },
   });

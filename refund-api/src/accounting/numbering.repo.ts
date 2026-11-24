@@ -313,6 +313,9 @@ export async function classifyAndNumber(
         receiptYear: year,
         receiptSeq: seq,
         numberedAt,
+        // T2 of 20261124: the origin and part are set with the number (CHECK refund_line_receipt_origin_all_or_none).
+        receiptOrigin: "issued",
+        receiptSplitPart: 1,
         ...(classification
           ? {
               accountNumber: classification.bookable.account?.number ?? null,

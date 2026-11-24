@@ -254,6 +254,8 @@ describe("approve: copies and numbering", () => {
       receiptOwnerUserId: "owner-1",
       receiptYear: 2026,
       receiptSeq: 1,
+      receiptOrigin: "issued",
+      receiptSplitPart: 1,
       fxRateMicros: null,
     });
     expect(Object.keys(line).filter((key) => /ledgerAccountId|vatCodeId/.test(key))).toEqual([]); // the old foreign keys are gone (T24)

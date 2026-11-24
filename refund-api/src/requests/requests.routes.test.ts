@@ -1039,7 +1039,7 @@ describe("GET /requests/:id — receiptNumber, and nothing else of the accountin
       data: {
         ...base,
         ...stored,
-        ...(numbered ? { receiptNumber: "MC26/001", receiptOwnerUserId: "emp-1", receiptYear: 2026, receiptSeq: 1, numberedAt: new Date() } : {}),
+        ...(numbered ? { receiptNumber: "MC26/001", receiptOwnerUserId: "emp-1", receiptYear: 2026, receiptSeq: 1, receiptOrigin: "issued", receiptSplitPart: 1, numberedAt: new Date() } : {}),
       },
     });
     const second = await db.refundLine.create({ data: { ...base, ...stored } });

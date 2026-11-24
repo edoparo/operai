@@ -121,6 +121,8 @@ async function seedBatch(lines: { currency?: "CHF" | "EUR" | "USD"; date?: strin
         receiptOwnerUserId: ownerId,
         receiptYear: 2026,
         receiptSeq: i + 1,
+        receiptOrigin: "issued",
+        receiptSplitPart: 1,
         numberedAt: new Date(),
       },
     });

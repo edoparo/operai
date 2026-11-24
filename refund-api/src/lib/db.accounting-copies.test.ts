@@ -48,7 +48,7 @@ async function line(opts: LineOpts = {}) {
       approvedTotalCents: 1000,
       ...(opts.numbered === false
         ? {}
-        : { receiptNumber: "MC26/001", receiptOwnerUserId: ownerId, receiptYear: 2026, receiptSeq: 1, numberedAt: new Date() }),
+        : { receiptNumber: "MC26/001", receiptOwnerUserId: ownerId, receiptYear: 2026, receiptSeq: 1, receiptOrigin: "issued", receiptSplitPart: 1, numberedAt: new Date() }),
       ...(opts.fx
         ? { fxRateMicros: 924600, fxRateMonth: new Date("2026-03-01"), fxRateCopiedAt: new Date("2026-04-01T10:00:00Z") }
         : {}),
