@@ -220,7 +220,7 @@ Derived from these committed files:
     position, groups `S<k>` in that order.
   - done when: `$ST $WT refund_rn_t9 scripts/release/pairing.test.ts` is green with one test per row of the category table and per demotion (`wrong_year`, `sequence_000`, `prefix_differs`, `number_taken` incl. the `LG25/003` vs `LG26/003` seq collision), the AC-1.6 and AC-1.7 split shapes, AC-1.7 with two different numbers → `several_candidates`, AC-1.12 "prefix of the other paper numbers is not doubtful", worker mapping unique / none / several, the baseline table (offsets only, register only, imported only, all three; wrong-year with date in 2026, missing, unreadable, outside 2026; `000`; malformed; empty), the shared-prefix analysis (derived, register-mapped, imported; a member whose lines are all paper not blocked; a coded employee whose code equals a codeless colleague's initials is in a shared pair, DS-8), and a determinism test (same inputs shuffled → identical output).
 
-- [ ] T10: refund-api — `pairingFile.ts` (pure): CSV writer and tolerant reader, and the validator of AC-2.4, AC-2.6, AC-1.5, AC-1.13, AC-1.14, AC-1.15 — refs: AC-1.1, AC-1.3, AC-1.5, AC-1.6, AC-1.7, AC-1.13, AC-1.14, AC-1.15, AC-1.16, AC-2.3, AC-2.4, AC-2.6, AC-2.7 — deps: T3, T6
+- [x] T10: refund-api — `pairingFile.ts` (pure): CSV writer and tolerant reader, and the validator of AC-2.4, AC-2.6, AC-1.5, AC-1.13, AC-1.14, AC-1.15 — refs: AC-1.1, AC-1.3, AC-1.5, AC-1.6, AC-1.7, AC-1.13, AC-1.14, AC-1.15, AC-1.16, AC-2.3, AC-2.4, AC-2.6, AC-2.7 — deps: T3, T6
   - touch: `refund-api/scripts/release/pairingFile.ts`, `refund-api/scripts/release/pairingFile.test.ts`
   - agent: backend-dev · pair
   - Details: plan § Pairing file (D3): one header for all records, UTF-8 with BOM, RFC 4180;
