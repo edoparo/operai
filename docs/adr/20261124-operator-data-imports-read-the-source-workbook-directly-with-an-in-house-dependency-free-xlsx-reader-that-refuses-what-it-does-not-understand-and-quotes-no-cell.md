@@ -78,7 +78,15 @@ Described above.
 
 ## Evidence
 
-- Planned, not yet implemented at the time of writing: reader unit tests on synthetic workbooks built with `src/test-support/registerWorkbook.ts` (stored and deflate variants), one test per refusal (ZIP64, encryption, bomb, DOCTYPE, CRC, entry count), float totals such as `1.0049999999999999` → 1.00 and `24.5` → 24.50, merged cells, 1900 and 1904 dates, and a test that no failure message contains the cell. Security review surface 1 (standard tier). Update this section when the implementation lands.
+Implemented (updated 2026-11-24; QE verdict PASS in `specs/20261124-receipt-numbers-from-the-register/qe-report.md`):
+
+- Synthetic workbooks: `src/test-support/registerWorkbook.ts` (with `registerWorkbook.test.ts`); `scripts/release/xlsxReader.test.ts` "readXlsxSheet: what the builder writes is read back" over the builder's variants (stored and deflate, 1904 date serials among them), and `scripts/release/registerExport.test.ts` "is the same through every variant of the builder".
+- One test per refusal: `scripts/release/xlsxReader.test.ts` "readXlsxSheet: refusals name the feature and quote no cell": "a DOCTYPE", "a zip bomb declaring its real size", "a zip bomb declaring one byte", "ZIP64", "encryption", "compression method 12", "a CRC mismatch (header flipped)", "a CRC mismatch (a data byte flipped in a stored part)", "more than 10,000 entries", "a compressed file over 20 MiB", "a corrupt deflate stream"; in "hand-made parts": "an entity other than the five is refused", "markup nested too deeply is refused without recursion", "a merge covering a huge area is refused, not expanded".
+- Float totals on the decimal string: `scripts/release/registerExport.test.ts` "totals to the cent, on the decimal string (AC-2.1: no float ever)" (`1.0049999999999999` → 100 cents, `24.5` → 2450); `xlsxReader.test.ts` "a number cell keeps its decimal string as stored, never a float".
+- Merged cells and dates: `xlsxReader.test.ts` "a merged worker cell is read over the whole range"; `registerExport.test.ts` "propagates a merged worker cell over its rows", "a date cell" (1900 serial, leap day), "text dates and totals of every form, and a 1904 serial".
+- No failure message contains the cell: `xlsxReader.test.ts` "only the refusals' own messages are ever thrown: every code has a fixed message with no placeholder"; `registerExport.test.ts` "a malformed number never carries the cell's text", "a missing column is a named refusal and quotes nothing"; `scripts/accounting-release.cli.test.ts` "an unreadable workbook, a missing sheet, a sheet with no header, a pairing file of another format and a bad offsets file are exit 6, quote no cell, and write nothing".
+- Security review surface 1 (standard tier): `security-review.md` I-1, no action needed.
+- The real workbook: the propose step's reader ran once on `Recap_RS_2026.xlsx` against an empty scratch database with no refusal (tasks.md § Implementation notes); the pairing against production lines is owner task T31.
 
 ## Consequences
 
@@ -100,7 +108,7 @@ Described above.
 
 ## Compliance notes
 
-- GDPR / data-protection impact: low. The file holds names and expense data of employees, is read on an operator's machine outside any git worktree (a warning is printed if the path is inside one) and is not stored in Operai; only paper numbers and sheet row positions are written to the database.
+- GDPR / data-protection impact: low. The file holds names and expense data of employees, is read on an operator's machine outside any git worktree (a warning is printed if the path read is inside one; the pairing file the propose step **writes**, which also holds names, is refused with exit 1 when its path is inside one, checked after the completed-release marker so a released database still exits 0: amendment 2026-11-24, security fix round L-1 and eval round 1) and is not stored in Operai; only paper numbers and sheet row positions are written to the database.
 - Data residency: no change; the file stays with accounting.
 - Audit trail: not required for the read; the numbers it yields are audited per line.
 

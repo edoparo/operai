@@ -110,13 +110,22 @@ Order of the run, which matches the order of the exit statuses:
 0. **Released already?** One read of the marker, before anything else. If it is there, print "the
    release was already completed on <date>: nothing to do" and **exit 0**, whatever the inputs: no
    read of Accounting, auth or the files, and no write (AC-5.3). This also keeps the e2e global setup
-   idempotent.
+   idempotent. "Whatever the inputs" includes a `--propose` path inside a git worktree: on a released
+   database that command exits 0 too, because the L-1 refusal below comes after this step (changed
+   2026-11-24, security fix round and eval round 1). Only argument parsing precedes this step: a
+   usage error (an unknown argument, `--show-emails`, a flag with no value) is exit 1 on any database.
+   - **0a. `--propose` inside a git worktree? (L-1, 2026-11-24)** On a database not yet released, a
+     `--propose` path inside a git worktree is **refused with exit 1**: the file it would write names
+     employees and must never be committed. Nothing else is read (no Accounting, auth or input file)
+     and nothing is written; the message says to choose a path outside the repository.
 1. **Accounting** read first, unchanged → exit 2 (AC-2.1, 20261119 AC-7.4).
 2. **auth** for missing owner names, unchanged → exit 4. Names now also feed the worker proposal.
 3. **Inputs present?** A real run with no `--register` or no `--pairing` → **exit 5**, "run the dry
    run first", nothing written (AC-2.8). A dry run needs `--register` plus exactly one of
-   `--propose` and `--pairing` (else exit 5). Path warnings go to stderr when a file is inside a git
-   worktree (AC-5.6).
+   `--propose` and `--pairing` (else exit 5). The paths that are only **read** (`--register`,
+   `--pairing`, `--offsets`) get a warning on stderr when inside a git worktree and the run goes on
+   (AC-5.6); the one path the run **writes**, `--propose`, was already refused at step 0a (L-1,
+   changed 2026-11-24 from a warning).
 4. **Inputs readable?** The workbook (zip/XML/sheet/header), the pairing file (format version,
    columns) and `--offsets` (the existing parser) → **exit 6** on any failure, with no cell quoted.
 5. **Stale?** (`--pairing` only) The fingerprint of the workbook ≠ the file's `register`, or the
@@ -438,7 +447,9 @@ ALTER TABLE "refund_line"
     CHECK ("receiptNumber" ~ '^[A-Z]{2,3}[0-9]{2}/[0-9]{1,5}$');
 
 -- 4. Uniqueness: create the new key first, then drop the old one (same transaction)
-CREATE UNIQUE INDEX "refund_line_receiptOwnerUserId_receiptYear_receiptSeq_receiptSplitPart_key"
+-- Named explicitly (as in the migration): Prisma's default name is 74 characters, over
+-- PostgreSQL's 63-character identifier limit (T2, 1fc4a9a9; corrected here 2026-11-24).
+CREATE UNIQUE INDEX "refund_line_receipt_owner_year_seq_part_key"
   ON "refund_line" ("receiptOwnerUserId", "receiptYear", "receiptSeq", "receiptSplitPart");
 DROP INDEX "refund_line_receiptOwnerUserId_receiptYear_receiptSeq_key";
 
@@ -494,7 +505,7 @@ Notes:
   above, actor `system:accounting-release`, cause `release`. No register content beyond row
   positions and the paper number (AC-1.17).
 - `schema.prisma`: `RefundLine.receiptOrigin String?`, `receiptSplitPart Int? @db.SmallInt`,
-  `@@unique([receiptOwnerUserId, receiptYear, receiptSeq, receiptSplitPart])`; models `ReceiptCode`
+  `@@unique([receiptOwnerUserId, receiptYear, receiptSeq, receiptSplitPart], map: "refund_line_receipt_owner_year_seq_part_key")`; models `ReceiptCode`
   and `ReceiptCodeChange`. The drift tests (`db.accounting-signoff.test.ts` pattern) gain a sibling
   that pins the hand-written SQL.
 - Readers untouched: the export orders by `receiptYear, receiptSeq` and then line id, so a split
@@ -649,7 +660,7 @@ The AC → test mapping is **total**: every AC of the spec maps to at least one 
 | AC-5.3 | int, cli | After completion: real run with no inputs, wrong inputs or the right ones → exit 0, "already completed", and no read of the Accounting or auth fakes (call counts 0), no write. |
 | AC-5.4 | int | Existing gate tests, plus: approval → 409 before the real run (also after a dry run); 200 after. |
 | AC-5.5 | int | Check-mode numbers = real-run numbers, line by line. |
-| AC-5.6 | cli | A fixture with synthetic names, emails, descriptions and reasons: stdout and stderr of every mode and of every refusal contain none of them, and no amount of a non-doubtful row. Employees appear as `<prefix> · <8>`. A path inside a temporary git repo → warning on stderr. `--show-emails` → refused. |
+| AC-5.6 | cli | A fixture with synthetic names, emails, descriptions and reasons: stdout and stderr of every mode and of every refusal contain none of them, and no amount of a non-doubtful row. Employees appear as `<prefix> · <8>`. A `--register` or `--offsets` path inside a temporary git repo → warning on stderr, the run goes on; a `--propose` path inside one → exit 1, the file not created, Accounting not asked (L-1, 2026-11-24); on a released database the same command → exit 0 "already completed" (step 0 before 0a, eval round 1). `--show-emails` → refused. |
 | AC-5.7 | int | WellD Italia lines of approved requests stay unnumbered after the release; a post-release approval, batch compile and export run (existing suites green). |
 
 Fixtures: `test-support/registerWorkbook.ts` builds a workbook from rows of
@@ -695,7 +706,10 @@ Surfaces to review:
 2. **`scripts/accounting-release.ts` and `scripts/release/report.ts`**: no name, email, worker text,
    description or non-doubtful amount in stdout, stderr or thrown messages (AC-5.6); the
    `describeReleaseFailure` rule kept; `--show-emails` removed; the pairing file written with
-   `O_EXCL` and 0600; git-worktree warnings for every input path; `.gitignore` additions (A09).
+   `O_EXCL` and 0600; a `--propose` path inside a git worktree **refused** with exit 1 (L-1,
+   changed 2026-11-24 from a warning; checked after the completed-release marker, plan step 0a) and
+   warnings for the paths that are only read (`--register`, `--pairing`, `--offsets`); `.gitignore`
+   additions, `**/accounting-release*.csv` included (A09).
 3. **`GET/PUT /accounting/receipt-codes*`**: `receipt-code:manage` on every method, before body
    validation; the actor from the JWT only; the body limit; the 409 naming no other employee
    (enumeration: it reveals only that a code is in use, which is the point); the list's exposure of
@@ -780,8 +794,9 @@ for the tests that exercise `--offsets`.
 Synced unattended with `design.md` § Gaps found (G1–G9) after the design was written. Each entry
 below is `DS-n` for gap `Gn`, plus DS-10 for the task split. Decisions D1–D15 stand. Where this
 section changes a sentence of the plan above, that sentence is edited in place and marked `DS-n`.
-Where it departs from the design, this section wins and the frontend tasks follow it (the design
-keeps its text; the departure is DS-8 only).
+Where it departs from the design, this section wins and the frontend tasks follow it (the
+departure is DS-8 only; design.md kept its text until 2026-11-24, when RC-8, F5, the S2 rows, the
+count note, the copy key and the test list were aligned with DS-8 after eval round 1).
 
 | # | Gap | Resolution |
 |---|---|---|
@@ -795,6 +810,18 @@ keeps its text; the departure is DS-8 only).
 | DS-8 | G8: the shared-prefix rule for an employee **with** a code | **`sharesPrefix(E)`** is true when `prefix(E)` (= code ?? initials) equals, for some other Refund-known employee F: F's code; or F's derived initials **when F has no code**; or the prefix of any number issued or imported to F (any year). It is computed for every row, **with or without a code**, and the badge shows whenever it is true. This departs from design RC-8 and its S2 row "sharesPrefix and a code: no badge": a code equal to a codeless colleague's initials is a shared prefix **caused by** the code, and it is flagged on both rows (the remedy is a code for F, or another code for E). The count note counts every flagged row, so its copy loses "and have no code" (`receiptCodes.shareNote`: EN "N employee(s) share(s) a prefix with another employee.", IT "N dipendente/i condivide/condividono il prefisso con un altro dipendente."). **The 409 rule does not change** (AC-4.3, ambiguity 8): a code is refused when another employee holds it, or when another employee has a number issued or imported with that prefix; another employee's derived initials with **no** number do not block it. So a code equal to another employee's initials is refused exactly when that employee already has numbers with those initials, and otherwise allowed and flagged. At the release this is consistent with D8's AC-4.11 rule: E's new-number prefix is in `prefixes(F)`, so a `new` decision for E exits 9 until F has a code. After the release it is flagged, never refused (D13). |
 | DS-9 | G9: "Last number" keeps the old prefix after a code change | Correct by AC-4.4 and kept. The dialog description and the Clear confirmation say that issued numbers do not change and the sequence continues. A "next number starts with" line is deferred until accountants ask for it. |
 | DS-10 | Task split and test environment (not a design gap) | `tasks.md` adds `refund-api/scripts/release/types.ts` (types only) so the reader, pairing, pairing-file and report tasks run in parallel. refund-api suites run against a scratch database per task on the local Postgres container (name `<db>_rn_<tag>`, see tasks.md § How to read), not on a shared `refund` database; the levels of § Test strategy are unchanged. |
+
+## Fix rounds (2026-11-24)
+
+Rounds that changed the code after the QE verdict (T27, `80fccec7`). Each is a task in `tasks.md`;
+the sentences of this plan they change are edited in place and dated.
+
+| Round | Task | Commits | What changed in this plan |
+|---|---|---|---|
+| Security fix round (L-1, L-2, I-4, I-9 of `security-review.md`) | T35 | `4010237d` (fix), `30b178a5` (review dispositions) | L-1: a `--propose` path inside a git worktree is refused with exit 1 instead of warned about (step 3, § Security 2); `.gitignore` also covers `**/accounting-release*.csv`. L-2: the pairing file neutralises a register row's shape and the currency. I-4: the employee reference in a refusal is always `<prefix> · <8>` or `not yet in Refund`. I-9: the e2e release step refuses a non-local `E2E_REFUND_DATABASE_URL` host unless `E2E_ALLOW_REMOTE_DB=1` (a database resolved through the service's own direnv file is not checked). |
+| Marker-order fix (eval round 1) | T36 | code commit pending (referenced from T36 when it lands); this docs sync | The L-1 refusal moves **after** the completed-release marker (step 0a): a released database exits 0 "already completed" whatever the flags, as step 0 and D11 say; a database not yet released with a `--propose` path inside a worktree exits 1 with nothing else read and nothing written. Docs synced the same day: the index name of § Data model step 4 (`refund_line_receipt_owner_year_seq_part_key`, as in the migration), the two ADRs on the release and the reader, design.md for DS-8, tasks.md (T35, T36, implementation notes, evidence). |
+
+A QE re-run of the post-fix tree is owed before the eval re-runs (T27, "re-run after fix rounds").
 
 ## Decisions taken unattended
 
@@ -810,7 +837,7 @@ keeps its text; the departure is DS-8 only).
 | D8 | Receipt code in `receipt_code` (current, unique) + `receipt_code_change` (append-only); prefix read once per numbering call | AC-4.3 race via the unique index; AC-4.7 history; AC-4.10 without new locks | — |
 | D9 | `--offsets` optional; exit 3 retired, never reused; new statuses 5 to 9 | AC-2.8 "own status"; the spec's "complements" | — |
 | D10 | `--show-emails` removed | AC-5.6 allows no email in any output | — |
-| D11 | Marker checked first: a completed release exits 0 without reading anything | AC-5.3 "with any inputs"; e2e idempotence | — |
+| D11 | Marker checked first: a completed release exits 0 without reading anything, whatever the flags (a `--propose` path inside a git worktree included). The L-1 refusal of such a path (exit 1, nothing else read, nothing written) runs right after the marker, on a database not yet released (changed 2026-11-24, see § Fix rounds) | AC-5.3 "with any inputs"; e2e idempotence | — |
 | D12 | Capability `receipt-code:manage` (new resource, no conditions), seeded to `accounting` and `admin` only, **not** `refund-admin` | AC-4.9 "no other role", which departs from refund-admin's "every refund capability" convention; an admin can grant it | One `ensureGrant` line |
 | D13 | Post-release shared prefix: not refused; flagged in the Settings list only, no review-page change | Open-question fallback; no AC asks for a review flag | Add a badge on the review page later |
 | D14 | Rows with a number but no worker must be acknowledged; merged cells propagate | They could hide a maximum; this is how a person reads merges | Validator |

@@ -107,6 +107,7 @@ Derived from these committed files:
       previous head and holding numbered lines, the migration backfills `issued`/1, keeps every
       number, and the new index exists while the old one does not.
   - done when: `$ST $WT refund_rn_t2 src/lib/db.receipt-register.test.ts src/lib/migration.receipt-register.test.ts` is green; `cd $WT/refund-api && bun run db:generate && bun run typecheck` is green; the whole suite `$ST $WT refund_rn_t2` is green.
+  - evidence: commit `1fc4a9a9`: `db.receipt-register.test.ts` (19) and `migration.receipt-register.test.ts` (8) green, typecheck clean, whole refund-api suite 1990 pass / 0 fail on `refund_rn_t2`. The unique index is named `refund_line_receipt_owner_year_seq_part_key` (`map:` in `schema.prisma`; Prisma's default name is 74 characters, over PostgreSQL's 63). Outside the touch list: see § Implementation notes, T2.
 
 - [x] T3: refund-api — pure receipt-number rules: `formatReceiptNumber` for 2 or 3 letters, `parseReceiptNumber`, `RECEIPT_CODE_PATTERN` and `normaliseReceiptCode` — refs: AC-4.2, AC-4.4, AC-4.5 — deps: none
   - touch: `refund-api/src/accounting/receiptNumber.ts`, `refund-api/src/accounting/receiptNumber.test.ts`
@@ -118,6 +119,7 @@ Derived from these committed files:
       `{ kind: "clear" } | { kind: "code", code } | { kind: "invalid" }`, checking the trimmed input
       against `^[A-Za-z]{2,3}$` **before** upper-casing. `initials()` unchanged.
   - done when: `$ST $WT refund_rn_t3 src/accounting/receiptNumber.test.ts` is green with vectors: `formatReceiptNumber("LCX", 2026, 40)` → `LCX26/040`, `("LCX", 2027, 1)` → `LCX27/001`, seq 1000 → `LCX26/1000`; parse of `AB26/005`, ` ab26/5 `, `LG25/003`, `AB26/000`, and `null` for `AA99/9A`, `ABCD26/001`, `A26/001`; code vectors `A`, `ABCD`, `A1`, `ÀB`, `A B`, `ßA` → invalid, ` lcx ` → `LCX`, `""` and `null` → clear; the existing `initials` vectors unchanged.
+  - evidence: commit `d81a7448`: `receiptNumber.test.ts` 39 pass; whole refund-api suite 2002 pass / 0 fail on `refund_rn_t3`; typecheck clean. The old vector "MCC is refused" became "MCCC is refused" (a three-letter prefix is valid now, AC-4.4).
 
 - [x] T4: refund-api — numbering core: prefix from the receipt code read once per call inside the transaction, paper assignments that skip the counter, `receiptOrigin`/`receiptSplitPart` on every numbered line, the richer `receipt_number_assigned` detail — refs: AC-1.2, AC-1.6, AC-1.17, AC-3.3, AC-3.5, AC-4.4, AC-4.5, AC-4.10, AC-4.12 — deps: T2, T3
   - touch: `refund-api/src/accounting/numbering.repo.ts`, `refund-api/src/accounting/numbering.repo.test.ts`, `refund-api/src/accounting/numbering.paper.test.ts`, `refund-api/src/accounting/receiptCode.repo.ts`, `refund-api/src/requests/audit.ts`, `refund-api/src/accounting/receipt.lifecycle.test.ts`
@@ -135,6 +137,7 @@ Derived from these committed files:
     - Approval path (`decide.repo.ts`) is not edited: it keeps calling `classifyAndNumber(cause:
       "approval")`.
   - done when: `$ST $WT refund_rn_t4 src/accounting/numbering.repo.test.ts src/accounting/numbering.paper.test.ts src/accounting/receipt.lifecycle.test.ts` is green, proving: a `receipt_code` row `LCX` (inserted directly) with baseline 39 → the next approval gives `LCX26/040` while `LC26/039` stays as issued in the line, request, batch and export reads; a 2027 line with code `LCX` → `LCX27/001`; a paper map writes `AB26/005` origin `paper` and does not move the counter (`lastSeq` = baseline + count of new); two split lines get parts 1 and 2 with one number; the audit detail of each origin; one call with a code changed between two reads in another connection numbers all its lines with one prefix. The whole suite `$ST $WT refund_rn_t4` is green.
+  - evidence: commit `bad3201b`: `numbering.repo.test.ts` (39) + `numbering.paper.test.ts` (15) + `receipt.lifecycle.test.ts` (3) green; whole refund-api suite 2024 pass / 0 fail on `refund_rn_t4`; typecheck clean. A paper key that is not a line of the call throws. Outside the touch list: see § Implementation notes, T4.
 
 ## CODE — refund-api receipt-code API
 
@@ -155,6 +158,7 @@ Derived from these committed files:
       (DS-2) and `sharesPrefix` by DS-8 (another employee's code; another codeless employee's
       initials; the prefix of a number issued or imported to another employee).
   - done when: `$ST $WT refund_rn_t5 src/accounting/receiptCode.routes.test.ts src/accounting/receiptCode.race.test.ts` is green, covering: 403 on all three routes without the capability and nothing changed; set (the next approval uses the code), change `LCX`→`LCY` then clear (numbers `LCY26/041` then `LC26/042`, earlier lines unchanged); 422 for each AC-4.2 vector with no `receipt_code`/`receipt_code_change` row; 409 for another employee's code and for another employee's issued or imported prefix, the body containing neither the other's name, email nor user id; a code equal to a codeless colleague's initials with no number → 200 and `sharesPrefix` true on **both** rows; history newest first with actor and time, none for a no-op; `changedAt` null for a never-changed employee and set after a clear; two concurrent PUTs of one code for two employees → one 200, one 409; a PUT racing an approval of the same employee (barrier, 20 repetitions) → each number wholly old or wholly new prefix, counter without gap or repeat. The whole suite `$ST $WT refund_rn_t5` is green.
+  - evidence: commit `9cfd25c6`: `receiptCode.routes.test.ts` (26) + `receiptCode.race.test.ts` (2) green; whole refund-api suite 2052 pass / 0 fail on `refund_rn_t5`; typecheck clean.
 
 ## XLSX — operator files, release types, the reader, the register export
 
@@ -421,16 +425,19 @@ Derived from these committed files:
     here.
   - done when: `qe-report.md` has verdict PASS; green: `$ST $WT refund_rn_qe` (whole refund-api suite), `cd $WT/refund-api && bun run typecheck`, auth `bun test src/authz` and `bun run typecheck`, `cd $WT/refund-ui && pnpm exec vitest run && pnpm exec tsc -b && pnpm lint && pnpm build`, the shell e2e static checks of T22/T23, `mise run changeset:check`. The live e2e is PENDING (T32), not a failure.
   - evidence: `qe-report.md` verdict PASS: refund-api 2331 pass / 0 fail (94 files) + tsc clean, auth `src/authz` 332 pass + typecheck clean, refund-ui 1440 pass + tsc + lint + build clean, shell e2e static clean (273 tests listed), changeset check OK against origin/main; 32 mutants, 3 real test gaps closed by 4 new tests, no product defect; environment faults E-1 to E-3 (stale Prisma client, estimai-ui without node_modules, changeset base) listed in the report; live e2e PENDING (T32).
+  - depends on a QE re-run after the fix rounds: the verdict above is for `a00780fa`/`80fccec7`; T35 (`4010237d`) and T36 changed code after it, so T27's done-when is re-run on the post-fix tree (fresh scratch databases, the whole refund-api suite, auth `src/authz`, shell `src/e2eGlobalSetup.test.ts`) and recorded in `qe-report.md` before T29 is re-run.
+  - re-run after fix rounds: pending
 
-- [ ] T28: OWASP review (plan § Security, standard tier), in parallel with QE — refs: all ACs (nominal) — deps: T1, T14, T15, T21, T23, T24, T25, T26
+- [x] T28: OWASP review (plan § Security, standard tier), in parallel with QE — refs: all ACs (nominal) — deps: T1, T14, T15, T21, T23, T24, T25, T26
   - touch: `specs/20261124-receipt-numbers-from-the-register/security-review.md`
   - agent: owasp-reviewer · close
   - Details: the five surfaces of plan § Security (the xlsx reader; the release script and report;
     the receipt-code routes; the migration; the auth seed). Escalate to frontier only on the plan's
     trigger (register content reaching a log, the DB or a response).
   - done when: `security-review.md` lists no open high or critical finding; any fix is a new task appended here, with an overlap check.
+  - evidence: `security-review.md` (`c0bd8253`) verdict PASS with notes: 0 critical, 0 high, 0 medium, 3 low, 10 info, static review of `0a6735aa..a00780fa`. Fix round done as T35 (`4010237d`, dispositions `30b178a5`): L-1, L-2, I-4, I-9 fixed; L-3 accepted; I-1 to I-3, I-5 to I-8, I-10 no action. The follow-up on the order of the L-1 refusal is T36.
 
-- [ ] T29: Eval — refs: all ACs (nominal) — deps: T27, T28
+- [ ] T29: Eval — refs: all ACs (nominal) — deps: T27, T28, T35, T36 (T35 and T36 added 2026-11-24: the eval re-run follows the fix rounds and T27's re-run)
   - touch: `specs/20261124-receipt-numbers-from-the-register/eval-report.md`
   - agent: orchestrator · close
   - done when: `/wellforge:eval` produces a passing `eval-report.md`.
@@ -476,6 +483,27 @@ Derived from these committed files:
   - touch: `CHANGELOG.md`, `*/CHANGELOG.md`, `*/package.json`, `shell/src/lib/suiteVersion.generated.json`, `.changeset/*`
   - agent: owner
   - done when: RELEASING.md "Before" checks pass; `operai@<X.Y.Z>` is tagged; auth's deploy log shows `+ receipt-code grants`; the Settings list shows no "Shares prefix" badge for anyone who receives a new number; the real run exits 0 and a rerun prints "already completed"; the first WellD CH approval after it succeeds with a number after the employee's baseline carrying the code or initials.
+
+## FIX — fix rounds after QE (appended 2026-11-24)
+
+Appended after the QE verdict (T27) as T28's done-when requires. Both rounds come after T27 and T28 in
+the graph and before T27's re-run, T29 and T30.
+
+- [x] T35: Security fix round (L-1, L-2, I-4, I-9 of `security-review.md`) — refs: AC-5.6, AC-2.3, AC-5.3 (L-1, L-2, I-4); AC-2.8 (I-9, the e2e setup) — deps: T27, T28
+  - touch: `refund-api/scripts/accounting-release.ts`, `refund-api/scripts/accounting-release.cli.test.ts`, `refund-api/scripts/accounting-release.privacy.test.ts`, `refund-api/scripts/release/pairingFile.ts`, `refund-api/scripts/release/pairingFile.test.ts`, `shell/e2e/global-setup.ts`, `shell/src/e2eGlobalSetup.test.ts`, `.gitignore`, `infra/README.md`, `specs/20261124-receipt-numbers-from-the-register/security-review.md`
+  - agent: backend-dev · secfix (worktree `rn/secfix`)
+  - Details: L-1, a `--propose` path inside a git worktree is refused with exit 1 (it was a warning), and `.gitignore` covers `**/accounting-release*.csv`; L-2, the pairing file neutralises a register row's shape and the currency; I-4, a refusal inside the transaction names the employee only as `<prefix> · <8>` or `not yet in Refund`; I-9, the e2e release step refuses a non-local `E2E_REFUND_DATABASE_URL` host unless `E2E_ALLOW_REMOTE_DB=1`. The runbook's exit table and personal-data paragraph say "refuses". L-3 accepted; the other info findings need no action.
+  - overlap check (recorded 2026-11-24, after the fact): every path above belongs to a task already checked, so T35 orders after them and conflicts with no open task: `accounting-release.ts` and `accounting-release.cli.test.ts` (T12, T13), `accounting-release.privacy.test.ts` (T14), `pairingFile.*` (T10), `shell/e2e/global-setup.ts` (T22), `.gitignore` (registry T12), `infra/README.md` (registry T24), `security-review.md` (T28). `shell/src/e2eGlobalSetup.test.ts` is new to the list (no other task touches it). The one open edge: the changes land after T27's verdict, hence T27's re-run. T36 touches `accounting-release.ts` and `accounting-release.cli.test.ts` again: T35 → T36.
+  - done when: each fix has a test that fails without it; the DB-free suites (`pairingFile.test.ts`, shell `src/e2eGlobalSetup.test.ts`) and the DB-backed ones (`accounting-release.cli.test.ts`, `accounting-release.privacy.test.ts`) are green; `security-review.md` records the dispositions.
+  - evidence: `4010237d` (fix, 9 files: the touch list above minus `security-review.md`) and `30b178a5` (dispositions in `security-review.md` § Fix round). Tests: `pairingFile.test.ts` "(L-2) neutralises the shape of a register row and the currency…"; `accounting-release.cli.test.ts` "(L-1) --propose inside a git worktree is REFUSED with exit 1…"; `accounting-release.privacy.test.ts` "(I-4) a refusal inside the transaction names the employee as `<prefix> · <8>`…"; shell `src/e2eGlobalSetup.test.ts` `assertLocalDatabase` (3 tests). Eval round 1 re-ran the DB-free part green (`pairingFile`, `e2eGlobalSetup` 6 pass); the DB-backed suites have no recorded run on the post-fix tree yet: that is T27's re-run.
+
+- [ ] T36: Marker-order fix (eval round 1): the L-1 refusal runs after the completed-release marker — refs: AC-5.3, AC-5.6 — deps: T35
+  - touch: `refund-api/scripts/accounting-release.ts`, `refund-api/scripts/accounting-release.cli.test.ts` (code, by the code agent); `specs/20261124-receipt-numbers-from-the-register/plan.md`, `specs/20261124-receipt-numbers-from-the-register/design.md`, `specs/20261124-receipt-numbers-from-the-register/tasks.md`, `docs/adr/20261124-a-one-off-release-that-needs-human-judgement-runs-as-propose-then-confirm-then-run-and-the-confirmation-is-a-file-bound-to-its-inputs-and-refused-when-they-changed.md`, `docs/adr/20261124-operator-data-imports-read-the-source-workbook-directly-with-an-in-house-dependency-free-xlsx-reader-that-refuses-what-it-does-not-understand-and-quotes-no-cell.md`, `AGENTS.md`, `.forge/runs/2026-11-24T00-00-00Z-orchestrate-20261124-receipt-numbers-from-the-register.json` (docs sync, by the architect)
+  - agent: backend-dev (code) and architect (docs sync)
+  - Details: eval round 1 found the L-1 refusal ahead of the marker check, so a released database answered a `--propose` path inside a worktree with exit 1 instead of 0 "already completed" (plan step 0, D11, AC-5.3 "with any inputs"). The refusal moves after the marker: a released database exits 0 whatever the flags; a database not yet released with a `--propose` path inside a worktree exits 1 with nothing else read and nothing written. The docs sync of the same day aligns plan.md (step 0a, step 3, § Security 2, D11, the index name, § Fix rounds), the two ADRs (the refusal for the written file, reads still warn, the order; Evidence sections), AGENTS.md, design.md (DS-8) and the run trace.
+  - overlap check: `accounting-release.ts` and `accounting-release.cli.test.ts` are T12/T13/T35 paths, all checked: T35 → T36. The docs-sync paths are touched by no open task (T29 and T30 only read them). The code part and the docs part touch disjoint paths and can land in either order.
+  - done when: the code agent's commit (referenced here when it lands) has a cli test in which a released database with a `--propose` path inside a git worktree exits 0 "already completed" with the file not created and Accounting not asked, and a database not yet released with the same command exits 1 with nothing read from Accounting and nothing written; `accounting-release.cli.test.ts` and the whole refund-api suite green on a fresh scratch database; the docs sync committed; T27's re-run recorded.
+  - evidence: docs sync committed on branch `rn/docsync` (2026-11-24); code commit pending.
 
 ## Coverage
 
@@ -563,6 +591,10 @@ other. "A → B" means A comes before B.
 - `shell/e2e/global-setup.ts`: T22 only. `shell/e2e/helpers/refundFixtures.ts`: T23 only.
 - `.changeset/*` (T34's glob) vs `.changeset/receipt-numbers-from-the-register.md` (T26): T26 → T30
   → T34.
+- Fix rounds (appended 2026-11-24): T35 re-touches paths of T10, T12, T13, T14, T22 and the `.gitignore`
+  and `infra/README.md` registries, all checked before it (T27, T28 → T35); T36 re-touches
+  `accounting-release.ts` and its cli test (T35 → T36). Both precede T27's re-run, T29 and T30. Details
+  under each task.
 
 **Registries, each with one owner:**
 
@@ -618,9 +650,23 @@ they have slack for review rework.
 
 ## Implementation notes
 
-Deviations and findings recorded while a task closed (branch `rn/release`, T6 to T14, unattended run of 2026-11-24).
+Deviations and findings recorded while a task closed (branch `rn/release`, T6 to T14, unattended run of 2026-11-24). The T2 and T4
+entries (branch `rn/core`) were added on 2026-11-24 after eval round 1, from the commit messages of `1fc4a9a9` and `bad3201b`, where
+they had been recorded at the time.
 
-- **T12, `PaperAssignment.split` (T4 file touched).** AC-1.7 and the plan's pairing-file section say a split group of ONE line records
+- **T2, files outside the touch list (`1fc4a9a9`).** The new all-or-none CHECK on `receiptOrigin`/`receiptSplitPart` made every
+  numbered line need both columns, so to keep the whole suite green T2 also changed: `refund-api/src/accounting/numbering.repo.ts`
+  (T4's file: `classifyAndNumber` writes origin `issued` and part 1 with every number); the fixtures of 13 existing test files that
+  insert numbered lines directly (`accounting-unavailable.matrix`, `classification.inactive-default`, `classification.race`,
+  `classification.routes`, `export.failures`, `export.routes`, `no-cache`, `rateCopy.repo`, `batches.routes`,
+  `db.accounting-copies`, `db.accounting-receipt-guard`, `requests.routes`, `approve-accounting`), which gain the two columns; and
+  `refund-api/src/lib/migration.accounting-signoff.test.ts`, which now applies the later migrations before its `schema.prisma`
+  diff. That is 15 files in all (the commit message says "the fixtures of 15 existing tests"; the diff shows 13 fixture files plus
+  the two above). The unique index is named `refund_line_receipt_owner_year_seq_part_key` (plan § Data model, corrected 2026-11-24).
+- **T4, `approve-accounting.test.ts` (`bad3201b`).** Outside the touch list: one exact audit-detail expectation gains `origin: "new"`.
+  Nothing else in the file changed.
+
+- **T12/T13, `PaperAssignment.split` (T4 file touched).** AC-1.7 and the plan's pairing-file section say a split group of ONE line records
   origin `paper_split`, but `classifyAndNumber` derived `paper_split` only when one number appears on several lines. `PaperAssignment`
   gained an optional `split?: boolean` in `refund-api/src/accounting/numbering.repo.ts` (default: derived, so every T4 caller and test is
   unchanged); the release sets it for every line whose decision is `split`. `numbering.repo.ts` is not in T12 or T13's `touch:` list.

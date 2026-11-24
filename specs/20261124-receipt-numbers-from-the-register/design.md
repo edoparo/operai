@@ -5,6 +5,8 @@ status: draft
 
 # Design: Receipt codes in Refund Settings (US-4) and three-letter receipt numbers on existing screens
 
+`status: draft` is deliberate: design files are not gated in this repository (most earlier features' `design.md` stay `draft`), and plan.md § "Design sync (2026-11-24)" governs where the two differ; this file was aligned with DS-8 on 2026-11-24.
+
 Designed unattended on 2026-11-24 from `spec.md` (approved) and `plan.md` (§ "UI surface", § "Prefixes and receipt codes (D8)", § "API contracts"), plus a static read of `refund-ui/src`
 (`ExpenseTypeDefaultsCard`, `DefaultClassificationDialog`, `ChangeHistoryDrawer`, `SettingsPage`, `RefundShell`, `ReceiptNumber`, `strings.ts`) and of
 `specs/20261118-refund-accounting-export/design.md` (format and accessibility conventions). The app was not run, no browser was started and the visual companion was not
@@ -25,7 +27,7 @@ Stack in use: React + Vite, `@operai/ui` (own library, consumed as source) with 
 | RC-5 | The code field has **no `maxLength`**, uppercases ASCII letters as typed (a-z only), and validates on submit and on blur. | The plan says `maxLength 3`. A silent truncation turns a pasted `ABCD` into `ABC`, which is a valid, wrong code that then saves. With no cap the user sees `ABCD` and the 2-3 letters message. Uppercasing only `[a-z]` keeps `ß` and `À` visibly invalid (the server refuses them before upper-casing, plan D8) instead of the browser turning `ß` into `SS`. | Low |
 | RC-6 | Save is disabled while the field is empty or equals the saved code. A shape error is a **field error on submit**, no request sent. An empty field never clears: Clear is its own action (RC-4). | Same rule as `DefaultClassificationDialog` (disabled until something differs). Removing "empty clears" from the dialog avoids an accidental clear by deleting the text and pressing Enter. The API still accepts it (AC-4.2). | Low |
 | RC-7 | The 409 `receipt_code_in_use` message is one sentence for both causes and **names nobody and says nothing about which cause**: "This code is already in use. Choose another." | AC-4.3. Saying "another employee holds it" vs "numbers were issued with it" would tell the accountant more about who has what than the spec allows. | Low |
-| RC-8 | The "Shares prefix" mark is a **badge with a glyph and text** (`StatusBadge`, meaning `attention`), shown only when `sharesPrefix` is true **and** no code is set; plus **one static note** above the table with the count. No name of the other employee anywhere. | D13 of the plan (the post-release fallback: not refused at approval, flagged in the list only). Colour is never the only signal. A count lets accounting see the size of the work before scanning rows. The plan's "decision 10" is D13 (Gap G1). | Low |
+| RC-8 | The "Shares prefix" mark is a **badge with a glyph and text** (`StatusBadge`, meaning `attention`), shown whenever `sharesPrefix` is true, **with or without a code** (changed 2026-11-24, DS-8: a code equal to a codeless colleague's initials is a shared prefix caused by the code, flagged on both rows); plus **one static note** above the table with the count of flagged rows. No name of the other employee anywhere. | D13 of the plan (the post-release fallback: not refused at approval, flagged in the list only). Colour is never the only signal. A count lets accounting see the size of the work before scanning rows. The plan's "decision 10" is D13 (Gap G1). | Low |
 | RC-9 | History opens in the existing **`ChangeHistoryDrawer`**, fetched **when opened**, with a loading and an error state inside the drawer. | The history route is per employee (`GET .../{userId}/history`), not embedded in the list as the defaults history is. The drawer today has no loading or error state, so it gains two optional props (Component inventory, Gap G4). | Low-medium |
 | RC-10 | Rows are in the API's order (name, then user id). **No search, no paging, no client sort.** | The API does not page; the number of employees of the tool is the company's, tens to low hundreds. A filter would be scope no AC asks for. If the list outgrows a screen, `DataTable` already scrolls in its own region. Reported as Gap G5. | Medium |
 | RC-11 | The numbers elsewhere (review line, batch rows, PDF, journal) are **shown as issued**, nothing is redesigned; only widths are checked (§ Issued numbers elsewhere). | AC-4.8. | None |
@@ -64,8 +66,8 @@ F = flow. Each names its story and acceptance criteria.
 2. Exits: error with Retry inside the drawer; empty ("No changes recorded yet."). Close or Escape returns focus to the History button.
 
 **F5 — Spot employees that share a prefix** (US-4: AC-4.3, AC-4.11 after the release; plan D13)
-1. The note above the table says "N employees share a prefix with another employee and have no code" (hidden at 0).
-2. Each such row carries the "Shares prefix" badge; its action is **Set code**, which resolves it (a code is unique, AC-4.3).
+1. The note above the table says "N employees share a prefix with another employee" (hidden at 0) (changed 2026-11-24, DS-8).
+2. Each such row carries the "Shares prefix" badge, with or without a code (changed 2026-11-24, DS-8). The remedy is a code for the codeless employee (**Set code**) or another code for the coded one (**Change**); a code is unique (AC-4.3).
 3. Nothing blocks approval for them after the release (D13): the list is the only place they show, which is why the count is stated.
 
 ### Acceptance criteria with no UI surface of their own
@@ -104,7 +106,7 @@ Wireframe (desktop; the table scrolls inside its focusable region when narrower)
 ```
 Receipt codes
 A code replaces the initials in new receipt numbers. Numbers already issued never change.
-[note] 2 employees share a prefix with another employee and have no code.
+[note] 2 employees share a prefix with another employee.      (changed 2026-11-24, DS-8: was "...and have no code")
 [success banner, dismissible]
 Employee            Code  Prefix in use   Last number   Last changed   Status          Actions
 Anna Rossi          ARO   ARO             ARO26/039     24 Nov 2026    -               [Change] [Clear] [History]
@@ -125,7 +127,7 @@ Derived initials are visible exactly when they are the prefix (no code). When a 
 | Loaded | Note (only when count > 0), table. |
 | Row with a code | Actions: **Change**, **Clear**, **History**. |
 | Row without a code | Actions: **Set code**, **History**. Badge **Shares prefix** when `sharesPrefix`. |
-| Row with `sharesPrefix` and a code | No badge (the code is unique; D13 flags only "no code"). |
+| Row with `sharesPrefix` and a code | Badge **Shares prefix** too (changed 2026-11-24, DS-8: the code equals a codeless colleague's initials; the remedy is a code for the colleague, or another code here). Actions as any row with a code. |
 | After a save or clear | The row is replaced from the 200 body (`resource.replace`), the count note recomputed, a `SuccessBanner` says what happened. |
 
 Prefix of the saved state comes from the API (`prefix`, `prefixSource`); the UI never derives initials itself.
@@ -240,7 +242,7 @@ Convention of the file: sentence case, a sentence with a value is a function, It
 | `receiptCodes.changedBy(by, on)` | `${by} · ${on}` | `${by} · ${on}` |
 | `receiptCodes.sharesPrefix` | Shares prefix | Prefisso condiviso |
 | `receiptCodes.sharesPrefixHint` | Another employee uses the same letters. Set a code to tell the numbers apart. | Un altro dipendente usa le stesse lettere. Impostare un codice per distinguere i numeri. |
-| `receiptCodes.shareNote(n)` | n=1: `1 employee shares a prefix with another employee and has no code.` n>1: `${n} employees share a prefix with another employee and have no code.` | n=1: `1 dipendente condivide il prefisso con un altro dipendente e non ha un codice.` n>1: `${n} dipendenti condividono il prefisso con un altro dipendente e non hanno un codice.` |
+| `receiptCodes.shareNote(n)` | n=1: `1 employee shares a prefix with another employee.` n>1: `${n} employees share a prefix with another employee.` (changed 2026-11-24, DS-8) | n=1: `1 dipendente condivide il prefisso con un altro dipendente.` n>1: `${n} dipendenti condividono il prefisso con un altro dipendente.` (changed 2026-11-24, DS-8) |
 | `receiptCodes.shareNoteLabel` | Employees sharing a prefix | Dipendenti con prefisso condiviso |
 | `receiptCodes.setLabel(name)` | `Set a receipt code for ${name}` | `Imposta un codice ricevuta per ${name}` |
 | `receiptCodes.changeLabel(name)` | `Change the receipt code of ${name}` | `Modifica il codice ricevuta di ${name}` |
@@ -315,11 +317,13 @@ Conventions of `specs/20261118-refund-accounting-export/design.md` § Accessibil
 - jsdom axe, each after the state settled: card loaded (with code, without code, shares prefix), loading, error, empty, 403; the dialog (empty, valid, field error 422, field error 409, busy, dialog error); the clear confirmation; the drawer (loading, loaded, empty, error); Settings with one section and with three. All in **en and it**, and in **light and dark** where the harness supports a theme switch.
 - Browser axe in e2e at: the card loaded, the open dialog with a 409 error, the open drawer. One theme per run is acceptable; a dark checkpoint is the one worth adding.
 - Keyboard-only journeys (QE): open Settings -> Receipt codes; set a code with the keyboard only and land back on the button; trigger and read the 409; clear and land on the row header; open and close the history and land back on its button.
-- Behaviour tests: no request on a bad shape; 422/409/404/403/network each shown as specified; Save disabled while empty or equal; a-z uppercased as typed, `ß` and `À` not altered; `sharesPrefix` + code shows no badge; the count note equals the rows flagged; the other employee is never named.
+- Behaviour tests: no request on a bad shape; 422/409/404/403/network each shown as specified; Save disabled while empty or equal; a-z uppercased as typed, `ß` and `À` not altered; `sharesPrefix` + code shows the badge too (changed 2026-11-24, DS-8); the count note equals the rows flagged; the other employee is never named.
 - Strings parity test (existing) covers en/it; assert `settings.sections.receiptCodes` appears in the tab.
 - `RefundShell.test`: a user with only `receipt-code:manage` sees the Settings entry; `SettingsPage.test`: that user gets one section, no tab list.
 
 ## Gaps found
+
+Resolved in plan.md § Design sync (2026-11-24): gap Gn is DS-n there (G1–G9 → DS-1–DS-9). Only G8 changed this design (DS-8, edited in place above and marked "changed 2026-11-24, DS-8").
 
 | # | Gap | Where | Proposal |
 |---|---|---|---|
@@ -330,5 +334,5 @@ Conventions of `specs/20261118-refund-accounting-export/design.md` § Accessibil
 | G5 | No search or paging on a list that grows with every new employee. | plan § API | Accepted for now (RC-10); a name filter is the first thing to add if the list passes about 100 rows. |
 | G6 | The plan changes `SettingsPage` so `general` is offered only with `rate:read` or `settings:read`, but "capabilities not resolved yet" is today a fail-closed state in which General shows. For the only-capability user the flash is General cards that 403. | plan § refund-ui | Render nothing (or the skeleton) in the panel until `usePermissions` has resolved, **if** the hook exposes a resolved flag; I did not confirm it does. |
 | G7 | The PDF's receipt-number column width and the journal's cell widths are in refund-api and were not read here. | AC-4.8 | QE check with `LCX26/1000` in the batch PDF; no UI work. |
-| G8 | `sharesPrefix` is defined for an employee with a code too ("another employee's code/initials/issued prefix equals `prefix`"). A code cannot equal another's code (unique) but can equal another employee's **initials or issued prefix**; the plan's D13 flags "no code" only and AC-4.3 forbids it for other **issued** prefixes, not for another employee's derived initials with no number yet. | plan § API vs § D8 | Confirm the badge rule here (flag only when no code). If a code equal to someone else's derived initials is possible, that case is a shared prefix **caused by** the code and deserves a flag too. |
+| G8 (resolved: DS-8, badge with or without a code) | `sharesPrefix` is defined for an employee with a code too ("another employee's code/initials/issued prefix equals `prefix`"). A code cannot equal another's code (unique) but can equal another employee's **initials or issued prefix**; the plan's D13 flags "no code" only and AC-4.3 forbids it for other **issued** prefixes, not for another employee's derived initials with no number yet. | plan § API vs § D8 | Confirm the badge rule here (flag only when no code). If a code equal to someone else's derived initials is possible, that case is a shared prefix **caused by** the code and deserves a flag too. |
 | G9 | The list shows "Last number" as issued, but a code change does not alter it, so after a change the column still shows the old prefix until the next numbered line. This is correct (AC-4.4) and confusing at a glance. | S2 | The dialog description says so; no extra UI. If accountants ask, add a "Next number will start with" line (derived: prefix + year). |
