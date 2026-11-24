@@ -97,3 +97,61 @@ describe('ChangeHistoryDrawer: accessibility (axe)', () => {
     await expectNoAxeViolations()
   })
 })
+
+// T18 (specs/20261124-receipt-numbers-from-the-register, DS-4, design S4): a history fetched when the drawer opens.
+describe('ChangeHistoryDrawer: loading and error (DS-4)', () => {
+  const base = { subject: 'Luca Conti', valueColumns, onClose: vi.fn() }
+
+  it('loading: a skeleton and one polite line, no table and no empty text', () => {
+    render(<ChangeHistoryDrawer {...base} rows={[]} loading />)
+    expect(screen.getByTestId('refund-history-loading')).not.toBeNull()
+    expect(screen.getByText('Loading the history…').closest('[aria-live]')?.getAttribute('aria-live')).toBe('polite')
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByTestId('refund-history-empty')).toBeNull()
+  })
+
+  it('error: the message and a Retry inside the drawer, no table and no empty text', () => {
+    const onRetry = vi.fn()
+    render(<ChangeHistoryDrawer {...base} rows={[]} error={{ message: 'Could not load the history.', onRetry }} />)
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Could not load the history.')).not.toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Retry' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByTestId('refund-history-empty')).toBeNull()
+  })
+
+  it('a retry in flight keeps the error banner (and its Retry button) and says it is loading', () => {
+    render(
+      <ChangeHistoryDrawer
+        {...base}
+        rows={[]}
+        loading
+        error={{ message: 'Could not load the history.', onRetry: vi.fn() }}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Retry' })).not.toBeNull()
+    expect(screen.getByText('Loading the history…')).not.toBeNull()
+    expect(screen.queryByTestId('refund-history-loading')).toBeNull()
+  })
+
+  it('with neither prop it is unchanged: no loading line and no banner', () => {
+    render(<ChangeHistoryDrawer {...base} rows={rows} />)
+    expect(screen.queryByText('Loading the history…')).toBeNull()
+    expect(screen.queryByTestId('error-banner')).toBeNull()
+    expect(screen.getByRole('table')).not.toBeNull()
+  })
+
+  it('has no axe violations while loading, on error, empty and loaded', async () => {
+    const { rerender } = render(<ChangeHistoryDrawer {...base} rows={[]} loading />)
+    await expectNoAxeViolations()
+    rerender(
+      <ChangeHistoryDrawer {...base} rows={[]} error={{ message: 'Could not load the history.', onRetry: vi.fn() }} />,
+    )
+    await expectNoAxeViolations()
+    rerender(<ChangeHistoryDrawer {...base} rows={[]} />)
+    await expectNoAxeViolations()
+    rerender(<ChangeHistoryDrawer {...base} rows={rows} />)
+    await expectNoAxeViolations()
+  })
+})

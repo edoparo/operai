@@ -9,11 +9,20 @@
  * trapped, Escape and × close it. Mount to open, unmount to close.
  *
  * It reads: it holds no form and never writes.
+ *
+ * specs/20261124-receipt-numbers-from-the-register (T18, plan DS-4, design S4): two optional props for a history that
+ * is fetched when the drawer opens (the receipt-code history), rather than embedded in a list.
+ *   - `loading`: `SkeletonRows` and one polite line.
+ *   - `error`: an `ErrorBanner` with Retry inside the drawer. It wins over `loading`: a caller that retries sets
+ *     `loading` and keeps `error` until the answer is in, so the Retry button is not removed from under the user's
+ *     focus; the polite line is then said without the skeleton.
+ * With neither prop the drawer is exactly what it was.
  */
 
-import { DataTable, Drawer, formatDateTime } from '@operai/ui'
+import { DataTable, Drawer, SkeletonRows, VisuallyHidden, formatDateTime } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import { strings } from '../strings'
+import ErrorBanner from './ErrorBanner'
 
 export type HistoryRow = { at: string; byEmail: string }
 
@@ -25,6 +34,10 @@ export type ChangeHistoryDrawerProps<R extends HistoryRow> = {
   /** The columns that say what changed, shown after "When" and "By" (an account and a VAT code; a rate and its origin). */
   valueColumns: readonly DataTableColumn<R>[]
   onClose: () => void
+  /** The rows are being fetched (DS-4). */
+  loading?: boolean
+  /** The fetch failed (DS-4): the message and the Retry that starts it again. */
+  error?: { message: string; onRetry: () => void }
 }
 
 export default function ChangeHistoryDrawer<R extends HistoryRow>({
@@ -32,6 +45,8 @@ export default function ChangeHistoryDrawer<R extends HistoryRow>({
   rows,
   valueColumns,
   onClose,
+  loading = false,
+  error,
 }: ChangeHistoryDrawerProps<R>) {
   const t = strings.settings.history
   const newestFirst = rows.map((row, index) => ({ row, index })).reverse()
@@ -58,7 +73,12 @@ export default function ChangeHistoryDrawer<R extends HistoryRow>({
       closeLabel={t.closeLabel}
       testIdPrefix="refund-history-drawer"
     >
-      {newestFirst.length === 0 ? (
+      {loading && <VisuallyHidden live>{t.loading}</VisuallyHidden>}
+      {error ? (
+        <ErrorBanner message={error.message} onRetry={error.onRetry} />
+      ) : loading ? (
+        <SkeletonRows rows={4} testId="refund-history-loading" />
+      ) : newestFirst.length === 0 ? (
         <p className="text-sm text-soft" data-testid="refund-history-empty">
           {t.empty}
         </p>

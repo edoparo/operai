@@ -322,12 +322,13 @@ Derived from these committed files:
   - done when: `cd $WT/refund-ui && pnpm exec vitest run src/lib/receiptCodesApi.test.ts && pnpm exec tsc -b && pnpm lint` is green (mocked fetch: paths, method, body, each error code mapped).
   - evidence: refund-ui vitest 78 files / 1352 tests green (receiptCodesApi.test.ts 12), tsc -b and eslint clean.
 
-- [ ] T18: refund-ui — `ChangeHistoryDrawer` optional `loading` and `error` props (DS-4) — refs: AC-4.7 — deps: T16
+- [x] T18: refund-ui — `ChangeHistoryDrawer` optional `loading` and `error` props (DS-4) — refs: AC-4.7 — deps: T16
   - touch: `refund-ui/src/components/ChangeHistoryDrawer.tsx`, `refund-ui/src/components/ChangeHistoryDrawer.test.tsx`
   - agent: frontend-dev · rui
   - Details: design S4: loading → `SkeletonRows` and one polite line; error → `ErrorBanner` with
     Retry inside the drawer (Retry keeps focus); with neither prop the drawer is unchanged.
   - done when: `cd $WT/refund-ui && pnpm exec vitest run src/components/ChangeHistoryDrawer.test.tsx src/pages/settings/DefaultsSettingsView.test.tsx && pnpm exec tsc -b && pnpm lint` is green, with jsdom axe (`expectNoAxeViolations`) on loading, error, empty and loaded, and the existing defaults-history tests unchanged.
+  - evidence: refund-ui vitest 78 files / 1357 tests green (ChangeHistoryDrawer.test.tsx 14, +5 for loading/error/retry-in-flight/unchanged/axe; DefaultsSettingsView history tests unchanged), tsc -b and eslint clean.
 
 - [ ] T19: refund-ui — `ReceiptCodeDialog` (Set/Change, one field, no Clear, no `maxLength`, a–z upper-cased as typed, client shape check, 422/409 field errors, 403/404/network dialog errors) — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.4, AC-4.5, AC-4.6 — deps: T16, T17
   - touch: `refund-ui/src/components/settings/ReceiptCodeDialog.tsx`, `refund-ui/src/components/settings/ReceiptCodeDialog.test.tsx`
