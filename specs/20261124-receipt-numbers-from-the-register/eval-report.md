@@ -1,12 +1,14 @@
 ---
 spec: 20261124
 evaluated: 2026-11-24
-round: 2
+round: 3
 rubric: default-v2
-score: 80.9
+score: 83.5
 verdict: PASS
 round1_score: 75.7
 round1_verdict: FAIL
+round2_score: 80.9
+round2_verdict: PASS
 ---
 # Eval report: Receipt numbers from the accountant's register, and a receipt code per employee
 
@@ -281,4 +283,131 @@ this.
      This verdict does not authorise T34.
 - If T31 or T32 surfaces a defect, route the fix through `/wellforge:implement` as a new task, re-run QE and re-run
   this eval.
+- The evaluator changed no code, test, spec, task or status. Only this file was written.
+
+# Round 3 (HEAD `473ad2f2`, score 83.5, PASS)
+
+**What was evaluated.** Branch `refund/register-numbers` at `473ad2f2`. Round 2 was committed as `146683df`, and it
+evaluated the code at `1fd4d503`. `git diff --stat 1fd4d503 146683df` contains only the round-2 report, so the delta for
+this round is `146683df..473ad2f2`: 6 commits, 17 files, +488/−56. I read each one with `git show` / `git diff`:
+
+- `cfab4120` (refund-ui, code): this is round 2's design-fidelity fix.
+  - `ReceiptCodesCard.tsx:255` now picks `sharesPrefixHintWithCode` for a flagged row that already has a code.
+  - The new en/it strings are at `strings.ts:269` and `:1356`.
+  - A new card test, "the hidden hint fits the row…", checks both rows and also checks that the coded row does NOT get
+    the old copy. The `aria-describedby` test now expects a different hint for each row.
+  - design.md copy table has the new key (:245). T29 is checked with evidence.
+  - The trace gets `agents` entries for the round-1 evaluator, T36, the docs sync, the QE re-run and the round-2
+    evaluator. It also gets `verdicts.eval`/`qe` and `finished`/`result: escalated`.
+  - The stale sentences in ADR propose-confirm-run Evidence :101/:108 and in plan.md:824 are corrected, and the plan
+    step-0 nit is worded (plan :117-119).
+- `1e28a399` (refund-ui, code): this fixes the two WCAG 2.5.3 `label-content-name-mismatch` failures that the first
+  live e2e found.
+  - `setLabel` is now "Set code for X" / "Imposta codice per X". The visible text is "Set code" / "Imposta codice"
+    (`strings.ts:280`, `:1366`), so the accessible name now contains it.
+  - `batchPdfLink.downloadLabel` is now "Download PDF of compiled batch …" / "Scarica PDF del lotto …", and the visible
+    text is "Download PDF" / "Scarica PDF".
+  - The unit tests were updated to the new names. No e2e selector used the old names: I grepped `shell/e2e` and
+    `refund-ui/src` and found none.
+- `4756f207`, `f904cc42`, `473ad2f2` (docs): qe-report.md § Live e2e and § Re-run after the A11Y-F1 shell fix, and
+  design.md § Browser accessibility pass (:341-363). T32 is checked with evidence (tasks.md:477), and the changeset is
+  `.changeset/shell-narrow-rail.md`.
+- `06998068` (shell, code, outside this feature's ACs; judged only for regressions to this feature and for test
+  quality).
+  - Below 640 px the rail keeps `w-16` in the layout. The toggle opens an absolute `w-56` panel over the content, with a
+    `fixed inset-0` backdrop.
+  - The panel closes on Escape (nav `onKeyDown`), a backdrop click, a pathname change or a media-query change.
+  - The panel's state is not stored. Wide viewports are unchanged: `collapsed = narrow ? !overlayOpen : stored`
+    (`SidebarCollapsedProvider.tsx`).
+  - There are 4 new tests in `ShellLayout.test.tsx`, which stub `matchMedia` with a controllable listener set and remove
+    the stub in `afterEach`. They cover: narrow keeps `w-16` with the stored choice expanded; the overlay leaves the
+    layout width unchanged and is not stored; Escape, backdrop and navigation each close it; and widening the viewport
+    restores the stored choice.
+  - QE reports that a mutation back to the old width rule is killed.
+
+**Carried forward from round 2 without re-checking:** all refund-api, auth and DB-backed evidence (the 2339/0 whole-suite
+re-run, the mutations, the T36 order), and the release script. `git diff --stat 146683df..473ad2f2` shows no change under
+`refund-api/`, `auth/` or `shell/e2e/`, and none to any migration.
+
+**Verification I re-ran at `473ad2f2`.** These checks are DB-free only. I touched no database, env file, Railway, Vercel
+or production.
+
+| Check | Result |
+|---|---|
+| refund-ui `pnpm exec vitest run` | 84 files / **1441 pass**. This is round 2's 1440 plus the new hint test, and equals qe-report § Live e2e. |
+| refund-ui `pnpm exec tsc -b`, `pnpm lint` | both clean |
+| shell `pnpm exec vitest run` | **728 pass**, 22 skipped. This matches qe-report § Re-run. **1 file failed to load:** `src/federation/remoteVersionExposes.integration.test.ts` runs `pnpm build` in `estimai-ui`, which has no `node_modules` in this worktree (`sh: tsc: command not found`). This is environmental and unrelated to the delta. QE's "728 passed" line does not mention it. |
+| shell `pnpm exec tsc -b`, `pnpm lint` | both clean |
+| `shell/e2e/refund-receipt-codes*.spec.ts` | It has the browser axe checkpoints that qe-report cites: `axeViolations` with `emulateMedia({ colorScheme })`, and "dark checkpoint: the loaded card has no axe violation in dark" (:210-216). |
+| Live e2e (30/30, twice) and the browser pass | **Not run by me**, as instructed. I relied on qe-report § Live e2e / § Re-run and design.md § Browser accessibility pass. |
+
+**The delta, read adversarially.**
+
+- **Hint fix.** It is correct and minimal. The test is meaningful: it would fail if the coded row still got the old copy,
+  because it uses `queryByText(…)` → `toBeNull`. The Italian copy is not asserted by a card test, but `it: Strings` makes
+  the key mandatory at type level.
+- **Accessible names.** The names now contain the visible text in both locales. The `Change` button keeps "Change the
+  receipt code of X", whose visible text is "Change", so its name contains it as well. The live axe in the e2e is what
+  pins WCAG 2.5.3. No unit test states the invariant generally ("name starts with visible text"), so a future copy edit
+  is caught only by the e2e.
+- **Shell fix: no regression to this feature.**
+  - At or above 640 px the old behaviour is kept, apart from the `relative` class and the inner `h-full` wrapper.
+  - The feature's e2e ran 30/30 after it.
+  - Its 320 px measurement (main 251 px) is what makes the card's reflow check pass.
+- **Shell fix: weaknesses.** These are outside this feature's ACs and not scored against them:
+  - the overlay is non-modal, so Tab from the panel goes into content under the backdrop (WCAG 2.2 2.4.11 risk), and
+    focus does not move into the panel when it opens;
+  - Escape works only while focus is inside `nav`;
+  - `noHardcodedStrings` now treats `'change'` and `'undefined'` as technical across the shell. This is a broad
+    allowance: a hard-coded visible "change" would no longer be caught.
+
+| Dimension | Weight | Score (/5) | Floor | Pass vs floor | Weighted | Evidence |
+|---|---|---|---|---|---|---|
+| AC satisfaction | 35 | 4 | 4 | pass (at floor) | 28.0 | All 52 ACs map to green tests (qe-report:84-137, carried forward; no backend change in the delta). **New:** the assembled system has run, with `pnpm e2e e2e/refund- e2e/accounting` 30/30 after `1e28a399` and again after `06998068` (qe-report § Live e2e, § Re-run). Every `refund-*.spec.ts` was included, which gives live evidence for AC-4.1/4.3/4.7/4.9. This closes one of round 2's two "not 5" reasons. **Still not 5:** <br>• US-1's production shape (77/8/3 over 88 lines) is still shown only on the synthetic reproduction (T31 open); <br>• AC-2.8's global-setup three-step release was not exercised live, because the dev DB was already released and exited 0 at step 0 (qe-report:199). |
+| Spec fidelity / no drift | 20 | 5 | 3 | pass | 20.0 | Each copy change is recorded spec-first and dated in design.md's copy table: `sharesPrefixHintWithCode` at :245 with the reason, and `setLabel` at :248 with "WCAG 2.5.3". Round 2's plan step-0 nit is worded (plan :117-119). Round 2's stale ADR and plan sentences are corrected. The shell fix is outside scope but is owner-requested, named as outside this feature (design :358, tasks.md:477) and carries a changeset. No unrequested scope inside the feature. **Nits, not scored:** stale "PENDING"/"stays open" sentences contradict T32 being checked: qe-report:9, :28, :141, :191, and **:199** ("The manual browser pass … is not done: T32 stays open for it"), which sits in the new section itself and is not retracted by § Re-run. Likewise design.md:151 ("to be verified in the browser pass") and :292 ("Claim … none is claimed") do not point to § Browser accessibility pass. |
+| Test quality | 20 | 4 | 3 | pass | 16.0 | **Closed since round 2:** <br>• the e2e has executed (30/30, twice); <br>• browser axe has run: in the e2e at every checkpoint, light and dark (`refund-receipt-codes` spec :84-95, :210-216); <br>• the new hint test discriminates between rows; <br>• the 4 shell tests are behavioural (layout width, storage, the 4 close paths, widening), and a mutation was killed (qe-report § Re-run). <br>**Held at 4:** <br>• AC-1.12 is still unit-only; <br>• there is no real-Excel-saved synthetic workbook; <br>• the global setup's release on a database not yet released has never run live; <br>• the whole-suite refund-api count with the "(L-1, T36)" test is still inferred (round 2 item, not re-measured); <br>• the shell suite has a file that cannot load in this worktree (`remoteVersionExposes.integration`), and QE's "728 passed" does not disclose it. |
+| Code quality & conventions | 15 | 4 | 3 | pass | 12.0 | The feature delta is idiomatic and minimal: a ternary at `ReceiptCodesCard.tsx:255`, documented string keys (`strings.ts:268`), and en/it parity enforced by the `Strings` type. The shell fix is well structured: the query is a named constant, the `try/catch` guard for jsdom is in `readNarrowViewport`, the context type is documented, and lint and tsc are clean. Against it: the non-modal overlay focus handling and the broad `'change'`/`'undefined'` allowlist above. **Unchanged from round 2 (carried forward):** <br>• `accounting-release.ts` is about 1,390 lines; <br>• there is no read cap (I-3); <br>• the e2e global setup runs against whatever DB direnv resolves. |
+| Design fidelity (UI) | 15 | 4 | 3 | pass | 12.0 | Round 2 set the bar for 4: the coded-row copy fix AND a recorded browser pass of hotspots 1-5 in light, dark and 320 px. Both are met. <br>• The copy fix is `cfab4120` with its test, and the design copy table matches `strings.ts`. <br>• The browser pass is recorded in design.md:341-363. Axe shows 0 violations in light and dark × en and it, and hotspots 1-5 are each verified with concrete DOM facts (focus target, `role="status"`, `aria-invalid`, `aria-describedby`, `alertdialog` first focus). The 320 px reflow failed first, was fixed suite-wide by `06998068`, and was re-measured (main 251 px, no horizontal scroll). <br>**Not 5:** <br>• no real screen reader was used (design:361); <br>• the walk was scripted by the orchestrator and is not a committed, repeatable artefact, apart from the e2e axe checkpoints; <br>• identical button names for two employees with the same full name are noted and left unfixed (low); <br>• design.md :151 and :292 were not updated to point to the pass (nit). |
+| Trajectory | 10 | 4 | 2 | pass | 8.0 | **For:** <br>• round 2's trajectory items are done in `cfab4120`: `verdicts.eval`, `verdicts.qe`, the `agents` entries for T36, the docs sync, the QE re-run and both evaluator rounds, the trace closed with `result: escalated`, and the stale ADR and plan sentences fixed; <br>• the sequence is in order and task-tagged: round 2 PASS → hint fix → live e2e found 2 axe failures → fix `1e28a399` → e2e 30/30 → browser pass → A11Y-F1 found → owner-requested shell fix → e2e 30/30 again; <br>• T32's evidence line is honest about who ran it (the orchestrator, at the owner's request) and about what was not exercised. <br>**Against (why not 5):** <br>• the morning session (07:42-08:19: two code commits, live e2e, browser pass) has **no run trace**. The 20261124 trace ends at `cfab4120` (03:13, `finished` 05:00), and no new `.forge/runs/*` file exists, although the repo has a precedent (`2026-11-20T13-00-00Z-live-e2e-and-close-…json`); <br>• `1e28a399` and `06998068` have no task entries with touch list or overlap check, only T32's evidence line; <br>• T32 is an [OWNER] task, checked by the orchestrator. That was sanctioned by the owner's request, but qe-report:199 still says it "stays open". |
+| **Total** | 115 | | | | **96.0 / 115 = 83.5/100** | |
+
+**Verdict: PASS.** The total of 83.5 is at least `pass_score` 80, and every applicable dimension is at or above its
+floor. AC satisfaction (4) is still exactly at its floor. The change from round 2 is design fidelity moving from 3 to 4
+(+3.0 weighted, +2.6 normalised). It was earned by the two things round 2 named: the coded-row hint and the recorded
+browser pass.
+
+**Blocking findings: none.** As in round 2, this PASS is not production evidence. T31 (a propose against production
+lines, reconciled to 77/8/3) is still open. If it contradicts the synthetic evidence, AC satisfaction drops below its
+floor and the verdict becomes FAIL.
+
+## Findings (round 3)
+
+- **AC satisfaction (4, at floor). Owner: owner.** T31 is the only remaining route to 5, and the only thing that can
+  still fail the feature. Exercising the global setup's three-step release on a fresh, unreleased dev DB would close the
+  live gap for AC-2.8.
+- **Trajectory (4). Owner: orchestrator, bookkeeping.**
+  - Record the morning session in the trace, either as a new `.forge/runs/…live-e2e…json` or appended `agents` entries:
+    `1e28a399`, the live e2e, the browser pass, `06998068`, and the round-3 eval.
+  - Give the two post-round-2 code fixes task lines (for example T37 for the accessible names and T38 for A11Y-F1, the
+    latter marked outside the feature), each with `touch:` and evidence.
+- **Docs nits (spec and design fidelity, not scored down).**
+  - Correct qe-report:199: "T32 stays open" is superseded by design.md § Browser accessibility pass. Mark lines :9, :28,
+    :141 and :191 as superseded or point them forward.
+  - Point design.md:151 and :292 to § Browser accessibility pass.
+- **Test quality (4).**
+  - Record a measured whole-suite refund-api count at the next QE touch.
+  - Note in qe-report that `remoteVersionExposes.integration` needs `estimai-ui` installed (it is environmental, but it
+    should be disclosed).
+  - Optionally, add a unit-level label-in-name check for the action buttons of the card.
+- **Shell follow-ups (outside this feature; owner's call).** These are A11Y-F2 (footer contrast 3.01:1) and the
+  A11Y-F1 overlay's focus handling: move focus into the panel on open, and keep Tab out of the content under the
+  backdrop, or make it a proper modal. Narrow the `'change'`/`'undefined'` allowlist in `noHardcodedStrings.test.ts`
+  to the files that need it.
+
+## Recommended next step (round 3)
+
+- **PASS.** The evaluator does not change spec status or check tasks. T30's deps (T29 and T32) are now checked, so
+  the orchestrator may run the T30 gate. The spec moves to `done` only through T30. This verdict does not authorise
+  T34 or any production step. T31 and T33 are still owner steps before the release.
+- If T31 surfaces a defect, route the fix through `/wellforge:implement` as a new task, re-run QE and re-run this eval.
 - The evaluator changed no code, test, spec, task or status. Only this file was written.

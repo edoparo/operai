@@ -148,7 +148,7 @@ Code *
 - Field `Code`, required, mono, `autocomplete="off"`, `autocapitalize="characters"`, `spellcheck=false`, hint "Two or three letters, A to Z." (real hint, in `aria-describedby`).
 - **Save** disabled while the field is empty or equal to the saved code (after trimming and capitalising); busy label "Saving...".
 - Errors: shape (client and 422) and in-use (409) are **field errors** (`errorRole="alert"`), focus moved to the field; 403, 404 and network are the dialog's `error`.
-- Focus lands in the field on open (library behaviour for `FormDialog`'s first control; to be verified in the browser pass).
+- Focus lands in the field on open (library behaviour for `FormDialog`'s first control; verified in the browser pass: the field is focused).
 
 | State | Behaviour |
 |---|---|
@@ -289,7 +289,7 @@ Format is now `<2 or 3 letters><yy>/<seq>`: `LC26/039`, `LCX26/040`. They are te
 
 Conventions of `specs/20261118-refund-accounting-export/design.md` § Accessibility apply; checks below are what is specific here.
 
-**Claim.** Written without running the app. Only jsdom axe (`expectNoAxeViolations`, `refund-ui/src/test-support/axe.ts`, with `color-contrast`, `region`, `landmark-one-main`, `page-has-heading-one` off) and the e2e **browser** axe (`axeViolations`, `shell/e2e`) can be claimed once built. No hand contrast, 320 px reflow, focus-order walk or screen-reader result exists for these screens; none is claimed.
+**Claim.** Written without running the app (the browser pass was done later: § Browser accessibility pass). Only jsdom axe (`expectNoAxeViolations`, `refund-ui/src/test-support/axe.ts`, with `color-contrast`, `region`, `landmark-one-main`, `page-has-heading-one` off) and the e2e **browser** axe (`axeViolations`, `shell/e2e`) can be claimed once built. No hand contrast, 320 px reflow, focus-order walk or screen-reader result exists for these screens; none is claimed.
 
 **Per screen**
 

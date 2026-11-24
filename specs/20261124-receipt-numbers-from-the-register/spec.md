@@ -1,10 +1,11 @@
 ---
 id: 20261124
 slug: receipt-numbers-from-the-register
-status: approved
+status: done
 rigor: production
 created: 2026-11-24
 approved: 2026-11-24
+done: 2026-11-24
 ---
 
 # Receipt numbers from the accountant's register: one number per receipt, and a receipt code per employee

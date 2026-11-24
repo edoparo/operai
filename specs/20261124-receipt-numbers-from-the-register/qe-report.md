@@ -6,7 +6,7 @@ commit `c0bd8253`, the T28 security review, does not touch code). Run date 2026-
 ## QE verdict: PASS
 
 No product defect found. Three test gaps (four tests) were found by mutation checks and closed with new tests (below). The live e2e, the
-manual browser accessibility pass and the propose run on the real register are owner steps (T31, T32) and are PENDING, not failures.
+manual browser accessibility pass and the propose run on the real register are owner steps (T31, T32) and are PENDING, not failures. *(Update 2026-11-24: T32 done, see § Live e2e and design.md § Browser accessibility pass; T31 still pending.)*
 
 | Check | Threshold | Actual | Result |
 |---|---|---|---|
@@ -196,7 +196,7 @@ Stack: auth, notify-api, refund-api, accounting-api on the shared dev Postgres (
 
 - First run at `cfab4120`: 26 passed, 2 failed, 2 not run. Both failures were axe `label-content-name-mismatch` (WCAG 2.5.3): the receipt codes card's Set code button ("Set a receipt code for X") and the batch page's Download PDF button ("Download compiled PDF for batch …", pre-existing, reached now that the stack has object storage). Fixed in `1e28a399` ("Set code for X", "Download PDF of compiled batch …", en and it; refund-ui 1441 tests green).
 - After the fix: `pnpm e2e e2e/refund-accounting.spec e2e/refund-receipt-codes` 4 passed, then `pnpm e2e e2e/refund- e2e/accounting` **30 passed**, every `refund-*.spec.ts` and `accounting*.spec.ts` included, browser axe at every checkpoint (the receipt codes card in light and dark, the dialog with the 409, the history drawer).
-- Not exercised live: the global setup's three-step release on a database not yet released (the dev database was already released, so it exited 0 at step 0, as designed). The manual browser pass (design § Accessibility hotspots 1-5, 320 px reflow) is not done: T32 stays open for it.
+- Not exercised live: the global setup's three-step release on a database not yet released (the dev database was already released, so it exited 0 at step 0, as designed). The manual browser pass (design § Accessibility hotspots 1-5, 320 px reflow) was done afterwards and T32 is checked (design.md § Browser accessibility pass).
 
 ### Re-run after the A11Y-F1 shell fix (`06998068`)
 

@@ -5,9 +5,9 @@
   "feature": "20261124-receipt-numbers-from-the-register",
   "rigor": "production",
   "started": "2026-11-24T00:00:00Z",
-  "finished": "2026-11-24T05:00:00Z",
+  "finished": "2026-11-24T08:00:00Z",
   "reconstructed": true,
-  "reconstruction_note": "Written by the orchestrator during the unattended overnight run from git history (7f1dfe25..30b178a5) and agent hand-back reports; times are approximate (commit times are local). Escalated: the gate (T30) needs the owner's live e2e (T32); T31, T33 and T34 are owner steps.",
+  "reconstruction_note": "Written by the orchestrator during the unattended overnight run from git history (7f1dfe25..30b178a5) and agent hand-back reports; times are approximate (commit times are local). Escalated: the gate (T30) needs the owner's live e2e (T32); T31, T33 and T34 are owner steps. Updated in the morning session: T32 done, A11Y-F1 fixed, eval round 3, T30 gate passed; open: owner release steps T31, T33, T34.",
   "agents": [
     {
       "agent": "product-owner",
@@ -181,6 +181,21 @@
       "agent": "orchestrator",
       "outcome": "completed",
       "note": "coded-row shares-prefix hint (eval round 2 weak spot) and bookkeeping"
+    },
+    {
+      "agent": "orchestrator",
+      "outcome": "completed",
+      "note": "morning session (owner present): live e2e T32, accessible-name fix 1e28a399, browser a11y pass f904cc42; A11Y-F1 shell narrow rail fixed on the owner's request (06998068), e2e 30/30 after it; A11Y-F2 footer contrast recorded (pre-existing)"
+    },
+    {
+      "agent": "wellforge:evaluator",
+      "outcome": "completed",
+      "note": "eval round 3 at 473ad2f2: PASS 83.5"
+    },
+    {
+      "agent": "orchestrator",
+      "outcome": "completed",
+      "note": "T30 gate passed; spec status done 2026-11-24"
     }
   ],
   "drift_events": [
@@ -219,11 +234,11 @@
     }
   ],
   "verdicts": {
-    "qe": "PASS (T27, re-run after fix rounds)",
+    "qe": "PASS (re-run after the A11Y-F1 fix; live e2e 30/30)",
     "security": "PASS with notes, fix round done (T28, T35)",
-    "eval": "PASS 80.9 (round 2)"
+    "eval": "PASS 83.5 (round 3)"
   },
-  "result": "escalated",
+  "result": "completed",
   "tokens": null,
   "cost_usd": null,
   "terse": false,

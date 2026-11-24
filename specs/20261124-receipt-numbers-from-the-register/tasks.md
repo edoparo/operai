@@ -443,7 +443,7 @@ Derived from these committed files:
   - done when: `/wellforge:eval` produces a passing `eval-report.md`.
   - evidence: eval-report.md round 2, PASS 80.9/100 at `1fd4d503` (round 1 FAIL 75.7); no dimension below its floor (AC satisfaction and design fidelity at the floor until T31/T32). Its one design-fidelity weak spot, the hidden hint of a flagged row that already has a code, is fixed after it with a test (`receiptCodes.sharesPrefixHintWithCode`, en/it, design copy table).
 
-- [ ] T30: **The gate.** All gates green; QE, security review and eval pass; the live e2e reported green; spec status → done — refs: all ACs (nominal) — deps: T29, T32
+- [x] T30: **The gate.** All gates green; QE, security review and eval pass; the live e2e reported green; spec status → done — refs: all ACs (nominal) — deps: T29, T32
   - touch: `specs/20261124-receipt-numbers-from-the-register/spec.md`, `specs/20261124-receipt-numbers-from-the-register/tasks.md`
   - agent: orchestrator · close
   - Details: **this task defines the gate.** It closes only when tasks **T1–T29 and T32** are checked
@@ -454,6 +454,7 @@ Derived from these committed files:
   - done when: `/wellforge:done 20261124-receipt-numbers-from-the-register` accepts.
 
 ## OWNER
+  - evidence 2026-11-24: QE PASS (qe-report.md, re-run after the A11Y-F1 fix), OWASP PASS with notes (T28), eval round 3 PASS 83.5 at `473ad2f2` (eval-report.md), live e2e 30/30 after `06998068`; T1–T29, T32, T35, T36 checked. Open: [OWNER] T31, T33, T34 (release steps, after the gate). Status → done.
 
 - [ ] T31: [OWNER] Propose-mode dry run on the real register, days before the release (plan R1) — refs: AC-2.1, AC-2.2, AC-2.3 (live evidence) — deps: T12
   - touch: none (the register export and the pairing file stay outside the repository)
