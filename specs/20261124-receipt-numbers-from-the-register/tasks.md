@@ -313,13 +313,14 @@ Derived from these committed files:
   - done when: `cd $WT/refund-ui && pnpm exec vitest run src/lib/noHardcodedStrings.test.ts && pnpm exec tsc -b && pnpm lint` is green, and the en/it parity holds (the `it: typeof en` type is the check).
   - evidence: refund-ui vitest 77 files / 1340 tests green (incl. strings.parity and noHardcodedStrings), tsc -b clean, eslint clean; keys under settings.receiptCodes, settings.sections.receiptCodes, settings.descriptionReceiptCodes, settings.history.{loading,loadError,columns.before/after}.
 
-- [ ] T17: refund-ui — `receiptCodesApi.ts` client (list, put, history) with the DS-2 and DS-8 row type and error codes — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.7 — deps: none
+- [x] T17: refund-ui — `receiptCodesApi.ts` client (list, put, history) with the DS-2 and DS-8 row type and error codes — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.7 — deps: none
   - touch: `refund-ui/src/lib/receiptCodesApi.ts`, `refund-ui/src/lib/receiptCodesApi.test.ts`
   - agent: frontend-dev · rui
   - Details: plan § API contracts with `changedAt`, `changedByEmail`, `sharesPrefix`; `putCode(userId,
     code | null)`; errors surface as `ApiError` with `code` (`receipt_code_invalid`,
     `receipt_code_in_use`, `employee_not_found`, `forbidden`), following `accountingApi.ts`.
   - done when: `cd $WT/refund-ui && pnpm exec vitest run src/lib/receiptCodesApi.test.ts && pnpm exec tsc -b && pnpm lint` is green (mocked fetch: paths, method, body, each error code mapped).
+  - evidence: refund-ui vitest 78 files / 1352 tests green (receiptCodesApi.test.ts 12), tsc -b and eslint clean.
 
 - [ ] T18: refund-ui — `ChangeHistoryDrawer` optional `loading` and `error` props (DS-4) — refs: AC-4.7 — deps: T16
   - touch: `refund-ui/src/components/ChangeHistoryDrawer.tsx`, `refund-ui/src/components/ChangeHistoryDrawer.test.tsx`
