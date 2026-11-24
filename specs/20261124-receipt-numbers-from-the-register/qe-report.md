@@ -159,3 +159,33 @@ Files are under `refund-api/` unless noted. "run" = `scripts/accounting-release.
 - shell: `pnpm exec tsc -p tsconfig.e2e.json --noEmit`, `pnpm exec eslint e2e/global-setup.ts e2e/refund-receipt-codes.spec.ts e2e/helpers/refundFixtures.ts`, `pnpm exec playwright test --list`.
 - `bun test tools/env-doctor`, `node scripts/check-changeset.mjs --base=<merge-base with origin/main> --head=HEAD`, `mise run ui:check`.
 - Mutation runs: scratch databases `refund_rn_qe2`; nothing outside `*_rn_*` databases was used. No production, Railway, Vercel or env file was touched.
+
+## Re-run after fix rounds (2026-11-24)
+
+Tree: `0b964797` (T35 `4010237d`, T36 `67f57307`, docs sync) in worktree `operai-rn-qe2`, fresh scratch databases `refund_rn_qe3` and `auth_rn_qe3`.
+
+## QE verdict: PASS
+
+| Check | Threshold | Actual | Result |
+|---|---|---|---|
+| refund-api whole suite | 0 fail | 2339 pass / 0 fail, 97 files | ok |
+| refund-api `bunx tsc --noEmit` | clean | clean | ok |
+| auth `bun test src/authz` | 0 fail | 332 pass / 0 fail (20 files) | ok |
+| auth typecheck | clean | clean | ok |
+| shell `src/e2eGlobalSetup.test.ts` | 0 fail | 6 pass | ok |
+| shell `tsc -p tsconfig.e2e.json`, `playwright test --list` | clean | clean, 273 tests in 58 files | ok |
+| refund-ui `vitest run`, `tsc -b`, `pnpm lint` | green | 1440 pass, both clean | ok |
+| T36 order: released + `--propose` in a worktree | exit 0, file not created, Accounting not asked | test "(D11, L-1) on an already released database..." passes | ok |
+| T36 order: not released + same | exit 1, nothing read, nothing written | existing L-1 test passes; it did not assert the reads, so one test added (below) | ok |
+
+Defects: none. Environment faults: none (E-1, a stale Prisma client, did not recur: `scratch-test.sh` runs `prisma generate`).
+
+Tests added: `refund-api/scripts/accounting-release.cli.test.ts` "(L-1, T36) the refusal on a database not yet released reads nothing from Accounting and auth and writes nothing to Refund" (asserts exit 1, file not created, no request to Accounting or auth, Refund footprint unchanged). The cli file is 42 pass with it; the whole-suite count above was taken just before it was added (so 2340 with it).
+
+Mutations (all restored, `git diff` clean on production code):
+1. T36 order swapped back (`afterMarker` before the marker read): "(D11, L-1) on an already released database..." FAILS (41 pass / 1 fail).
+2. Refusal removed: the L-1 test and the new T36 test FAIL (40 pass / 2 fail).
+3. L-2 (`neutralise` on currency and shape removed): the L-2 test in `pairingFile.test.ts` FAILS.
+4. I-9 (`assertLocalDatabase` allows everything): 3 of 6 `e2eGlobalSetup` tests FAIL.
+
+Commands: `scratch-test.sh <WT> refund_rn_qe3` (prisma generate and migrate included), `bunx tsc --noEmit` in refund-api; auth `bunx prisma migrate deploy`, `bun test src/authz`, `bun run typecheck` on `auth_rn_qe3`; shell `pnpm exec vitest run src/e2eGlobalSetup.test.ts`, `pnpm exec tsc -p tsconfig.e2e.json --noEmit`, `pnpm exec playwright test --list`; refund-ui `pnpm exec vitest run`, `pnpm exec tsc -b`, `pnpm lint`. Only `*_rn_*` databases; no production, Railway, Vercel or env file touched. Not re-run (no change since the first verdict): refund-ui build, changeset check. The live e2e stays PENDING (T32). OWASP: T28 already covered these fixes; no further pass needed.
