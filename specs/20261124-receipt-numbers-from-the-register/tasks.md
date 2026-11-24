@@ -374,7 +374,7 @@ Derived from these committed files:
   - done when: `cd $WT/shell && pnpm exec tsc -p tsconfig.e2e.json --noEmit && pnpm exec eslint e2e/global-setup.ts && pnpm exec playwright test --list` is clean (the live run is T32).
   - evidence: `tsc -p tsconfig.e2e.json --noEmit` clean, `eslint e2e/global-setup.ts` clean, `playwright test --list` 270 tests in 57 files; `confirmProposedPairing` output byte-identical to refund-api's `confirmProposed` on a BOM/CRLF/quoted sample and throws naming `line L1` on an `unresolved` record (run with bun); the live run (propose, confirm, run on the dev stack) is T32. The setup passes no `--offsets`: the header-only workbook is the statement "no hand-issued number".
 
-- [ ] T23: e2e — `refund-receipt-codes.spec.ts`: accounting user sets, changes (409 shown), clears a code and reads the history by keyboard; a non-holder sees no Settings entry for it; browser axe at the card, the dialog with a 409 and the drawer — refs: AC-4.1, AC-4.3, AC-4.7, AC-4.9 — deps: T1, T5, T21, T22
+- [x] T23: e2e — `refund-receipt-codes.spec.ts`: accounting user sets, changes (409 shown), clears a code and reads the history by keyboard; a non-holder sees no Settings entry for it; browser axe at the card, the dialog with a 409 and the drawer — refs: AC-4.1, AC-4.3, AC-4.7, AC-4.9 — deps: T1, T5, T21, T22
   - touch: `shell/e2e/refund-receipt-codes.spec.ts`, `shell/e2e/helpers/refundFixtures.ts`
   - agent: qe · e2e
   - Details: design § Accessibility "Tests the tasks should carry" (keyboard journeys, browser
@@ -382,6 +382,7 @@ Derived from these committed files:
     cleared in `afterEach` through the API, and the test codes are drawn from letters no seeded
     employee derives (helper in `refundFixtures.ts`).
   - done when: `cd $WT/shell && pnpm exec tsc -p tsconfig.e2e.json --noEmit && pnpm exec eslint e2e/refund-receipt-codes.spec.ts e2e/helpers/refundFixtures.ts && pnpm exec playwright test --list` is clean and lists the spec (the live run is T32).
+  - evidence: `tsc -p tsconfig.e2e.json --noEmit` clean, `eslint` clean on the spec, `helpers/refundFixtures.ts` and `global-setup.ts`; `playwright test --list` 273 tests in 58 files (was 270), the spec lists 3 (keyboard journey with 409 and axe at card, dialog and drawer; dark checkpoint; non-holder). Static only: the live run needs the e2e stack and is T32. Selectors read from refund-ui (`receipt-code-*` test ids, `refund-history-*`, nav link `Settings` of `Refund navigation`); the accountant relies on the `accounting` role's `receipt-code:manage` seed (T1).
 
 ## DOCS — runbook, AGENTS.md, ADR amendment, changeset
 

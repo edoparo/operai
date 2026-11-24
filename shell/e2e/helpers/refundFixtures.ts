@@ -211,3 +211,57 @@ export async function snapshotAccountingDefaults(token: string, types: readonly 
     }
   }
 }
+
+// ─── Receipt codes (specs/20261124-receipt-numbers-from-the-register, T23) ────────────────────────────────────────────────
+//
+// `GET/PUT /accounting/receipt-codes` need `receipt-code:manage` (the `accounting` and `admin` roles, AC-4.9). The employees the
+// list shows are those who have a refund request, so a test employee is made known to Refund with an (empty) draft: the draft
+// stays on the shared development database, as the drafts of the other refund journeys do. A code a journey sets is cleared in
+// `afterEach` through the API (its history rows stay: they are append-only).
+
+/** One row of `GET /accounting/receipt-codes` (the fields these journeys read). */
+export interface ReceiptCodeRow {
+  userId: string
+  email: string
+  initials: string
+  code: string | null
+  prefix: string
+  lastNumber: string | null
+}
+
+/** Makes `token`'s owner known to Refund: the receipt-code list shows an employee after their first request. Returns the draft's id. */
+export async function makeKnownToRefund(token: string): Promise<string> {
+  return (await refundApi<{ id: string }>(token, 'POST', '/requests')).id
+}
+
+export async function listReceiptCodeRows(token: string): Promise<ReceiptCodeRow[]> {
+  return (await refundApi<{ employees: ReceiptCodeRow[] }>(token, 'GET', '/accounting/receipt-codes')).employees
+}
+
+/** Sets (`code`) or clears (`null`) an employee's receipt code through the API; never throws on a status, the caller asserts it. */
+export function putReceiptCode(token: string, userId: string, code: string | null): Promise<Call> {
+  return refundCall(token, 'PUT', `/accounting/receipt-codes/${encodeURIComponent(userId)}`, { code })
+}
+
+/**
+ * `count` valid receipt codes (three capitals) that no employee of the database holds, derives as initials or has a number
+ * issued with: drawn from letters (Q X Z J K W V Y) that no seeded employee derives, then checked against every prefix in the list
+ * as it is NOW. Call it after the test employees exist, so their own initials are in the list too. Random, so two runs on the same
+ * database rarely draw the same code; a code left behind by a crashed run is excluded by the check, not by luck.
+ */
+export async function unusedReceiptCodes(token: string, count: number): Promise<string[]> {
+  const taken = new Set<string>()
+  for (const row of await listReceiptCodeRows(token)) {
+    for (const value of [row.code, row.prefix, row.initials, row.lastNumber?.match(/^[A-Z]+/)?.[0]]) if (value) taken.add(value)
+  }
+  const letters = 'QXZJKWVY'
+  const pool: string[] = []
+  for (const a of letters) for (const b of letters) for (const c of letters) pool.push(`${a}${b}${c}`)
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j]!, pool[i]!]
+  }
+  const free = pool.filter((candidate) => !taken.has(candidate)).slice(0, count)
+  if (free.length < count) throw new Error(`[refundFixtures] only ${free.length} of ${count} unused receipt codes are left`)
+  return free
+}
