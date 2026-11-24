@@ -292,7 +292,7 @@ Derived from these committed files:
 
 ## PDF — widths (DS-7)
 
-- [ ] T15: refund-api — batch PDF receipts cell breaks an over-wide token after its en dash; width tests for 3-letter prefixes and 4–5-digit sequences; journal Description with a 3-letter number — refs: AC-4.8 — deps: none
+- [x] T15: refund-api — batch PDF receipts cell breaks an over-wide token after its en dash; width tests for 3-letter prefixes and 4–5-digit sequences; journal Description with a 3-letter number — refs: AC-4.8 — deps: none
   - touch: `refund-api/src/batches/pdf.ts`, `refund-api/src/batches/pdf.test.ts`, `refund-api/src/accounting/exportFormat.test.ts`
   - agent: backend-dev · pdf
   - Details: plan DS-7. A local `wrapReceipts` in `pdf.ts` pre-splits a token wider than

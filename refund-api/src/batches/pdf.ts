@@ -64,7 +64,7 @@
  * feature, WellD Italia before the release) shows "—".
  */
 
-import type { PDFDocument, PDFPage } from "pdf-lib";
+import type { PDFDocument, PDFFont, PDFPage } from "pdf-lib";
 import { computeSubtotals, type LineRow } from "../requests/requests.service";
 import type { Subtotal } from "../requests/requests.schemas";
 import { COLOR, CONTENT_WIDTH, TYPE } from "../requests/documentTheme";
@@ -178,6 +178,24 @@ export function compressReceiptNumbers(numbers: readonly string[]): string {
     i = j + 1;
   }
   return parts.join(", ");
+}
+
+/**
+ * Wraps the receipts cell (DS-7, specs/20261124-receipt-numbers-from-the-register/plan.md). The shared `wrapText` never breaks
+ * a word, so a range with a 4-digit sequence (`LCX26/1000–1002,`, wider than the column) would run into the next column.
+ * A token wider than `maxWidth` is first split AFTER its en dash (`LCX26/1000–` / `1002,`), then the shared wrapper does the
+ * rest. A token that fits, or has no en dash, is left exactly as it is, so a cell that fitted before wraps the same way.
+ */
+export function wrapReceipts(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const pieces = text
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((token) => {
+      const dash = token.indexOf("\u2013");
+      if (dash < 0 || dash === token.length - 1 || font.widthOfTextAtSize(token, size) <= maxWidth) return [token];
+      return [token.slice(0, dash + 1), token.slice(dash + 1)];
+    });
+  return wrapText(pieces.join(" "), font, size, maxWidth);
 }
 
 export interface BatchPdfEmployee {
@@ -484,7 +502,7 @@ export async function renderBatchPdf(input: BatchPdfInput): Promise<Buffer> {
         { key: "decided", lines: [decided] },
         {
           key: "receipts",
-          lines: receipts === "" ? ["—"] : wrapText(receipts, fonts.value, TYPE.value, DETAIL.columns[4]!.width - 6),
+          lines: receipts === "" ? ["—"] : wrapReceipts(receipts, fonts.value, TYPE.value, DETAIL.columns[4]!.width - 6),
           ...(receipts === "" ? { muted: true } : {}),
         },
         {

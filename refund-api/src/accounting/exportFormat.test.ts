@@ -204,6 +204,7 @@ describe("the Description (AC-6.13, SO-9)", () => {
 
   it("CHF: `<reason> [<receipt number>] <employee>`, with no currency and no second amount", () => {
     expect(describeLine(base)).toBe("Cancelleria [MC26/001] Matteo Codogno");
+    expect(describeLine({ ...base, receiptNumber: "LCX26/040" })).toBe("Cancelleria [LCX26/040] Matteo Codogno");
     expect(describeLine({ ...base, reason: "Treno Lugano-Zurigo", receiptNumber: "AR26/001", employee: "Anna Rossi" })).toBe("Treno Lugano-Zurigo [AR26/001] Anna Rossi");
   });
 

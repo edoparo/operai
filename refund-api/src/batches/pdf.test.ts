@@ -58,9 +58,12 @@ import {
   batchPdfObjectKey,
   compareReceiptNumbers,
   compressReceiptNumbers,
+  wrapReceipts,
   type BatchPdfEmployee,
 } from "./pdf";
 import { extractPdfText } from "../test-support/pdfText";
+import { createDocument, wrapText } from "../requests/documentLayout";
+import { TYPE } from "../requests/documentTheme";
 import { toBatchPdfEmployees } from "./batches.service";
 import type { LineRow } from "../requests/requests.service";
 
@@ -521,5 +524,60 @@ describe("toBatchPdfEmployees — what the compile and the regeneration hand the
       await renderBatchPdf({ batchId: BATCH_ID, cutoff: CUTOFF, generatedAt: GENERATED_AT, generatedByEmail: GENERATED_BY_EMAIL, employees }),
     );
     expect(text).toContain("MC26/014–016");
+  });
+});
+
+// ─── DS-7: a 3-letter prefix, a 4-5-digit sequence, and the receipts column ──────────────────────
+
+describe("compressReceiptNumbers: mixed LC and LCX prefixes and a split duplicate (AC-4.8)", () => {
+  it("sorts by prefix, ranges only within one prefix, a split number listed once", () => {
+    expect(compressReceiptNumbers(["LC26/039", "LCX26/040", "LCX26/041", "LCX26/042", "FR26/002", "FR26/002"])).toBe(
+      "FR26/002, LC26/039, LCX26/040–042",
+    );
+  });
+});
+
+describe("the receipts column breaks an over-wide token after its en dash (DS-7)", () => {
+  // The "Receipt numbers" column is 80 pt wide with 6 pt of padding (DETAIL in pdf.ts): 74 pt of text.
+  const TEXT_WIDTH = 74;
+  const fontsPromise = createDocument({ title: "t", author: "a", generatedAt: new Date("2026-07-19T00:00:00Z") }).then(({ fonts }) => fonts);
+
+  it.each([
+    ["LCX26/014\u2013016", ["LCX26/014\u2013016"]],
+    ["LCX26/1000\u20131002", ["LCX26/1000\u2013", "1002"]],
+    ["LCX26/99998\u201399999", ["LCX26/99998\u2013", "99999"]],
+  ])("%s: every line drawn is at most 74 pt", async (range, expectedLines) => {
+    const { value } = await fontsPromise;
+    const lines = wrapReceipts(`${range}, FR26/002`, value, TYPE.value, TEXT_WIDTH);
+    for (const drawn of lines) expect(value.widthOfTextAtSize(drawn, TYPE.value)).toBeLessThanOrEqual(TEXT_WIDTH);
+    expect(lines.slice(0, expectedLines.length - 1)).toEqual(expectedLines.slice(0, -1));
+    expect(lines.join(" ").replace(/\u2013 /g, "\u2013")).toBe(`${range}, FR26/002`);
+  });
+
+  it("a token that fits, or has no en dash, is wrapped exactly as the shared wrapper does", async () => {
+    const { value } = await fontsPromise;
+    const text = "FR26/002, LC26/039, LCX26/040\u2013042, LCX26/050";
+    expect(wrapReceipts(text, value, TYPE.value, TEXT_WIDTH)).toEqual(wrapText(text, value, TYPE.value, TEXT_WIDTH));
+    expect(wrapReceipts("", value, TYPE.value, TEXT_WIDTH)).toEqual([]);
+  });
+
+  it("in the rendered batch PDF the 4-digit range is printed in two pieces, not as one overhanging token", async () => {
+    const numbers = ["LCX26/1000", "LCX26/1001", "LCX26/1002"];
+    const employee: BatchPdfEmployee = {
+      owner: { userId: "u-x", email: "worker.alpha@example.test", name: "Worker Alpha" },
+      requests: [
+        {
+          id: "req-x-1",
+          decidedAt: new Date("2026-07-10T08:00:00Z"),
+          lines: [line({ id: "w1", entity: "welld_ch", currency: "CHF", requestedAmountCents: 1000, approvedTotalCents: 1000 })],
+          receiptNumbers: numbers,
+        },
+      ],
+    };
+    const text = await extractPdfText(
+      await renderBatchPdf({ batchId: BATCH_ID, cutoff: CUTOFF, generatedAt: GENERATED_AT, generatedByEmail: GENERATED_BY_EMAIL, employees: [employee] }),
+    );
+    expect(text).toContain("LCX26/1000\u2013");
+    expect(text).not.toContain("LCX26/1000\u20131002");
   });
 });
