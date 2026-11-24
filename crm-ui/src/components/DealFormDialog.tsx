@@ -31,6 +31,7 @@ type FieldName =
   | 'owner'
   | 'notes'
   | 'sourceDetail'
+  | 'fileCode'
 
 type Draft = {
   title: string
@@ -42,7 +43,11 @@ type Draft = {
   notes: string
   source: LeadSource | ''
   sourceDetail: string
+  fileCode: string
 }
+
+/** The server's rule (crm-api `FILE_CODE_PATTERN`): 1–10 letters or digits; the server stores it upper case. */
+const FILE_CODE = /^[A-Za-z0-9]{1,10}$/
 
 const SERVER_FIELDS: Record<string, FieldName> = {
   companyId: 'companyId',
@@ -55,6 +60,7 @@ const SERVER_FIELDS: Record<string, FieldName> = {
   ownerUserId: 'owner',
   notes: 'notes',
   sourceDetail: 'sourceDetail',
+  fileCode: 'fileCode',
 }
 
 const CODE_FIELDS: Record<string, FieldName> = {
@@ -105,7 +111,10 @@ export default function DealFormDialog({
     // A new lead starts from the company's source (specs/20261101-crm US-7); it can differ.
     source: deal ? (deal.source ?? '') : (company?.source ?? ''),
     sourceDetail: deal ? (deal.sourceDetail ?? '') : (company?.sourceDetail ?? ''),
+    fileCode: deal?.fileCode ?? '',
   }))
+  // The file-name code (2026-11-24) is edited on an existing deal whose server knows it (it sends `fileCodeDefault`).
+  const showFileCode = deal !== undefined && typeof deal.fileCodeDefault === 'string'
   const [owner, setOwner] = useState<PersonChoice | null>(
     deal ? { id: deal.owner.id, label: personName(deal.owner) } : null,
   )
@@ -142,6 +151,7 @@ export default function DealFormDialog({
       entity: draft.entity === '' ? strings.common.validation.required : undefined,
       notes: maxLength(draft.notes, 10_000) ?? undefined,
       sourceDetail: maxLength(draft.sourceDetail, MAX_SOURCE_DETAIL) ?? undefined,
+      fileCode: draft.fileCode.trim() === '' || FILE_CODE.test(draft.fileCode.trim()) ? undefined : t.fileCodeInvalid,
     }
     setErrors(found)
     if (hasErrors(found)) {
@@ -155,6 +165,10 @@ export default function DealFormDialog({
       ...sourceInput(draft.source, draft.sourceDetail),
       expectedCloseDate: draft.expected === '' ? null : draft.expected,
       ...(owner !== null && owner.id !== deal?.owner.id ? { ownerUserId: owner.id } : {}),
+      // Sent only when it changed, so a server that predates the field is never sent it by an ordinary edit.
+      ...(showFileCode && draft.fileCode.trim().toUpperCase() !== (deal?.fileCode ?? '')
+        ? { fileCode: draft.fileCode.trim() === '' ? null : draft.fileCode.trim().toUpperCase() }
+        : {}),
     }
     setBusy(true)
     setError(null)
@@ -301,6 +315,26 @@ export default function DealFormDialog({
             error={errors.owner}
             testId="crm-deal-form-owner"
           />
+        )}
+        {showFileCode && (
+          <Field
+            label={t.fileCode}
+            hint={t.fileCodeHint(deal?.fileCodeDefault ?? '')}
+            error={errors.fileCode}
+            testId="crm-deal-form-file-code"
+          >
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                maxLength={10}
+                autoCapitalize="characters"
+                placeholder={deal?.fileCodeDefault ?? ''}
+                value={draft.fileCode}
+                onChange={(event) => set('fileCode', event.target.value)}
+              />
+            )}
+          </Field>
         )}
         <SourceFields
           source={draft.source}

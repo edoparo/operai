@@ -162,6 +162,8 @@ export type DealInput = {
   /** specs/20261101-crm US-7. */
   source?: LeadSource | null
   sourceDetail?: string | null
+  /** The code in its offers' file names; null or "" = the initials of the title (2026-11-24). */
+  fileCode?: string | null
 }
 
 export type DealUpdate = Partial<Omit<DealInput, 'companyId' | 'stage'>>

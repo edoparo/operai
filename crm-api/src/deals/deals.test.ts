@@ -22,6 +22,25 @@ describe("deals (US-3)", () => {
     });
   });
 
+  it("a file code can be set by hand, is stored upper case, and cleared back to the title's initials (2026-11-24)", async () => {
+    const company = await makeCompany({ entity: "welld_ch" });
+    const created = await call("POST", "/deals", {
+      as: "salesCh",
+      body: { companyId: company.id, title: "Presa in carico sito RMS", currency: "CHF", fileCode: " pcs2 " },
+    });
+    expect(created.status).toBe(201);
+    expect(created.json).toMatchObject({ fileCode: "PCS2", fileCodeDefault: "PICSR" });
+    const cleared = await call("PATCH", `/deals/${created.json.id}`, { as: "salesCh", ifMatch: 1, body: { fileCode: "" } });
+    expect(cleared.json).toMatchObject({ fileCode: null, fileCodeDefault: "PICSR" });
+    const set = await call("PATCH", `/deals/${created.json.id}`, { as: "salesCh", ifMatch: 2, body: { fileCode: "RMS" } });
+    expect(set.json.fileCode).toBe("RMS");
+    for (const bad of ["P CS", "AB-1", "ABCDEFGHIJK", "àbc"]) {
+      const refused = await call("PATCH", `/deals/${created.json.id}`, { as: "salesCh", ifMatch: 3, body: { fileCode: bad } });
+      expect(refused.status, bad).toBe(422);
+      expect(refused.json.field, bad).toBe("fileCode");
+    }
+  });
+
   it("the amount is optional: a lead starts without one, and it can be set and cleared later (AC-3.2)", async () => {
     const company = await makeCompany({ entity: "welld_ch" });
     const created = await call("POST", "/deals", {

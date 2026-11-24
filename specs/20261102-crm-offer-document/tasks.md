@@ -1,7 +1,7 @@
 ---
 spec: 20261102
 status: in-progress
-synced: 2026-11-20
+synced: 2026-11-24
 ---
 
 # Tasks — CRM offer document (specs/20261102-crm-offer-document)
@@ -20,3 +20,4 @@ synced: 2026-11-20
 | T10 | Offer without an estimate on an overridden deal (AC-3.6 exception): draft and generate accept it with an empty estimate, no annex, no timeline table; dialog hides AI and annex | T9 | [x] | crm-api typecheck + pure tests (DB tests not run: local DB auth); crm-ui lint + build + 198 tests |
 | T11 | A deal whose earlier offers were all deleted unsent takes a new number (AC-4.1 amendment), so the numbering setting applies; a sent or live offer still holds it | T9 | [x] | crm-api typecheck; DB tests written, not run (local DB auth) |
 | T12 | Offer PDF downloaded under the Drive name (AC-4.4): `offers/fileName.ts` (`WellD_<entity>_<client>_<deal initials>_<reference>.pdf`), used by the download route for every offer | T4 | [x] | crm-api `fileName.test.ts` 6/6, `offers.test.ts` 47/47 on `crm_test`, typecheck |
+| T13 | Deal file code (AC-4.4, 2026-11-24): `deal.fileCode` (migration `20261124130000_deal_file_code`, CHECK `^[A-Z0-9]{1,10}$`), create/PATCH accept it (empty = null), the deal view carries `fileCode` + `fileCodeDefault`, the download name uses it over the initials; crm-ui "Code in file names" on the deal edit form (only when the server sends `fileCodeDefault`) | T12 | [x] | crm-api deals + fileName + offers tests on `crm_test`, typecheck; crm-ui lint + build + 1847 tests |

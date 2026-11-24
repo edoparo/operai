@@ -128,6 +128,9 @@ model Deal {
   /// Where this lead came from (US-7); `sourceDetail` names the event, the referrer or what else.
   source            LeadSource?
   sourceDetail      String?
+  /// The deal's code in its offers' file names (`WellD_CH_<client>_<fileCode>_<reference>.pdf`), set by hand; null =
+  /// the initials of the title. Upper-case letters and digits, 1–10 (CHECK `deal_file_code_shape`).
+  fileCode          String?
   version           Int       @default(1)
   createdBy         String
   updatedBy         String

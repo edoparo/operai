@@ -9,6 +9,15 @@ describe("offer file name", () => {
     );
   });
 
+  it("a deal's own file code replaces the initials (2026-11-24)", () => {
+    expect(
+      offerFileName({ entity: "welld_ch", companyName: "RMS Militare Svizzera", dealTitle: "Estensione integrazione e reporting", dealFileCode: "pcs", reference: "0027/2026" }),
+    ).toBe("WellD_CH_RMSMILITARESVIZZERA_PCS_00272026.pdf");
+    expect(offerFileName({ entity: "welld_ch", companyName: "Studio V", dealTitle: "Fleet Management System", dealFileCode: null, reference: "0009/2026" })).toBe(
+      "WellD_CH_STUDIOV_FMS_00092026.pdf",
+    );
+  });
+
   it("a revision keeps its rN after the reference", () => {
     expect(offerFileName({ entity: "welld_it", companyName: "Studio V", dealTitle: "Fleet Management System", reference: "0027/2026r2" })).toBe(
       "WellD_IT_STUDIOV_FMS_00272026r2.pdf",

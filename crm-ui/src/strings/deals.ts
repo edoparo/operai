@@ -112,6 +112,12 @@ const en = {
     entity: 'wellD entity',
     entityHint: 'Defaults to the company’s entity.',
     expected: 'Expected close date',
+    fileCode: 'Code in file names',
+    fileCodeHint: (initials: string) =>
+      initials === ''
+        ? 'The deal part of its offers’ file names. Up to 10 letters or digits.'
+        : `The deal part of its offers’ file names. Left empty: ${initials}, the initials of the title. Up to 10 letters or digits.`,
+    fileCodeInvalid: 'Use up to 10 letters or digits, without spaces or symbols.',
     owner: 'Owner',
     notes: 'Notes',
     noScope: 'You do not manage deals for any entity.',
@@ -237,6 +243,12 @@ const it: typeof en = {
     entity: 'Società wellD',
     entityHint: "Predefinita: la società dell'azienda.",
     expected: 'Data di chiusura prevista',
+    fileCode: 'Codice nei nomi file',
+    fileCodeHint: (initials: string) =>
+      initials === ''
+        ? 'La parte del deal nei nomi dei file delle offerte. Fino a 10 lettere o cifre.'
+        : `La parte del deal nei nomi dei file delle offerte. Se vuoto: ${initials}, le iniziali del titolo. Fino a 10 lettere o cifre.`,
+    fileCodeInvalid: 'Usa fino a 10 lettere o cifre, senza spazi né simboli.',
     owner: 'Responsabile',
     notes: 'Note',
     noScope: 'Non gestisci opportunità per nessuna società.',

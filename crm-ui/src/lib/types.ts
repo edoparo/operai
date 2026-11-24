@@ -113,6 +113,10 @@ export type DealSummary = {
   /** specs/20261101-crm US-7. Absent from an older server. */
   source?: LeadSource | null
   sourceDetail?: string | null
+  /** The deal's code in its offers' file names, set by hand (2026-11-24); null = `fileCodeDefault`. Absent from an older server. */
+  fileCode?: string | null
+  /** The initials of the title: what the file names use while `fileCode` is null. */
+  fileCodeDefault?: string
   expectedCloseDate: string | null
   owner: PersonRef
   closedAt: string | null

@@ -578,7 +578,7 @@ offersRouter.openapi(downloadRoute, async (c) => {
   const { id, offerId } = c.req.valid("param");
   const offer = await db.dealOffer.findUnique({
     where: { id: offerId },
-    include: { deal: { select: { entity: true, title: true, company: { select: { name: true } } } } },
+    include: { deal: { select: { entity: true, title: true, fileCode: true, company: { select: { name: true } } } } },
   });
   if (!offer || offer.dealId !== id || offer.deletedAt) throw notFound("Offer not found");
   const snapshot = offer.snapshot as unknown as StoredSnapshot;
@@ -588,6 +588,7 @@ offersRouter.openapi(downloadRoute, async (c) => {
       entity: offer.deal.entity,
       companyName: offer.deal.company.name,
       dealTitle: offer.deal.title,
+      dealFileCode: offer.deal.fileCode,
       reference: snapshot.reference,
     }),
   });

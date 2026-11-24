@@ -6,8 +6,9 @@
  *   WellD_CH_STUDIOV_FMS_00272026r2.pdf    (offer 0027/2026r2, the second revision)
  *
  * The client is the company's name and the deal's code the initials of its title, both derived (owner decision
- * 2026-11-20: no code fields): accents dropped, only letters and digits kept, upper case. A part that comes out empty
- * is left out, never written as an empty segment. Computed at download, so offers issued before this rule are named
+ * 2026-11-20): accents dropped, only letters and digits kept, upper case. Since 2026-11-24 (owner) a deal may carry a
+ * code typed by hand (`deal.fileCode`), which replaces the initials. A part that comes out empty is left out, never
+ * written as an empty segment. Computed at download, so offers issued before this rule are named
  * by it too; the PDF itself is unchanged.
  */
 
@@ -44,7 +45,18 @@ export function referenceCode(reference: string): string {
   return reference.replace(/[^A-Za-z0-9-]/g, "");
 }
 
-export function offerFileName(input: { entity: Entity; companyName: string; dealTitle: string; reference: string }): string {
-  const parts = ["WellD", ENTITY_CODE[input.entity], clientCode(input.companyName), dealCode(input.dealTitle), referenceCode(input.reference)];
+/** A deal's hand-set file code: 1–10 letters or digits, stored upper case (the CHECK `deal_file_code_shape`). */
+export const FILE_CODE_PATTERN = /^[A-Za-z0-9]{1,10}$/;
+
+export function offerFileName(input: {
+  entity: Entity;
+  companyName: string;
+  dealTitle: string;
+  /** The deal's own code, when set; else the initials of its title. */
+  dealFileCode?: string | null;
+  reference: string;
+}): string {
+  const deal = input.dealFileCode ? input.dealFileCode.toUpperCase() : dealCode(input.dealTitle);
+  const parts = ["WellD", ENTITY_CODE[input.entity], clientCode(input.companyName), deal, referenceCode(input.reference)];
   return `${parts.filter((part) => part !== "").join("_")}.pdf`;
 }

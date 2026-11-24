@@ -647,6 +647,10 @@ describe("offer list, download and delete", () => {
     // The Drive convention: WellD_<entity>_<client>_<deal initials>_<reference without the slash>.pdf
     expect(bucket.downloads.at(-1)).toMatch(/^WellD_CH_ACME[0-9A-F]{6}_GA_\d{8}\.pdf$/);
     expect(bucket.downloads.at(-1)).toEndWith(`_${offer.reference.replace("/", "")}.pdf`);
+    // A file code set on the deal replaces the initials, for offers already issued too (named at download).
+    await db.deal.update({ where: { id: deal.id }, data: { fileCode: "PCS" } });
+    await call("GET", `/deals/${deal.id}/offers/${offer.id}/download`, { as: "admin" });
+    expect(bucket.downloads.at(-1)).toMatch(/^WellD_CH_ACME[0-9A-F]{6}_PCS_\d{8}\.pdf$/);
 
     expect((await call("DELETE", `/deals/${deal.id}/offers/${offer.id}`, { as: "managerNoMoney" })).status).toBe(403);
     expect((await call("DELETE", `/deals/${deal.id}/offers/${offer.id}`, { as: "admin" })).status).toBe(204);

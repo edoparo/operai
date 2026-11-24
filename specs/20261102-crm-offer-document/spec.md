@@ -256,6 +256,10 @@ Operai.
   accents, spaces or symbols, in upper case; `<reference>` is the reference without its slash.
   A part that comes out empty is left out. The name is computed at download, so offers
   generated earlier (an `OF-…` one too) download under it; the PDF is unchanged.
+  *(Changed 2026-11-24, owner.)* `<deal>` can be set by hand on the deal ("Code in file names",
+  1 to 10 letters or digits, stored upper case, edited by whoever may edit the deal); left
+  empty, it is the title's initials as above. The form shows the initials it replaces. Being
+  computed at download, a code set later renames every offer of the deal, issued ones too.
 
 ### US-5 The client's details are complete
 

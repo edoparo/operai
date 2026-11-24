@@ -13,6 +13,7 @@
  *   estimate `ready` or the gate overridden (US-3, AC-3.4).
  */
 
+import { FILE_CODE_PATTERN, dealCode } from "../offers/fileName";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import {
   DEAL_MANAGE,
@@ -76,6 +77,15 @@ const AmountSchema = z.number().int().min(0).max(10_000_000_000_000);
 /** A calendar year the board can show: wide enough for any real deal, narrow enough to be a year. */
 const BoardYearSchema = z.coerce.number().int().min(2000).max(2100);
 
+/** 1–10 letters or digits, stored upper case; empty = none (the initials of the title are used). */
+const FileCodeSchema = z
+  .string()
+  .trim()
+  .refine((value) => value === "" || FILE_CODE_PATTERN.test(value), "1 to 10 letters or digits, no spaces or symbols")
+  .transform((value) => (value === "" ? null : value.toUpperCase()))
+  .nullable()
+  .optional();
+
 const CreateDealSchema = z
   .object({
     companyId: idText(),
@@ -91,6 +101,8 @@ const CreateDealSchema = z
     // US-7: where the lead came from; the detail names the event, the referrer or what else.
     source: LeadSourceSchema.nullable().optional(),
     sourceDetail: optionalText(200),
+    // The deal's code in its offers' file names (2026-11-24); empty = the initials of the title.
+    fileCode: FileCodeSchema,
   })
   .strict();
 
@@ -105,6 +117,8 @@ const UpdateDealSchema = z
     notes: optionalText(10_000),
     source: LeadSourceSchema.nullable().optional(),
     sourceDetail: optionalText(200),
+    // The deal's code in its offers' file names (2026-11-24); empty = the initials of the title.
+    fileCode: FileCodeSchema,
   })
   .strict();
 
@@ -139,6 +153,9 @@ const DealSummarySchema = z.object({
   entity: EntitySchema,
   source: LeadSourceSchema.nullable(),
   sourceDetail: z.string().nullable(),
+  /** The hand-set file code, or null; `fileCodeDefault` is what the file names use while it is null. */
+  fileCode: z.string().nullable(),
+  fileCodeDefault: z.string(),
   expectedCloseDate: z.string().nullable(),
   owner: PersonRefSchema,
   closedAt: z.string().nullable(),
@@ -270,6 +287,8 @@ async function toViews(c: ViewSource, rows: readonly DealRow[]) {
       entity: row.entity,
       source: row.source,
       sourceDetail: row.sourceDetail,
+      fileCode: row.fileCode,
+      fileCodeDefault: dealCode(row.title),
       expectedCloseDate: toDateOnly(row.expectedCloseDate),
       owner: person(row.ownerUserId),
       closedAt: row.closedAt?.toISOString() ?? null,
@@ -563,6 +582,7 @@ dealsRouter.openapi(createDealRoute, async (c) => {
       expectedCloseDate: fromDateOnly(body.expectedCloseDate) ?? null,
       source: body.source ?? null,
       sourceDetail: body.source ? (body.sourceDetail ?? null) : null,
+      fileCode: body.fileCode ?? null,
       ownerUserId,
       notes: body.notes ?? null,
       createdBy: userId,
