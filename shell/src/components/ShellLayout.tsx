@@ -1,5 +1,5 @@
 import { type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Outlet, useBlocker } from '@tanstack/react-router'
+import { Outlet, useBlocker, useRouterState } from '@tanstack/react-router'
 import { ConfirmDialog } from '@operai/ui'
 import { SidebarCollapsedProvider } from '../hooks/SidebarCollapsedProvider'
 import { useSidebarCollapsed } from '../hooks/sidebarCollapsed'
@@ -85,7 +85,13 @@ export function ShellLayout(props: ShellLayoutProps) {
 }
 
 function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
-  const { collapsed } = useSidebarCollapsed()
+  const { collapsed, narrow, overlay, closeOverlay } = useSidebarCollapsed()
+
+  // A11Y-F1: on a narrow viewport the expanded rail is a panel over the content; a navigation closes it.
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  useEffect(() => {
+    closeOverlay()
+  }, [pathname, closeOverlay])
 
   // Navigation blocker (specs/20261104-meetings, T50, AC-2.10): a remote that must not
   // be left casually (meetings-ui while recording) registers one through
@@ -171,13 +177,36 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
         {/* The rail width is driven by the shared collapse state; the Sidebar
             inside owns its own vertical scroll + always-visible bottom toggle,
             so `overflow-hidden` here just clips during the width transition. */}
+        {/* A11Y-F1 (WCAG 1.4.10, 2026-11-24): below 640 px the rail keeps the icons-only width in the layout whatever
+            was stored, so the content is never squeezed; opened there, the expanded rail is a panel over the content
+            (absolute, w-56) with a click-away backdrop, closed by Escape, a click outside or a navigation. */}
+        {overlay && (
+          <div
+            aria-hidden="true"
+            data-testid="shell-rail-backdrop"
+            className="fixed inset-0 z-20 bg-black/30"
+            onClick={closeOverlay}
+          />
+        )}
         <nav
           aria-label={strings.layout.toolNavigation}
-          className={`${
-            collapsed ? 'w-16' : 'w-56'
-          } shrink-0 overflow-hidden border-r border-rule bg-ink-soft transition-[width] duration-200`}
+          data-narrow={narrow || undefined}
+          onKeyDown={(event) => {
+            if (overlay && event.code === 'Escape') {
+              event.stopPropagation()
+              closeOverlay()
+            }
+          }}
+          className={`${narrow || collapsed ? 'w-16' : 'w-56'} relative shrink-0 border-r border-rule bg-ink-soft ${
+            overlay ? 'z-30 overflow-visible' : 'overflow-hidden transition-[width] duration-200'
+          }`}
         >
-          {sidebar ?? <ShellSidebarPlaceholder />}
+          <div
+            data-testid="shell-rail-panel"
+            className={overlay ? 'absolute inset-y-0 left-0 w-56 border-r border-rule bg-ink-soft shadow-lg' : 'h-full'}
+          >
+            {sidebar ?? <ShellSidebarPlaceholder />}
+          </div>
         </nav>
 
         {/* `tabIndex={-1}` makes this a valid skip-link target without adding

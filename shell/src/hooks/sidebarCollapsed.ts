@@ -25,12 +25,37 @@ export function readStoredCollapsed(): boolean {
   }
 }
 
-export interface SidebarCollapsedValue {
-  collapsed: boolean
-  toggle: () => void
+/**
+ * Below 640 px the rail cannot keep its expanded width without squeezing the tool's content to a column a few words wide
+ * (WCAG 1.4.10 reflow at 320 px, A11Y-F1, 2026-11-24). On a viewport this narrow the rail is the icons-only width
+ * whatever the stored choice, and the toggle opens the expanded rail as a panel OVER the content (`overlay`), never
+ * beside it; the panel is not persisted and closes on Escape, a click outside it, a navigation, or a widening viewport.
+ */
+export const NARROW_VIEWPORT_QUERY = '(max-width: 639.98px)'
+
+/** Whether the viewport is narrow now; false where `matchMedia` does not exist (jsdom, very old browsers). */
+export function readNarrowViewport(): boolean {
+  try {
+    return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(NARROW_VIEWPORT_QUERY).matches
+  } catch {
+    return false
+  }
 }
 
-const NON_COLLAPSED_DEFAULT: SidebarCollapsedValue = { collapsed: false, toggle: () => {} }
+export interface SidebarCollapsedValue {
+  /** The rail shows icons only. */
+  collapsed: boolean
+  /** Wide viewport: collapse or expand (persisted). Narrow viewport: open or close the overlay panel (not persisted). */
+  toggle: () => void
+  /** The viewport is narrow (below 640 px). */
+  narrow: boolean
+  /** The expanded rail is open as a panel over the content (narrow viewport only). */
+  overlay: boolean
+  /** Closes the overlay panel; a no-op when none is open. */
+  closeOverlay: () => void
+}
+
+const NON_COLLAPSED_DEFAULT: SidebarCollapsedValue = { collapsed: false, toggle: () => {}, narrow: false, overlay: false, closeOverlay: () => {} }
 
 export const SidebarCollapsedContext = createContext<SidebarCollapsedValue | null>(null)
 

@@ -84,6 +84,9 @@ const TECHNICAL = new Set([
   'End',
   'mousedown',
   'keydown',
+  // matchMedia's event name and the `typeof x === 'undefined'` guard (A11Y-F1, SidebarCollapsedProvider).
+  'change',
+  'undefined',
   // ARIA role / live values chosen in a lookup table.
   'status',
   'alert',

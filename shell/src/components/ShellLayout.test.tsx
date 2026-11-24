@@ -13,7 +13,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createRootRoute, createRoute, createRouter, Link, RouterProvider } from '@tanstack/react-router'
 import type { ReactElement } from 'react'
@@ -156,6 +156,94 @@ describe('ShellLayout', () => {
 
     await user.click(screen.getByRole('button', { name: /expand sidebar/i }))
     expect(nav.className).toContain('w-56') // back to expanded
+  })
+
+  describe('below 640 px (A11Y-F1, WCAG 1.4.10 reflow at 320 px)', () => {
+    let narrowMatches = true
+    const listeners = new Set<() => void>()
+    beforeEach(() => {
+      narrowMatches = true
+      listeners.clear()
+      window.matchMedia = vi.fn((query: string) => ({
+        get matches() {
+          return query === '(max-width: 639.98px)' ? narrowMatches : false
+        },
+        media: query,
+        onchange: null,
+        addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+        removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia
+    })
+    afterEach(() => {
+      // jsdom has no matchMedia: put that back so the other tests see the wide default.
+      delete (window as { matchMedia?: unknown }).matchMedia
+    })
+
+    async function renderNarrow() {
+      const rootRoute = createRootRoute({ component: () => <ShellLayout sidebar={<Sidebar />} /> })
+      const indexRoute = createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/',
+        component: () => <p data-testid="outlet-content">Tool content</p>,
+      })
+      const estimaiRoute = createRoute({ getParentRoute: () => rootRoute, path: '/estimai/$', component: () => <p>estimai</p> })
+      const refundRoute = createRoute({ getParentRoute: () => rootRoute, path: '/refund/$', component: () => <p>refund</p> })
+      const router = createRouter({ routeTree: rootRoute.addChildren([indexRoute, estimaiRoute, refundRoute]) })
+      render(<RouterProvider router={router} />)
+      await screen.findByTestId('outlet-content')
+      return { router, nav: screen.getByRole('navigation', { name: /tool navigation/i }) }
+    }
+
+    it('keeps the icons-only rail in the layout even when the stored choice is expanded', async () => {
+      localStorage.setItem('operai_sidebar_collapsed', 'false')
+      const { nav } = await renderNarrow()
+      expect(nav.className).toContain('w-16')
+      expect(nav.className).not.toContain('w-56')
+      expect(nav.getAttribute('data-narrow')).toBe('true')
+      expect(screen.queryByTestId('shell-rail-backdrop')).toBeNull()
+    })
+
+    it('the toggle opens the expanded rail OVER the content (layout width unchanged), not stored; Escape closes it', async () => {
+      const user = userEvent.setup()
+      const { nav } = await renderNarrow()
+      await user.click(screen.getByRole('button', { name: /expand sidebar/i }))
+      expect(nav.className).toContain('w-16') // the layout keeps the narrow rail: the content is not squeezed
+      expect(screen.getByTestId('shell-rail-panel').className).toContain('absolute')
+      expect(screen.getByTestId('shell-rail-panel').className).toContain('w-56')
+      expect(screen.getByTestId('shell-rail-backdrop')).not.toBeNull()
+      expect(localStorage.getItem('operai_sidebar_collapsed')).toBeNull() // the overlay is never stored
+      fireEvent.keyDown(screen.getByRole('button', { name: /collapse sidebar/i }), { key: 'Escape', code: 'Escape' })
+      await waitFor(() => expect(screen.queryByTestId('shell-rail-backdrop')).toBeNull())
+      expect(screen.getByTestId('shell-rail-panel').className).not.toContain('absolute')
+    })
+
+    it('a click on the backdrop and a navigation close the overlay', async () => {
+      const user = userEvent.setup()
+      const { router } = await renderNarrow()
+      await user.click(screen.getByRole('button', { name: /expand sidebar/i }))
+      await user.click(screen.getByTestId('shell-rail-backdrop'))
+      expect(screen.queryByTestId('shell-rail-backdrop')).toBeNull()
+
+      await user.click(screen.getByRole('button', { name: /expand sidebar/i }))
+      expect(screen.getByTestId('shell-rail-backdrop')).not.toBeNull()
+      await router.navigate({ to: '/refund/$', params: { _splat: 'requests' } })
+      await waitFor(() => expect(screen.queryByTestId('shell-rail-backdrop')).toBeNull())
+    })
+
+    it('widening the viewport goes back to the stored choice and closes the overlay', async () => {
+      const user = userEvent.setup()
+      localStorage.setItem('operai_sidebar_collapsed', 'false')
+      const { nav } = await renderNarrow()
+      await user.click(screen.getByRole('button', { name: /expand sidebar/i }))
+      narrowMatches = false
+      act(() => listeners.forEach((listener) => listener()))
+      await waitFor(() => expect(nav.className).toContain('w-56'))
+      expect(screen.queryByTestId('shell-rail-backdrop')).toBeNull()
+      expect(nav.getAttribute('data-narrow')).toBeNull()
+    })
   })
 
   it('renders provided header/sidebar/footer slots instead of the placeholders', async () => {
