@@ -126,7 +126,7 @@ describe("authorization matrix", () => {
     expect((await call("POST", "/activity-host/v1/resolve", { as: null, body })).status).toBe(401);
     const res = await call("POST", "/activity-host/v1/resolve", { as: "outsider", body });
     expect(res.status).toBe(200);
-    expect(res.json).toEqual({ reader: false, items: [], related: [] });
+    expect(res.json).toEqual({ reader: false, items: [], related: [], salesTeam: false });
   });
 
   it("POST /system/meeting-host/v1/notices: a service route, 401 for every user token, whatever the grants", async () => {
