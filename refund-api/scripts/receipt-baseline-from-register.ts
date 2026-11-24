@@ -30,104 +30,24 @@
  * Exit codes: 0 done, 1 a usage or file failure (nothing is printed on stdout).
  */
 
-import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { OperatorFileError, parseCsvRows, shapeOf, worktreeWarning, yearOfDate } from "./lib/operatorFiles";
+
+// Moved to `lib/operatorFiles.ts` (T6, specs/20261124): re-exported so this script's own tests and callers read as before.
+export { parseCsvRows, shapeOf, yearOfDate };
 
 /** The only year whose numbers continue the register (20261118 AC-4.12). */
 export const BASELINE_YEAR = 2026;
 
-export class RegisterError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "RegisterError";
-  }
-}
-
-// ─── CSV ─────────────────────────────────────────────────────────────────────
-
-/** The delimiter of the header line: the one of `,` `;` tab that occurs most outside quotes (ties and none: comma). */
-function detectDelimiter(text: string): string {
-  const counts = new Map<string, number>([[",", 0], [";", 0], ["\t", 0]]);
-  let quoted = false;
-  for (const ch of text) {
-    if (ch === '"') quoted = !quoted;
-    else if (!quoted && (ch === "\n" || ch === "\r")) break;
-    else if (!quoted && counts.has(ch)) counts.set(ch, counts.get(ch)! + 1);
-  }
-  let best = ",";
-  for (const [delimiter, count] of counts) if (count > counts.get(best)!) best = delimiter;
-  return best;
-}
-
-/** RFC 4180 rows: quoted fields, `""` as a quote, CRLF or LF, a line break inside quotes. Fully blank lines are dropped. */
-export function parseCsvRows(text: string): string[][] {
-  const source = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  const delimiter = detectDelimiter(source);
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-  let fieldStarted = false;
-  const endField = () => {
-    row.push(field);
-    field = "";
-    fieldStarted = false;
-  };
-  const endRow = () => {
-    endField();
-    if (row.length > 1 || row[0]!.trim() !== "") rows.push(row);
-    row = [];
-  };
-  for (let i = 0; i < source.length; i++) {
-    const ch = source[i]!;
-    if (quoted) {
-      if (ch === '"') {
-        if (source[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          quoted = false;
-        }
-      } else {
-        field += ch;
-      }
-    } else if (ch === '"' && !fieldStarted) {
-      quoted = true;
-      fieldStarted = true;
-    } else if (ch === delimiter) {
-      endField();
-    } else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && source[i + 1] === "\n") i++;
-      endRow();
-    } else {
-      field += ch;
-      fieldStarted = true;
-    }
-  }
-  if (quoted) throw new RegisterError("the CSV ends inside a quoted field: the file is cut off or its quotes are unbalanced");
-  if (fieldStarted || field !== "" || row.length > 0) endRow();
-  return rows;
-}
+/** The helper's own failure: the same class as the shared helpers throw, so one catch covers both. */
+export const RegisterError = OperatorFileError;
+export type RegisterError = OperatorFileError;
 
 // ─── Numbers and dates ───────────────────────────────────────────────────────
 
 const NUMBER_PATTERN = /^([A-Z]{2})(\d{2})\/(\d{1,5})$/;
 const MAX_SEQUENCE = 99999;
-
-/** The year of a date cell (`2026-03-14`, `2026-03-14T10:00:00Z`, `14.03.2026`, `14/03/2026`), or `null` when it is not one of those. */
-export function yearOfDate(cell: string): number | null {
-  const value = cell.trim();
-  const iso = /^(\d{4})-\d{1,2}-\d{1,2}(?:[T\s].*)?$/.exec(value);
-  if (iso) return Number(iso[1]);
-  const local = /^\d{1,2}[./]\d{1,2}[./](\d{4})(?:[T\s].*)?$/.exec(value);
-  return local ? Number(local[1]) : null;
-}
-
-/** The shape of a cell, never its text: every letter becomes A, every digit 9, `@` becomes ?, cut at 24 characters. */
-export function shapeOf(cell: string): string {
-  const shape = cell.trim().replace(/\p{L}/gu, "A").replace(/\d/g, "9").replace(/@/g, "?");
-  return shape.length > 24 ? `${shape.slice(0, 24)}…` : shape;
-}
 
 // ─── Derivation ──────────────────────────────────────────────────────────────
 
@@ -259,21 +179,7 @@ const USAGE = "Usage: bun run receipt-baseline:from-register --register <csv>";
 
 /** A warning when `path` lies inside a git worktree: the register names employees and must never be committed (SR-3). */
 export function registerPathWarning(path: string): string | null {
-  const absolute = resolve(path);
-  let dir = dirname(absolute);
-  try {
-    dir = realpathSync(dir);
-  } catch {
-    // the read will fail on its own
-  }
-  for (;;) {
-    if (existsSync(join(dir, ".git"))) {
-      return `WARNING: the register export ${absolute} is inside a git worktree (${dir}). It names employees and must never be committed: keep it outside the repository.`;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
-  }
+  return worktreeWarning(path, "the register export", "It names employees");
 }
 
 export function run(argv: readonly string[]): string {

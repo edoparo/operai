@@ -158,7 +158,7 @@ Derived from these committed files:
 
 ## XLSX — operator files, release types, the reader, the register export
 
-- [ ] T6: refund-api — `scripts/lib/operatorFiles.ts` (moved and new helpers) and `scripts/release/types.ts` (the release's shared types) — refs: AC-5.6 — deps: T3
+- [x] T6: refund-api — `scripts/lib/operatorFiles.ts` (moved and new helpers) and `scripts/release/types.ts` (the release's shared types) — refs: AC-5.6 — deps: T3
   - touch: `refund-api/scripts/lib/operatorFiles.ts`, `refund-api/scripts/lib/operatorFiles.test.ts`, `refund-api/scripts/release/types.ts`, `refund-api/scripts/receipt-baseline-from-register.ts`, `refund-api/scripts/receipt-baseline-from-register.test.ts`
   - agent: backend-dev · xlsx
   - Details:
