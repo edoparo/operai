@@ -198,3 +198,9 @@ Stack: auth, notify-api, refund-api, accounting-api on the shared dev Postgres (
 - After the fix: `pnpm e2e e2e/refund-accounting.spec e2e/refund-receipt-codes` 4 passed, then `pnpm e2e e2e/refund- e2e/accounting` **30 passed**, every `refund-*.spec.ts` and `accounting*.spec.ts` included, browser axe at every checkpoint (the receipt codes card in light and dark, the dialog with the 409, the history drawer).
 - Not exercised live: the global setup's three-step release on a database not yet released (the dev database was already released, so it exited 0 at step 0, as designed). The manual browser pass (design § Accessibility hotspots 1-5, 320 px reflow) is not done: T32 stays open for it.
 
+### Re-run after the A11Y-F1 shell fix (`06998068`)
+
+- shell `pnpm exec vitest run`: 728 passed (4 new tests for the narrow rail; the width rule mutated → killed).
+- Live e2e `pnpm e2e e2e/refund- e2e/accounting` on the local stack: 30/30 (4.2 min).
+- Live measurement at 320 px (`/refund/settings`, `/accounting`): no page-level horizontal scroll, nav 64 px, `main` 251 px; overlay opens with a backdrop and closes on Escape. At 1280 px unchanged (224 → 64 px toggle).
+- Body-scoped axe: only `color-contrast` on the shell footer (A11Y-F2, pre-existing since specs/003, design.md § Browser accessibility pass); `main`-scoped axe clean.
