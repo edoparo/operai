@@ -388,10 +388,11 @@ Derived from these committed files:
     prefix, and the e2e setup's three steps. No `railway`, `vercel` or deploy command is run.
   - done when: `bash -n infra/check.sh` passes; `mise run env:doctor` is green; every path, script, flag and exit status named in the new text exists in the code (checked by a reviewer, list in the commit message).
 
-- [ ] T25: ADR amendment by the `adr-writer`: ADR 20261124-a-receipt-code-per-employee-…, decision 5, the Settings flag covers a shared prefix with or without a code (plan DS-8, ADR candidates "A2 amendment") — refs: none (ADR) — deps: none
+- [x] T25: ADR amendment by the `adr-writer`: ADR 20261124-a-receipt-code-per-employee-…, decision 5, the Settings flag covers a shared prefix with or without a code (plan DS-8, ADR candidates "A2 amendment") — refs: none (ADR) — deps: none
   - touch: `docs/adr/20261124-a-receipt-code-per-employee-overrides-the-derived-initials-for-new-numbers-only-is-stored-as-a-unique-current-row-with-an-append-only-history-and-is-managed-by-its-own-capability.md`
   - agent: adr-writer · docs
   - done when: the ADR carries a dated amendment matching DS-8 and stating that the 409 rule is unchanged; no other ADR is edited.
+  - evidence: decision 5 of the ADR carries "Amendment 2026-11-24 (design sync DS-8)" (flag with or without a code; 409 rule unchanged); its AGENTS.md line updated; `git diff --stat` touches only the ADR, AGENTS.md and this box.
 
 - [ ] T26: changeset `.changeset/receipt-numbers-from-the-register.md` (auth minor, refund-api minor, refund-ui minor) — refs: none (release plumbing) — deps: T1, T5, T13, T15, T21
   - touch: `.changeset/receipt-numbers-from-the-register.md`
