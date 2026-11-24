@@ -56,6 +56,7 @@ the initials. The code is read inside the numbering transaction, both at approva
 | `src/requests/audit.ts` | Type of the `receipt_number_assigned` detail: `{ cause, receiptNumber, year, seq, origin: "new" \| "paper" \| "paper_split", registerRows?: number[], splitPart?: number }`. |
 | `src/index.ts` (router mount) | Mount `receiptCodeRouter`. |
 | `scripts/accounting-release.ts` | Rewritten orchestration and CLI (§ The release). It keeps: Accounting read first (exit 2), owner names (exit 4), defaults seeding, advisory lock, marker, the rollback-based dry run. |
+| `scripts/release/types.ts` | NEW (design sync DS-10). The shared types of the release modules (`RegisterRow`, `PreReleaseLine`, `ReleaseEmployee`, `PairingProposal`, `PairingDecision`), so the reader, pairing, pairing-file and report work can proceed in parallel. Types only. |
 | `scripts/release/xlsxReader.ts` | NEW. A dependency-free reader: ZIP (stored and deflate via `node:zlib.inflateRawSync`) plus minimal OOXML. Enough to read one sheet's cell values (§ Register export). |
 | `scripts/release/registerExport.ts` | NEW. Sheet → `RegisterRow[]` (`position`, `worker`, `number`, `date`, `totalCents`), header detection, cell coercion, merged-cell propagation. Keeps nothing else. |
 | `scripts/release/pairing.ts` | NEW, pure. Proposal algorithm (categories, splits, number-taken), worker → employee proposal, baseline computation (AC-3.1), shared-prefix analysis (AC-4.11). |
@@ -64,6 +65,7 @@ the initials. The code is read inside the numbering transaction, both at approva
 | `scripts/lib/operatorFiles.ts` | NEW. `pathInsideGitWorktree` (merged from `offsetsPathWarning` and `registerPathWarning`), `shapeOf`, `yearOfDate`, SHA-256 of a file, and `writeFileExclusive(path, 0600)`. |
 | `scripts/receipt-baseline-from-register.ts` | Imports the moved helpers, no behaviour change. It drops out of the runbook. Deleting it is a later cleanup. |
 | `src/test-support/registerWorkbook.ts` | NEW. Builds synthetic register workbooks with the existing deterministic writer `src/accounting/xlsx.ts`, with a deflate variant for the reader tests. All names are synthetic (`Worker Alpha`, …). |
+| `src/batches/pdf.ts` | (design sync DS-7) The receipt-numbers cell of the batch PDF breaks a token wider than its column after the en dash (`LCX26/1000–` / `1002,`), so no token runs into the amounts. Nothing else changes. |
 | `scripts/fixtures/synthetic-register-header-only.xlsx` | NEW, committed, no data: the header row only. Used by the e2e global setup. A test asserts its bytes equal the writer's output, which is deterministic. |
 
 **refund-ui**
@@ -72,8 +74,9 @@ the initials. The code is read inside the numbering transaction, both at approva
 |---|---|
 | `src/pages/SettingsPage.tsx` | New section `receipt-codes` ("Receipt codes"), available with `receipt-code:manage`. `general` is offered only with `rate:read` or `settings:read`. That is unchanged for every user who reaches Settings today, but an accounting user with only the new capability no longer sees a General view full of 403s. |
 | `src/pages/settings/ReceiptCodesSettingsView.tsx` | NEW. Mounts the card. |
-| `src/components/settings/ReceiptCodesCard.tsx` | NEW. A table of employees: name, prefix in use (code, or initials marked "from initials"), last number issued, a "shares initials" badge, **Set / Change**, **Clear**, **History**. It follows the patterns of `ExpenseTypeDefaultsCard`. |
-| `src/components/settings/ReceiptCodeDialog.tsx` | NEW. One text field, client-side shape hint, server errors mapped (422/409). Mounted beside the card (ADR 20261118-a-dialog-that-renders-its-own-form-is-mounted-beside-the-form-never-inside-it). |
+| `src/components/settings/ReceiptCodesCard.tsx` | NEW. A table of employees: name (email beside it), code, prefix in use (code, or initials marked "from initials"), last number issued, last changed (DS-2), a "Shares prefix" badge (rule DS-8), and the row actions **Set code** / **Change**, **Clear** (its own `ConfirmDialog`, DS-3) and **History**. It follows the patterns of `ExpenseTypeDefaultsCard`. |
+| `src/components/settings/ReceiptCodeDialog.tsx` | NEW. One text field (no `maxLength`, a–z upper-cased as typed, DS-3), client-side shape check, server errors mapped (422/409 on the field). No Clear inside it. Mounted beside the card (ADR 20261118-a-dialog-that-renders-its-own-form-is-mounted-beside-the-form-never-inside-it). |
+| `src/components/ChangeHistoryDrawer.tsx` | (design sync DS-4) Two optional props, `loading?: boolean` and `error?: { message: string; onRetry: () => void }`, for a history fetched when the drawer opens. Existing callers are unchanged. |
 | `src/lib/receiptCodesApi.ts` | NEW client. |
 | `src/components/RefundShell.tsx` | The Settings nav entry also shows with `receipt-code:manage`. |
 | `src/strings.ts` | EN + IT strings (parity test). |
@@ -522,7 +525,10 @@ Employees known to Refund (at least one request, any status), ordered by name th
     "prefix": "ARO",                  // code ?? initials: what the next number uses
     "prefixSource": "code" | "initials",
     "lastNumber": "AR26/039" | null,  // highest (year, seq) numbered line, as issued
-    "sharesPrefix": true              // another employee's code/initials/issued prefix equals `prefix`
+    "changedAt": "2026-11-25T08:12:00.000Z" | null,   // DS-2: newest receipt_code_change (a clear included); null when none
+    "changedByEmail": "x@welld.ch" | null,            // DS-2: that change's createdByEmail
+    "sharesPrefix": true              // DS-8: `prefix` equals another employee's code, or that employee's initials
+                                      // when it has no code, or the prefix of a number issued or imported to it
   }]
 }
 403 { code: "forbidden" }             // no receipt-code:manage
@@ -560,13 +566,15 @@ release (AC-5.4).
 
 - One card: "Receipt codes". An intro sentence says that a code replaces the initials in new numbers
   only, and that issued numbers never change.
-- Table columns: Employee (name, else email), Prefix in use (mono; the code, or the initials with a
-  "from initials" hint), Last number (mono), a status badge "Shares initials" when `sharesPrefix`
-  and no code, then actions. **Set code** / **Change** open `ReceiptCodeDialog`, which has one field
-  (`maxLength 3`, upper-cased as typed, client hint matching AC-4.2), a 422 shown on the field, a 409
-  shown as "This code is already in use", and **Clear code** as a secondary action with a
-  confirmation. **History** opens the existing `ChangeHistoryDrawer` with before → after, who and
-  when.
+- Table columns (design S2): Employee (name, else email), Code, Prefix in use (mono; the code, or the
+  initials with a "from initials" hint), Last number (mono), Last changed (DS-2), Status (a badge
+  "Shares prefix" whenever `sharesPrefix`, DS-8), then actions. **Set code** / **Change** open
+  `ReceiptCodeDialog`, which has one field (no `maxLength`, a–z upper-cased as typed, client check
+  matching AC-4.2), a 422 shown on the field, a 409 shown as "This code is already in use". **Clear**
+  is a row action of its own, shown only when a code is set, that opens a `ConfirmDialog`; an empty
+  field in the dialog never clears (design RC-4, RC-6; updated by design sync DS-3). **History**
+  opens the existing `ChangeHistoryDrawer`, fetched on open, with its loading and error states
+  (DS-4), showing before → after, who and when.
 - The page has no read-only mode: without the capability the section does not exist (AC-4.9, fail
   closed until the shell resolves permissions). The designer may refine layout and copy; the
   behaviours above are the contract.
@@ -630,8 +638,8 @@ The AC → test mapping is **total**: every AC of the spec maps to at least one 
 | AC-4.4 | unit, int | `formatReceiptNumber("LCX", 2026, 40)` → `LCX26/040`. Int: imported `LC26/039` (baseline 39), code `LCX`, approval → `LCX26/040`; `LC26/039` unchanged in the line, request, batch and export reads. |
 | AC-4.5 | int | Code `LCX`, 2027 line → `LCX27/001`. |
 | AC-4.6 | int | Change `LCX`→`LCY` and then clear: the following numbers `LCY26/041`, then `LC26/042`; earlier lines unchanged. |
-| AC-4.7 | int, db | History rows (before, after, actor, time) for set/change/clear; none for a no-op save. db: UPDATE/DELETE of `receipt_code_change` raises. |
-| AC-4.8 | unit, ui | `exportFormat` Description `Cancelleria [LCX26/040] <name>`; batch PDF `compressReceiptNumbers` with mixed `LC`/`LCX` and a split duplicate. UI: `ReceiptNumber` renders `LCX26/040` as is; the batch employee list shows the name beside it. |
+| AC-4.7 | int, db, ui | History rows (before, after, actor, time) for set/change/clear; none for a no-op save. The list row's `changedAt`/`changedByEmail` are those of the newest change, a clear included, and null for an employee never changed (DS-2). db: UPDATE/DELETE of `receipt_code_change` raises. UI: the drawer's loading, error (Retry) and loaded states (DS-4). |
+| AC-4.8 | unit, ui | `exportFormat` Description `Cancelleria [LCX26/040] <name>`; batch PDF `compressReceiptNumbers` with mixed `LC`/`LCX` and a split duplicate; every receipts line of the rendered PDF fits its column for `LCX26/014–016`, `LCX26/1000–1002` and `LCX26/99998–99999` (DS-7). UI: `ReceiptNumber` renders `LCX26/040` as is; the batch employee list shows the name beside it. |
 | AC-4.9 | int, auth, ui | 403 on GET/PUT/history without the capability, nothing changed. auth seed test: `accounting` and `admin` hold `receipt-code:manage`, and no other system role (`refund-admin`, `employee`, …). A second seed changes nothing. UI: section and nav hidden without it. |
 | AC-4.10 | int | Two connections with a barrier: a code PUT and an approval of the same employee. The number's prefix is wholly old or wholly new; the counter has no gap and no repeat (repeated 20×). |
 | AC-4.11 | unit, int | Shared-prefix analysis (derived, register-mapped, imported). Dry run lists codeless members. Real run with a `new` for a codeless member → exit 9, nothing written. A member whose lines are all `paper` → not blocked. |
@@ -767,6 +775,27 @@ The temporary directory (mode 0700) is removed whatever the outcome. `AGENTS.md`
 `refund-api/.env.example` comments and `refund-api/CHANGELOG.md` follow. `EMPTY_BASELINE_CSV` stays
 for the tests that exercise `--offsets`.
 
+## Design sync (2026-11-24)
+
+Synced unattended with `design.md` § Gaps found (G1–G9) after the design was written. Each entry
+below is `DS-n` for gap `Gn`, plus DS-10 for the task split. Decisions D1–D15 stand. Where this
+section changes a sentence of the plan above, that sentence is edited in place and marked `DS-n`.
+Where it departs from the design, this section wins and the frontend tasks follow it (the design
+keeps its text; the departure is DS-8 only).
+
+| # | Gap | Resolution |
+|---|---|---|
+| DS-1 | G1: the shared-prefix flag was called "decision 10" | Wording only. The decision is **D13** (post-release shared prefix: not refused, flagged in the Settings list only). D10 is `--show-emails` removed. |
+| DS-2 | G2: no last change in the list | `GET /accounting/receipt-codes` rows (and the PUT 200 body, which is the same row) gain `changedAt: string \| null` and `changedByEmail: string \| null`, from the employee's **newest `receipt_code_change`**, a clear included. Both are null when the employee has no change row. One query, `DISTINCT ON ("ownerUserId") … ORDER BY "ownerUserId", "createdAt" DESC, "id" DESC`, served by the existing `(ownerUserId, createdAt)` index. The email is shown to capability holders only, as the history already does. Not taken from `receipt_code.updatedAt`, which disappears with a clear. |
+| DS-3 | G3: where Clear lives | **Clear is a row action** with its own `ConfirmDialog` (design RC-4), shown only when a code is set. The Set/Change dialog has no Clear, and an empty field never clears there (RC-6). The API still clears on `""` and `null` (AC-4.2). The field has **no `maxLength`** and upper-cases only `a–z` as typed (RC-5), so a pasted `ABCD` is shown and refused rather than truncated to a valid wrong code. The plan's UI-surface sentence is updated. |
+| DS-4 | G4: the history drawer | `ChangeHistoryDrawer` gains two optional props, `loading?: boolean` (renders `SkeletonRows` and one polite line, `settings.history.loading`) and `error?: { message: string; onRetry: () => void }` (renders `ErrorBanner` with Retry inside the drawer). With neither, it behaves exactly as today, so the defaults history is unchanged. The receipt-code caller fetches `GET …/{userId}/history` when the drawer opens, maps each entry to `{ at: changedAt, byEmail: changedBy.email, before: codeBefore, after: codeAfter }` and **reverses** the newest-first API order into the drawer's oldest-first input (the drawer reverses again). Added to the refund-ui file table. |
+| DS-5 | G5: no search or paging | Accepted (design RC-10). The list is the company's employees who have filed (tens to low hundreds). A name filter is the first thing to add past about 100 rows; no API change is needed for it. |
+| DS-6 | G6: a flash of General before permissions resolve | **No flash inside the shell, and no change needed there.** Read from `shell/src/lib/session.ts` and `shell/src/router.tsx`: `usePermissions()` exposes **no resolved flag** (it returns `EMPTY_PERMISSIONS` both before resolution and after a failed `/authz/me`, which are indistinguishable by design: "absence = no access"). But the shell's tool-route guard (`createToolAccessBeforeLoad`) force-revalidates `/authz/me` on a cold cache or an app switch **before** it mounts the refund remote, and `usePermissions()` initialises from that warm cache synchronously. So on the first render of `SettingsPage` the user's capabilities are already the resolved ones, and a holder of only `receipt-code:manage` gets the Receipt codes view on the first render, without General ever mounting. Decision: `SettingsPage` keeps deriving the sections at render (RC-2), with no new shell API. A test pins it: `usePermissions` mocked to return only `receipt-code:manage` from the first render → the Receipt codes view, no tab list, and `ratesApi.listRates` never called. The remaining case is a cold cache outside the shell (refund-ui standalone in dev); there General shows for an instant, which is today's accepted behaviour. Rejected: adding a `resolved` flag to the shell's federated `usePermissions` (a cross-package contract change for a case the guard already prevents). |
+| DS-7 | G7: PDF and journal widths for a 3-letter prefix and `/1000` | Measured with the embedded regular font at 9.5 pt (`TYPE.value`), against the batch PDF's "Receipt numbers" column (`DETAIL`, width 80, text width 80 − 6 = **74 pt**): `LCX26/040,` 49.8; `LCX26/014–016,` 70.9 (fits); `LCX26/1000,` 55.2 (fits); `LCX26/1000–1002,` **81.7**; `MC26/1000–1002,` **79.8** (already too wide today with two letters). `wrapText` never breaks a word, so a range with a 4-digit sequence runs into the "Requested" column. The neighbours leave no room to widen the column (Request needs 128 of 134, the amounts 61 of 62). **Decision:** a 3-letter prefix with a 3-digit sequence needs no change; the renderer breaks a receipts token wider than the column **after its en dash** (`LCX26/1000–` / `1002,`), local to `pdf.ts`, and a test asserts that every receipts line drawn fits 74 pt for `LCX26/014–016`, `LCX26/1000–1002` and `LCX26/99998–99999`. The journal workbook's Description is a text cell (`COLUMN_WIDTHS` 70 characters, presentation only); one more character changes nothing, and `exportFormat.test.ts` gains `Cancelleria [LCX26/040] <name>`. The per-request PDF prints `Receipt no. LCX26/1000` in the line's wrapped detail: no change. |
+| DS-8 | G8: the shared-prefix rule for an employee **with** a code | **`sharesPrefix(E)`** is true when `prefix(E)` (= code ?? initials) equals, for some other Refund-known employee F: F's code; or F's derived initials **when F has no code**; or the prefix of any number issued or imported to F (any year). It is computed for every row, **with or without a code**, and the badge shows whenever it is true. This departs from design RC-8 and its S2 row "sharesPrefix and a code: no badge": a code equal to a codeless colleague's initials is a shared prefix **caused by** the code, and it is flagged on both rows (the remedy is a code for F, or another code for E). The count note counts every flagged row, so its copy loses "and have no code" (`receiptCodes.shareNote`: EN "N employee(s) share(s) a prefix with another employee.", IT "N dipendente/i condivide/condividono il prefisso con un altro dipendente."). **The 409 rule does not change** (AC-4.3, ambiguity 8): a code is refused when another employee holds it, or when another employee has a number issued or imported with that prefix; another employee's derived initials with **no** number do not block it. So a code equal to another employee's initials is refused exactly when that employee already has numbers with those initials, and otherwise allowed and flagged. At the release this is consistent with D8's AC-4.11 rule: E's new-number prefix is in `prefixes(F)`, so a `new` decision for E exits 9 until F has a code. After the release it is flagged, never refused (D13). |
+| DS-9 | G9: "Last number" keeps the old prefix after a code change | Correct by AC-4.4 and kept. The dialog description and the Clear confirmation say that issued numbers do not change and the sequence continues. A "next number starts with" line is deferred until accountants ask for it. |
+| DS-10 | Task split and test environment (not a design gap) | `tasks.md` adds `refund-api/scripts/release/types.ts` (types only) so the reader, pairing, pairing-file and report tasks run in parallel. refund-api suites run against a scratch database per task on the local Postgres container (name `<db>_rn_<tag>`, see tasks.md § How to read), not on a shared `refund` database; the levels of § Test strategy are unchanged. |
+
 ## Decisions taken unattended
 
 | # | Decision | Why | To change |
@@ -831,6 +860,11 @@ For the `adr-writer`; none is written here.
   (stale refused). Output names people only as `<prefix> · <id8>`, exit statuses are per refusal
   family, and the real run is idempotent once completed. This generalises the 20261118 SO-13 / T84
   conventions for future operator migrations.
+
+- **A2 amendment (design sync DS-8)** for ADR 20261124-a-receipt-code-per-employee-…, decision 5: the
+  Settings flag covers every employee whose prefix is shared, **with or without a code** (a code equal
+  to another codeless employee's derived initials is a shared prefix caused by the code). The 409
+  rule (decision 3/AC-4.3) is unchanged. One sentence for the `adr-writer`.
 
 ## Spec amendment proposed
 
