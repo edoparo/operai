@@ -28,6 +28,11 @@ vi.mock('../../lib/accountingApi', async (importOriginal) => {
   return { ...original, getExpenseTypeDefaults: vi.fn() }
 })
 
+vi.mock('../../lib/receiptCodesApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../lib/receiptCodesApi')>()
+  return { ...original, listReceiptCodes: vi.fn(), putCode: vi.fn(), getCodeHistory: vi.fn() }
+})
+
 vi.mock('shell/session', async (importOriginal) => {
   const original = await importOriginal<typeof import('shell/session')>()
   return { ...original, usePermissions: vi.fn() }
@@ -37,6 +42,7 @@ import * as session from 'shell/session'
 import * as ratesApi from '../../lib/ratesApi'
 import * as settingsApi from '../../lib/settingsApi'
 import * as accountingApi from '../../lib/accountingApi'
+import * as receiptCodesApi from '../../lib/receiptCodesApi'
 import { EXPENSE_TYPES } from '../../lib/expenseTypes'
 import { createAppRouter } from '../../router'
 
@@ -60,10 +66,35 @@ const SETTINGS_ADMIN = grant(
   ['settings', 'manage'],
 )
 
+const RECEIPT_ONLY = grant(['refund'], ['receipt-code', 'manage'])
+const EVERYTHING = grant(
+  ['refund', 'accounting'],
+  ['rate', 'read'],
+  ['rate', 'manage'],
+  ['settings', 'read'],
+  ['settings', 'manage'],
+  ['receipt-code', 'manage'],
+)
+
 const ACCOUNT = { number: '5901', name: 'Spese viaggi', state: 'active' as const }
 
 beforeEach(() => {
   vi.mocked(session.usePermissions).mockReturnValue(SETTINGS_ADMIN)
+  vi.mocked(receiptCodesApi.listReceiptCodes).mockResolvedValue([
+    {
+      userId: 'u1',
+      name: 'Luca Conti',
+      email: 'luca.conti@welld.ch',
+      initials: 'LC',
+      code: null,
+      prefix: 'LC',
+      prefixSource: 'initials',
+      lastNumber: 'LC26/012',
+      changedAt: null,
+      changedByEmail: null,
+      sharesPrefix: true,
+    },
+  ])
   vi.mocked(ratesApi.listRates).mockResolvedValue({ entities: [] })
   vi.mocked(settingsApi.getSetting).mockResolvedValue({
     key: 'accounting-distribution-email',
@@ -126,6 +157,33 @@ describe('Settings page: accessibility (axe)', () => {
     await openSettings('?section=exchange-rates&month=2026-03')
     await screen.findByTestId('refund-settings-view-general')
     await waitFor(() => expect(ratesApi.listRates).toHaveBeenCalled())
+    await expectNoAxeViolations()
+  })
+})
+
+// T21, specs/20261124-receipt-numbers-from-the-register: Receipt codes as the only view and as the third.
+describe('Settings page: Receipt codes (axe)', () => {
+  it('has no violations for a holder of only receipt-code:manage: no tab list, the card is the page', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(RECEIPT_ONLY)
+    await openSettings()
+    await screen.findByTestId('receipt-codes-table')
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(ratesApi.listRates).not.toHaveBeenCalled()
+    await expectNoAxeViolations()
+  })
+
+  it('has no violations with three views, on the Receipt codes tab opened from the URL and from the tab list', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(EVERYTHING)
+    await openSettings('?section=receipt-codes')
+    await screen.findByTestId('receipt-codes-table')
+    expect(screen.getAllByRole('tab')).toHaveLength(3)
+    await expectNoAxeViolations()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }))
+    await screen.findByTestId('refund-settings-view-general')
+    await expectNoAxeViolations()
+    fireEvent.click(screen.getByRole('tab', { name: 'Receipt codes' }))
+    await screen.findByTestId('receipt-codes-table')
     await expectNoAxeViolations()
   })
 })

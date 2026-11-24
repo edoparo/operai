@@ -45,7 +45,7 @@ import { strings } from '../strings'
  * remain the actual enforcement — a deep link typed/followed by a
  * non-accounting user still lands on `PermissionDenied`, exactly as before.
  * Do not remove that handling on the strength of this nav change.
-  *
+ *
  * Layout from @operai/ui (ADR 20261031-shared-ui-library-consumed-as-source): `ToolLayout` (tool title + tabs + the
  * page column — a <div>, not a second <main>: the shell's layout owns the
  * page's one main landmark) and `TabNav`. TanStack Router's <Link> sets
@@ -58,10 +58,12 @@ export default function RefundShell() {
   const canReview = permissions.some(
     (permission) => permission.resource === 'request' && permission.action === 'review',
   )
-  // Settings (moved from Admin, ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment): rates or the distribution email.
+  // Settings (moved from Admin, ADR 20260720-mileage-rate-model-snapshot-admin-ui-composition amendment): rates or the distribution email;
+  // and, since specs/20261124-receipt-numbers-from-the-register (RC-2), the receipt codes.
   const canSeeSettings = permissions.some(
     (permission) =>
-      (permission.resource === 'rate' || permission.resource === 'settings') && permission.action === 'read',
+      ((permission.resource === 'rate' || permission.resource === 'settings') && permission.action === 'read') ||
+      (permission.resource === 'receipt-code' && permission.action === 'manage'),
   )
 
   return (

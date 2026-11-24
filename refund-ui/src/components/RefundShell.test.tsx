@@ -208,6 +208,23 @@ describe('RefundShell settings tab gating (moved from Admin, ADR 20260720-mileag
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['My requests', 'Settings'])
   })
 
+  it('shows "Settings" with receipt-code:manage alone (specs/20261124 RC-2)', async () => {
+    usePermissions.mockReturnValue(permissionsWith([{ resource: 'receipt-code', action: 'manage' }]))
+    await renderShellAt('/requests')
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['My requests', 'Settings'])
+  })
+
+  it('hides "Settings" without any of the three grants (receipt-code:read does not count either)', async () => {
+    usePermissions.mockReturnValue(
+      permissionsWith([
+        { resource: 'receipt-code', action: 'read' },
+        { resource: 'settings', action: 'manage' },
+      ]),
+    )
+    await renderShellAt('/requests')
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['My requests'])
+  })
+
   it('hides "Settings" without either read grant (rate:manage alone does not count)', async () => {
     usePermissions.mockReturnValue(
       permissionsWith([REQUEST_REVIEW_UNCONDITIONED, { resource: 'rate', action: 'manage' }]),

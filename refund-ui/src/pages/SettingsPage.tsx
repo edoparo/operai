@@ -33,6 +33,7 @@ import SuccessBanner from '../components/SuccessBanner'
 import { validateRate, validateValidFrom } from '../lib/rateValidation'
 import { strings } from '../strings'
 import DefaultsSettingsView from './settings/DefaultsSettingsView'
+import ReceiptCodesSettingsView from './settings/ReceiptCodesSettingsView'
 
 const t = strings.settings
 
@@ -377,9 +378,7 @@ function GeneralSettingsView() {
         const { rateError, validFromError } = mapAddRateError(error)
         setAddModal((prev) => (prev.open ? { ...prev, submitting: false, rateError, validFromError } : prev))
       } else {
-        setAddModal((prev) =>
-          prev.open ? { ...prev, submitting: false, generalError: t.addFailed } : prev,
-        )
+        setAddModal((prev) => (prev.open ? { ...prev, submitting: false, generalError: t.addFailed } : prev))
       }
     }
   }, [addModal])
@@ -410,7 +409,9 @@ function GeneralSettingsView() {
       )}
 
       <div className="flex flex-col gap-4">
-        {listState.status === 'forbidden' && <PermissionDenied headingLevel={3} title={t.forbiddenTitle} message={t.forbidden} />}
+        {listState.status === 'forbidden' && (
+          <PermissionDenied headingLevel={3} title={t.forbiddenTitle} message={t.forbidden} />
+        )}
 
         {listState.status === 'loading' &&
           ENTITY_ORDER.map((entity, index) => (
@@ -547,7 +548,12 @@ function GeneralSettingsView() {
                       )}
                     </Field>
                     <div className="flex items-center gap-2">
-                      <Button type="submit" variant="primary" disabled={emailSaving} data-testid="accounting-email-save">
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={emailSaving}
+                        data-testid="accounting-email-save"
+                      >
                         {t.email.save}
                       </Button>
                       <Button
@@ -598,12 +604,12 @@ function GeneralSettingsView() {
 // ---------------------------------------------------------------------------
 
 /** The Settings views, in tab order; `?section=` carries these ids. */
-const SETTINGS_SECTIONS = ['general', 'defaults'] as const
-export type SettingsSection = (typeof SETTINGS_SECTIONS)[number]
+export type SettingsSection = 'general' | 'defaults' | 'receipt-codes'
 
 const SECTION_LABEL: Record<SettingsSection, string> = {
   general: t.sections.general,
   defaults: t.sections.defaults,
+  'receipt-codes': t.sections.receiptCodes,
 }
 
 export type SettingsPageProps = {
@@ -620,22 +626,39 @@ export type SettingsPageProps = {
 }
 
 /**
+ * The views the user can open, in tab order (specs/20261124-receipt-numbers-from-the-register, RC-2): availability is
+ * per view. General needs `rate:read` or `settings:read`, Default classification `settings:read`, Receipt codes
+ * `receipt-code:manage`. A user who holds none of the three keeps General (today's page: its own cards handle a 403).
+ * A view the user cannot open is left out, never disabled.
+ */
+const availableSections = (permissions: { resource: string; action: string }[]): SettingsSection[] => {
+  const canReadRates = hasCapability(permissions, 'rate', 'read')
+  const canReadSettings = hasCapability(permissions, 'settings', 'read')
+  const available: SettingsSection[] = []
+  if (canReadRates || canReadSettings) available.push('general')
+  if (canReadSettings) available.push('defaults')
+  if (hasCapability(permissions, 'receipt-code', 'manage')) available.push('receipt-codes')
+  return available.length > 0 ? available : ['general']
+}
+
+/**
  * SettingsPage — the refund tool's configuration, in same-page views (UX-16, specs/20261119-accounting; UX-1 of
- * 20261118): General (today's page) and Default classification. Only the open view is mounted. A view the user
- * cannot open is left out of the tab list, never disabled (design-system § Tool frame): Default classification
- * needs `settings:read`; General stays for everyone who reaches the page (its own cards handle a 403). With a
- * single view there is no tab list and the page is exactly today's. The ledger accounts, VAT codes and
- * exchange rates are kept in the Accounting app (AC-4.6). UX only: refund-api enforces every grant.
+ * 20261118; RC-1, RC-2 of 20261124): General (today's page), Default classification and Receipt codes. Only the open
+ * view is mounted. A view the user cannot open is left out of the tab list, never disabled (design-system § Tool
+ * frame); with a single view there is no tab list and the page is exactly that view. A holder of only
+ * `receipt-code:manage` gets the Receipt codes view and General never mounts (DS-6: the shell's route guard has
+ * resolved the permissions before this page renders, and `usePermissions` starts from that cache). The ledger
+ * accounts, VAT codes and exchange rates are kept in the Accounting app (AC-4.6). UX only: refund-api enforces every
+ * grant.
  *
- * Capabilities fail CLOSED until the shell resolves them, so a deep link to a gated view first shows
- * General for an instant and then switches.
+ * Capabilities fail CLOSED until the shell resolves them; outside the shell (dev, standalone) a deep link to a gated
+ * view first shows General for an instant and then switches.
  */
 export default function SettingsPage({ section, onSectionChange }: SettingsPageProps) {
   const { permissions } = usePermissions()
-  const canReadSettings = hasCapability(permissions, 'settings', 'read')
   const [ownSection, setOwnSection] = useState<string | undefined>(section)
 
-  const available: SettingsSection[] = canReadSettings ? [...SETTINGS_SECTIONS] : ['general']
+  const available = availableSections(permissions)
   const requested = onSectionChange ? section : ownSection
   const active: SettingsSection = available.find((id) => id === requested) ?? available[0]
 
@@ -645,14 +668,17 @@ export default function SettingsPage({ section, onSectionChange }: SettingsPageP
   }
 
   const showTabs = available.length > 1
+  const description = showTabs
+    ? available.includes('defaults')
+      ? t.descriptionAll
+      : t.description
+    : active === 'receipt-codes'
+      ? t.descriptionReceiptCodes
+      : t.description
 
   return (
     <section aria-labelledby="refund-settings-heading" data-testid="refund-settings-page">
-      <PageHeader
-        title={t.heading}
-        titleId="refund-settings-heading"
-        description={showTabs ? t.descriptionAll : t.description}
-      />
+      <PageHeader title={t.heading} titleId="refund-settings-heading" description={description} />
 
       {showTabs && (
         <Tabs
@@ -672,6 +698,7 @@ export default function SettingsPage({ section, onSectionChange }: SettingsPageP
       >
         {active === 'general' && <GeneralSettingsView />}
         {active === 'defaults' && <DefaultsSettingsView />}
+        {active === 'receipt-codes' && <ReceiptCodesSettingsView />}
       </div>
     </section>
   )

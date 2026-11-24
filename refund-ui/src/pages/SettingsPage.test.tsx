@@ -56,7 +56,13 @@ vi.mock('../lib/settingsApi', async (importOriginal) => {
   return { ...original, getSetting: vi.fn(), putSetting: vi.fn() }
 })
 
+vi.mock('../lib/receiptCodesApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../lib/receiptCodesApi')>()
+  return { ...original, listReceiptCodes: vi.fn(), putCode: vi.fn(), getCodeHistory: vi.fn() }
+})
+
 import * as ratesApi from '../lib/ratesApi'
+import * as receiptCodesApi from '../lib/receiptCodesApi'
 import { ApiError as RatesApiError } from '../lib/refundApi'
 import * as session from 'shell/session'
 import * as settingsApi from '../lib/settingsApi'
@@ -770,5 +776,111 @@ describe('SettingsPage — accounting distribution email panel', () => {
     expect(screen.queryByTestId('accounting-email-input')).toBeNull()
     expect(screen.queryByTestId('accounting-email-save')).toBeNull()
     expect(screen.queryByTestId('accounting-email-clear')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// (T21, specs/20261124-receipt-numbers-from-the-register) Receipt codes: per-view availability (RC-1, RC-2, DS-6)
+// ---------------------------------------------------------------------------
+
+const permissionsOf = (...pairs: [string, string][]): Permissions => ({
+  epoch: 1,
+  apps: ['refund'],
+  roles: [],
+  departments: [],
+  permissions: pairs.map(([resource, action]) => ({ resource, action, conditions: null })),
+})
+
+const RECEIPT_ONLY = permissionsOf(['receipt-code', 'manage'])
+const EVERYTHING = permissionsOf(
+  ['rate', 'read'],
+  ['rate', 'manage'],
+  ['settings', 'read'],
+  ['settings', 'manage'],
+  ['receipt-code', 'manage'],
+)
+
+describe('SettingsPage — Receipt codes view (RC-1, RC-2, DS-6)', () => {
+  beforeEach(() => {
+    vi.mocked(receiptCodesApi.listReceiptCodes).mockResolvedValue([])
+    vi.mocked(ratesApi.listRates).mockResolvedValue(populatedResult)
+    vi.mocked(settingsApi.getSetting).mockResolvedValue(notConfiguredSetting)
+  })
+
+  it('DS-6: a holder of only receipt-code:manage gets the Receipt codes view on the first render, no tab list, and the rates are never fetched', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(RECEIPT_ONLY)
+    render(<SettingsPage />)
+
+    // Synchronously, before anything has loaded: the view is there, General never mounted.
+    expect(screen.getByTestId('refund-settings-view-receipt-codes')).not.toBeNull()
+    expect(screen.getByTestId('receipt-codes-card')).not.toBeNull()
+    expect(screen.queryByTestId('refund-settings-view-general')).toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.getByText('The codes that start the receipt numbers of each employee.')).not.toBeNull()
+
+    await screen.findByTestId('receipt-codes-empty')
+    expect(ratesApi.listRates).not.toHaveBeenCalled()
+    expect(settingsApi.getSetting).not.toHaveBeenCalled()
+  })
+
+  it('with every capability the tab list has General, Default classification and Receipt codes, and the tab opens the view', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(EVERYTHING)
+    render(<SettingsPage />)
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'General',
+      'Default classification',
+      'Receipt codes',
+    ])
+    expect(screen.getByTestId('refund-settings-view-general')).not.toBeNull()
+    expect(receiptCodesApi.listReceiptCodes).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Receipt codes' }))
+    expect(screen.getByTestId('refund-settings-view-receipt-codes')).not.toBeNull()
+    expect(screen.queryByTestId('refund-settings-view-general')).toBeNull()
+    await screen.findByTestId('receipt-codes-empty')
+    expect(receiptCodesApi.listReceiptCodes).toHaveBeenCalledTimes(1)
+  })
+
+  it('General is offered for rate:read and for settings:read, Default classification for settings:read only', () => {
+    vi.mocked(session.usePermissions).mockReturnValue(permissionsOf(['rate', 'read'], ['receipt-code', 'manage']))
+    const { unmount } = render(<SettingsPage />)
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['General', 'Receipt codes'])
+    // Two views without Default classification: the page description does not promise it.
+    expect(screen.queryByText('The mileage rates and the default classification of expense types.')).toBeNull()
+    unmount()
+
+    vi.mocked(session.usePermissions).mockReturnValue(permissionsOf(['settings', 'read'], ['receipt-code', 'manage']))
+    render(<SettingsPage />)
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'General',
+      'Default classification',
+      'Receipt codes',
+    ])
+  })
+
+  it('without the capability there is no Receipt codes tab and ?section=receipt-codes shows the first available view, no error', () => {
+    vi.mocked(session.usePermissions).mockReturnValue(managePermissions)
+    render(<SettingsPage section="receipt-codes" />)
+    expect(screen.queryByRole('tab', { name: 'Receipt codes' })).toBeNull()
+    expect(screen.getByTestId('refund-settings-view-general')).not.toBeNull()
+    expect(screen.queryByTestId('receipt-codes-card')).toBeNull()
+    expect(receiptCodesApi.listReceiptCodes).not.toHaveBeenCalled()
+  })
+
+  it('a user with none of the three keeps General, as before', () => {
+    vi.mocked(session.usePermissions).mockReturnValue(NO_GRANTS)
+    render(<SettingsPage />)
+    expect(screen.getByTestId('refund-settings-view-general')).not.toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
+  })
+
+  it('?section=receipt-codes opens the view for a holder of the capability among others', async () => {
+    vi.mocked(session.usePermissions).mockReturnValue(EVERYTHING)
+    render(<SettingsPage section="receipt-codes" onSectionChange={vi.fn()} />)
+    expect(screen.getByTestId('refund-settings-view-receipt-codes')).not.toBeNull()
+    expect(screen.getByRole('tab', { name: 'Receipt codes' }).getAttribute('aria-selected')).toBe('true')
+    await screen.findByTestId('receipt-codes-empty')
+    expect(ratesApi.listRates).not.toHaveBeenCalled()
   })
 })
