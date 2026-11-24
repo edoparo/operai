@@ -252,7 +252,7 @@ export default function ReceiptCodesCard() {
           <>
             <StatusBadge status="attention">{t.sharesPrefix}</StatusBadge>
             <VisuallyHidden>
-              <span id={hintId(row)}>{t.sharesPrefixHint}</span>
+              <span id={hintId(row)}>{row.code === null ? t.sharesPrefixHint : t.sharesPrefixHintWithCode}</span>
             </VisuallyHidden>
           </>
         ) : null,

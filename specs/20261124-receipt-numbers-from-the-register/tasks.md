@@ -437,10 +437,11 @@ Derived from these committed files:
   - done when: `security-review.md` lists no open high or critical finding; any fix is a new task appended here, with an overlap check.
   - evidence: `security-review.md` (`c0bd8253`) verdict PASS with notes: 0 critical, 0 high, 0 medium, 3 low, 10 info, static review of `0a6735aa..a00780fa`. Fix round done as T35 (`4010237d`, dispositions `30b178a5`): L-1, L-2, I-4, I-9 fixed; L-3 accepted; I-1 to I-3, I-5 to I-8, I-10 no action. The follow-up on the order of the L-1 refusal is T36.
 
-- [ ] T29: Eval — refs: all ACs (nominal) — deps: T27, T28, T35, T36 (T35 and T36 added 2026-11-24: the eval re-run follows the fix rounds and T27's re-run)
+- [x] T29: Eval — refs: all ACs (nominal) — deps: T27, T28, T35, T36 (T35 and T36 added 2026-11-24: the eval re-run follows the fix rounds and T27's re-run)
   - touch: `specs/20261124-receipt-numbers-from-the-register/eval-report.md`
   - agent: orchestrator · close
   - done when: `/wellforge:eval` produces a passing `eval-report.md`.
+  - evidence: eval-report.md round 2, PASS 80.9/100 at `1fd4d503` (round 1 FAIL 75.7); no dimension below its floor (AC satisfaction and design fidelity at the floor until T31/T32). Its one design-fidelity weak spot, the hidden hint of a flagged row that already has a code, is fixed after it with a test (`receiptCodes.sharesPrefixHintWithCode`, en/it, design copy table).
 
 - [ ] T30: **The gate.** All gates green; QE, security review and eval pass; the live e2e reported green; spec status → done — refs: all ACs (nominal) — deps: T29, T32
   - touch: `specs/20261124-receipt-numbers-from-the-register/spec.md`, `specs/20261124-receipt-numbers-from-the-register/tasks.md`

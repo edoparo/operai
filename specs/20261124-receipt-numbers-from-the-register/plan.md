@@ -114,6 +114,9 @@ Order of the run, which matches the order of the exit statuses:
    database that command exits 0 too, because the L-1 refusal below comes after this step (changed
    2026-11-24, security fix round and eval round 1). Only argument parsing precedes this step: a
    usage error (an unknown argument, `--show-emails`, a flag with no value) is exit 1 on any database.
+   The read-path warnings of step 3 (`--register`, `--pairing`, `--offsets` inside a git worktree) are printed
+   during argument handling too, so a released database may print such a warning on stderr before "already
+   completed"; it changes nothing (noted 2026-11-24, eval round 2).
    - **0a. `--propose` inside a git worktree? (L-1, 2026-11-24)** On a database not yet released, a
      `--propose` path inside a git worktree is **refused with exit 1**: the file it would write names
      employees and must never be committed. Nothing else is read (no Accounting, auth or input file)
@@ -821,7 +824,7 @@ the sentences of this plan they change are edited in place and dated.
 | Security fix round (L-1, L-2, I-4, I-9 of `security-review.md`) | T35 | `4010237d` (fix), `30b178a5` (review dispositions) | L-1: a `--propose` path inside a git worktree is refused with exit 1 instead of warned about (step 3, § Security 2); `.gitignore` also covers `**/accounting-release*.csv`. L-2: the pairing file neutralises a register row's shape and the currency. I-4: the employee reference in a refusal is always `<prefix> · <8>` or `not yet in Refund`. I-9: the e2e release step refuses a non-local `E2E_REFUND_DATABASE_URL` host unless `E2E_ALLOW_REMOTE_DB=1` (a database resolved through the service's own direnv file is not checked). |
 | Marker-order fix (eval round 1) | T36 | `67f57307` (fix); this docs sync | The L-1 refusal moves **after** the completed-release marker (step 0a): a released database exits 0 "already completed" whatever the flags, as step 0 and D11 say; a database not yet released with a `--propose` path inside a worktree exits 1 with nothing else read and nothing written. Docs synced the same day: the index name of § Data model step 4 (`refund_line_receipt_owner_year_seq_part_key`, as in the migration), the two ADRs on the release and the reader, design.md for DS-8, tasks.md (T35, T36, implementation notes, evidence). |
 
-A QE re-run of the post-fix tree is owed before the eval re-runs (T27, "re-run after fix rounds").
+The QE re-run of the post-fix tree is done (T27, "re-run after fix rounds", `1fd4d503`: PASS); eval round 2 PASS 80.9.
 
 ## Decisions taken unattended
 

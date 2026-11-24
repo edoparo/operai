@@ -265,6 +265,8 @@ const en = {
       changedBy: (by: string, on: string) => `${by} · ${on}`,
       sharesPrefix: 'Shares prefix',
       sharesPrefixHint: 'Another employee uses the same letters. Set a code to tell the numbers apart.',
+      /** DS-8: a row that already has a code can still share its prefix (another employee's initials equal it): the remedy is another code, or a code for the colleague. */
+      sharesPrefixHintWithCode: 'Another employee uses the same letters. Choose another code, or set a code for the colleague.',
       /** DS-8: counts every flagged row, with or without a code; names nobody. */
       shareNote: (n: number) =>
         n === 1
@@ -1351,6 +1353,7 @@ const it: Strings = {
       changedBy: (by: string, on: string) => `${by} · ${on}`,
       sharesPrefix: 'Prefisso condiviso',
       sharesPrefixHint: 'Un altro dipendente usa le stesse lettere. Impostare un codice per distinguere i numeri.',
+      sharesPrefixHintWithCode: 'Un altro dipendente usa le stesse lettere. Scegliere un altro codice o impostarne uno per il collega.',
       shareNote: (n: number) =>
         n === 1
           ? '1 dipendente condivide il prefisso con un altro dipendente.'

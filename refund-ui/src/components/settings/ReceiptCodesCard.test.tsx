@@ -230,6 +230,15 @@ describe('ReceiptCodesCard: "Shares prefix" (DS-8, AC-4.8, AC-4.11)', () => {
     expect(screen.getAllByText('Shares prefix')).toHaveLength(2)
   })
 
+  it('the hidden hint fits the row: set a code when there is none, another code (or one for the colleague) when there is one', async () => {
+    await renderCard()
+    expect(within(row('u-luca')).getByText('Another employee uses the same letters. Set a code to tell the numbers apart.')).not.toBeNull()
+    expect(
+      within(row('u-paolo')).getByText('Another employee uses the same letters. Choose another code, or set a code for the colleague.'),
+    ).not.toBeNull()
+    expect(within(row('u-paolo')).queryByText(/Set a code to tell the numbers apart/)).toBeNull()
+  })
+
   it('the note counts the flagged rows, with a code or without, and names nobody', async () => {
     await renderCard()
     const note = screen.getByRole('note', { name: 'Employees sharing a prefix' })
@@ -254,11 +263,14 @@ describe('ReceiptCodesCard: "Shares prefix" (DS-8, AC-4.8, AC-4.11)', () => {
 
   it('describes the row’s Set code / Change button by the hint, so a keyboard user hears why', async () => {
     await renderCard()
-    for (const id of ['u-luca', 'u-paolo']) {
+    // A row with no code is told to set one; a row that has a code (u-paolo) to choose another or code the colleague.
+    const expected: Record<string, string> = {
+      'u-luca': 'Another employee uses the same letters. Set a code to tell the numbers apart.',
+      'u-paolo': 'Another employee uses the same letters. Choose another code, or set a code for the colleague.',
+    }
+    for (const [id, hint] of Object.entries(expected)) {
       const describedBy = button(id, 'edit').getAttribute('aria-describedby') as string
-      expect(document.getElementById(describedBy)?.textContent).toBe(
-        'Another employee uses the same letters. Set a code to tell the numbers apart.',
-      )
+      expect(document.getElementById(describedBy)?.textContent).toBe(hint)
     }
     expect(button('u-anna', 'edit').getAttribute('aria-describedby')).toBeNull()
   })
