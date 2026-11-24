@@ -10,7 +10,7 @@
 import { describe, it, expect } from "bun:test";
 import labels from "./document-labels.json";
 import { EXPENSE_TYPE_VALUES } from "./requests.schemas";
-import { entityLabel, entityHeaderLabel, expenseTypeLabel, requestStatusLabel } from "./labels";
+import { entityLabel, entityHeaderLabel, expenseTypeLabel, expenseTypeLabelIt, requestStatusLabel } from "./labels";
 
 describe("document labels", () => {
   // The defect this exists to prevent: the exported PDF read
@@ -67,5 +67,17 @@ describe("document labels", () => {
     );
     expect(entityLabel("welld_xx")).toBe("welld_xx");
     expect(requestStatusLabel("archived")).toBe("archived");
+  });
+});
+
+describe("Italian expense type labels (the register extract)", () => {
+  it("cover exactly the expense types, each with its own wording", () => {
+    expect(Object.keys(labels.expenseTypeIt)).toEqual([...EXPENSE_TYPE_VALUES]);
+    for (const [id, label] of Object.entries(labels.expenseTypeIt)) {
+      expect(expenseTypeLabelIt(id)).toBe(label);
+      expect(label).not.toBe(id);
+    }
+    expect(expenseTypeLabelIt("travel_km")).toBe("Spese di viaggio (km)");
+    expect(expenseTypeLabelIt("unknown_type")).toBe("unknown_type");
   });
 });

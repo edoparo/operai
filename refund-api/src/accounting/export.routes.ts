@@ -48,7 +48,7 @@ import { GLOBAL_ENTITY_SCOPE } from "../authz/conditions";
 import { canOpenAccountingRates } from "../authz/accountingViewer";
 import { scopeForReviewAction } from "../review/review.service";
 import { accountingPort, type AccountingPort } from "./accountingClient";
-import { exportBatchFile, prepareExport } from "./export.repo";
+import { exportBatchFile, prepareExport, type ExportFileKind } from "./export.repo";
 import {
   ExportBatchParamSchema,
   ExportBlockedSchema,
@@ -56,6 +56,7 @@ import {
   ExportSummarySchema,
 } from "./export.schemas";
 import { CONTENT_TYPE, exportFilename } from "./exportFormat";
+import { registerFilename } from "./registerExtractFormat";
 
 const problem = <S extends number>(status: S, title: string, path: string, detail: string, code?: string) => ({
   type: `https://httpstatuses.com/${status}`,
@@ -142,6 +143,38 @@ const fileRoute = createRoute({
   },
 });
 
+const registerFileRoute = createRoute({
+  method: "get",
+  path: "/batches/{id}/accounting-export/register-file",
+  tags: ["Accounting"],
+  summary: "Download the batch's WellD CH lines as rows of the accountant's register (Excel)",
+  description:
+    "The same lines, blockers, rate copies and export log as `/accounting-export/file`, laid out like the accountant's " +
+    "register: one sheet named after the batch's year, the header `Worker | Period | No. | Description | From | To | Reason | " +
+    "Date | Km / Monthly avg rate | Multiplier / Foreign Amount | Total | Account | Description | IVA | IVA2 | Approved by` " +
+    "and one row per approved, not rejected WellD CH line, by period, worker and receipt number. No cell is a formula. " +
+    "Logged with the kind `register` before the file is sent.",
+  security: [{ Bearer: [] }],
+  request: { params: ExportBatchParamSchema },
+  responses: {
+    200: {
+      content: { [CONTENT_TYPE]: { schema: z.string().openapi({ format: "binary" }) } },
+      description:
+        "The file. Headers: `Content-Disposition` (attachment, `refund-register-<cutoff>-<batchId>.xlsx`), " +
+        "`X-Export-Row-Count`, `X-Export-Excluded-Line-Count`.",
+    },
+    403: problemResponse("No `request:review`, or `accounting_export_out_of_scope`"),
+    404: problemResponse("No such batch"),
+    409: {
+      content: {
+        "application/json": { schema: ExportBlockedSchema.or(ExportProblemSchema) },
+      },
+      description: "`batch_discarded`, or `accounting_export_blocked` with the summary as its body",
+    },
+    500: problemResponse("The export could not be recorded, so no file was produced"),
+  },
+});
+
 export interface ExportRouterDeps {
   /** How Accounting is read; the port every route reads through unless a test hands in its own. */
   readonly accounting?: AccountingPort;
@@ -169,7 +202,11 @@ export function createExportRouter(deps: ExportRouterDeps = {}) {
     },
   });
 
-  for (const path of ["/batches/:id/accounting-export", "/batches/:id/accounting-export/file"]) {
+  for (const path of [
+    "/batches/:id/accounting-export",
+    "/batches/:id/accounting-export/file",
+    "/batches/:id/accounting-export/register-file",
+  ]) {
     router.use(path, jwtMiddleware);
     router.use(path, authzMiddleware);
   }
@@ -215,14 +252,14 @@ export function createExportRouter(deps: ExportRouterDeps = {}) {
     return c.json({ ...result.summary, viewer: viewerOf(c) }, 200);
   });
 
-  router.openapi(fileRoute, async (c) => {
-    const { id } = c.req.valid("param");
+  /** Both files: the same refusals, the same transaction and log; only the layout and the filename differ. */
+  const serveFile = async (c: Context<{ Variables: AuthzVariables }>, id: string, kind: ExportFileKind) => {
     const denied = refusal(c.get("authz"), c.req.path);
     if (denied) return c.json(denied, 403);
 
     let result: Awaited<ReturnType<typeof exportBatchFile>>;
     try {
-      result = await exportBatchFile(id, { userId: c.get("userId"), email: c.get("email") }, accounting());
+      result = await exportBatchFile(id, { userId: c.get("userId"), email: c.get("email") }, accounting(), kind);
     } catch (error) {
       // The transaction failed (the log row, a rate copy, the commit): nothing was copied, logged or sent. Only the error
       // NAME is logged: no body, no line data, no database message.
@@ -251,16 +288,21 @@ export function createExportRouter(deps: ExportRouterDeps = {}) {
     }
 
     const { file, summary } = result;
+    const filename =
+      kind === "register" ? registerFilename(result.batch.cutoff, summary.batchId) : exportFilename(result.batch.cutoff, summary.batchId);
     return c.body(file.bytes as unknown as string, 200, {
       "Content-Type": CONTENT_TYPE,
-      "Content-Disposition": `attachment; filename="${exportFilename(result.batch.cutoff, summary.batchId)}"`,
+      "Content-Disposition": `attachment; filename="${filename}"`,
       "X-Export-Row-Count": String(file.rowCount),
       "X-Export-Excluded-Line-Count": String(summary.excludedLineCount),
       // Personal and financial data: never kept by a cache or a proxy.
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     });
-  });
+  };
+
+  router.openapi(fileRoute, async (c) => serveFile(c, c.req.valid("param").id, "journal"));
+  router.openapi(registerFileRoute, async (c) => serveFile(c, c.req.valid("param").id, "register"));
 
   return router;
 }

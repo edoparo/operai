@@ -23,7 +23,7 @@ import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tan
 
 vi.mock('../lib/accountingExportApi', async (importOriginal) => {
   const original = await importOriginal<typeof import('../lib/accountingExportApi')>()
-  return { ...original, getAccountingExport: vi.fn(), downloadAccountingFile: vi.fn() }
+  return { ...original, getAccountingExport: vi.fn(), downloadAccountingFile: vi.fn(), downloadRegisterFile: vi.fn() }
 })
 
 import * as exportApi from '../lib/accountingExportApi'
@@ -864,3 +864,58 @@ describe('AccountingExportCard: accessibility (axe)', () => {
     await expectNoAxeViolations()
   })
 })
+
+describe('AccountingExportCard: the register extract', () => {
+  const register = () => screen.getByTestId('accounting-export-download-register') as HTMLButtonElement
+
+  it('downloads the register file under refund-register-<cutoff>-<id>.xlsx and confirms it as the register extract', async () => {
+    const blob = new Blob([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], { type: XLSX })
+    vi.mocked(exportApi.downloadRegisterFile).mockResolvedValue(blob)
+    await renderCard()
+    expect(register().textContent).toBe('Download register extract')
+    fireEvent.click(register())
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1))
+    expect(exportApi.downloadRegisterFile).toHaveBeenCalledWith('batch-1')
+    expect(exportApi.downloadAccountingFile).not.toHaveBeenCalled()
+    expect(vi.mocked(URL.createObjectURL).mock.calls[0][0]).toBe(blob)
+    expect(downloadName).toBe('refund-register-2026-07-19-batch-1.xlsx')
+    expect((await screen.findByTestId('accounting-export-downloaded')).textContent).toBe(
+      'Register extract downloaded: 12 rows',
+    )
+  })
+
+  it('one file at a time: while the register extract is prepared, neither button starts another download', async () => {
+    let resolve!: (blob: Blob) => void
+    vi.mocked(exportApi.downloadRegisterFile).mockReturnValue(new Promise((r) => (resolve = r)))
+    await renderCard()
+    fireEvent.click(register())
+    await waitFor(() => expect(register().getAttribute('aria-busy')).toBe('true'))
+    expect(download().getAttribute('aria-disabled')).toBe('true')
+    fireEvent.click(download())
+    fireEvent.click(register())
+    expect(exportApi.downloadRegisterFile).toHaveBeenCalledTimes(1)
+    expect(exportApi.downloadAccountingFile).not.toHaveBeenCalled()
+    await act(async () => resolve(new Blob(['x'])))
+    await waitFor(() => expect(register().textContent).toBe('Download register extract'))
+  })
+
+  it('a blocked batch disables it with the same reason, and a 409 on it switches to Blocked', async () => {
+    const body = {
+      batchId: 'batch-1',
+      batchStatus: 'compiled',
+      rowCount: 0,
+      excludedLineCount: 0,
+      fetchAttempted: false,
+      blockers: { missingRates: [{ currency: 'GBP', month: '2026-02' }], unclassifiedLines: [], unnumberedLines: [] },
+    }
+    vi.mocked(exportApi.downloadRegisterFile).mockRejectedValue(problem(409, 'accounting_export_blocked', body))
+    await renderCard()
+    fireEvent.click(register())
+    await screen.findByTestId('accounting-export-turned-blocked')
+    expect(register().getAttribute('aria-disabled')).toBe('true')
+    expect(register().getAttribute('aria-describedby')).toBe(download().getAttribute('aria-describedby'))
+    await expectNoAxeViolations()
+  })
+})
+

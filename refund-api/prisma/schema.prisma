@@ -534,6 +534,7 @@ model RefundBatchExport {
   excludedLineCount Int // WellD Italia lines left out
   contentSha256     String
   formatVersion     Int
+  kind              String      @default("journal") // "journal" (the accounting system's import file) or "register" (the accountant's register extract)
   createdAt         DateTime    @default(now())
 
   @@index([batchId, createdAt])

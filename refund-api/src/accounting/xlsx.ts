@@ -37,6 +37,12 @@ export interface XlsxStyle {
   /** Required of every style a `text` cell uses. */
   readonly quotePrefix?: boolean;
   readonly horizontal?: "left" | "center" | "right";
+  /** A solid background, as six hex digits (`C0C0C0`). Absent: no fill. */
+  readonly fill?: string;
+  /** A thin black line above and below the cell (a header band). */
+  readonly borderTopBottom?: boolean;
+  /** Wraps the text inside the cell. */
+  readonly wrap?: boolean;
 }
 
 export type XlsxCell =
@@ -56,6 +62,8 @@ export interface XlsxSpec {
   readonly styles: readonly XlsxStyle[];
   /** Column widths in characters, from column A. */
   readonly columnWidths: readonly number[];
+  /** Keeps row 1 in view while scrolling (a frozen pane under the header). */
+  readonly freezeFirstRow?: boolean;
   /** Row 1 first. A row may be shorter than the widest; it is not padded. */
   readonly rows: readonly (readonly XlsxCell[])[];
 }
@@ -248,6 +256,7 @@ function validate(spec: XlsxSpec): void {
       throw new RangeError(`number format ${style.numFmtId} is not defined`);
     }
     if (!Number.isInteger(style.numFmtId) || style.numFmtId < 0) throw new RangeError("a number-format id is a non-negative integer");
+    if (style.fill !== undefined && !/^[0-9A-F]{6}$/.test(style.fill)) throw new RangeError(`a fill is six upper-case hex digits, got ${style.fill}`);
   }
   for (const width of spec.columnWidths) {
     if (!(width > 0 && width <= 255)) throw new RangeError(`column width out of range: ${String(width)}`);
@@ -271,20 +280,35 @@ function stylesXml(spec: XlsxSpec): string {
   const fonts =
     '<fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
     '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>';
-  const fills = '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>';
-  const borders = '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>';
+  // Fills 0 and 1 are reserved by the format; each distinct colour a style asks for follows, in order of first use. A spec
+  // with no fill and no border writes exactly what it wrote before these options existed (the journal's golden bytes).
+  const fillColours = [...new Set(spec.styles.flatMap((style) => (style.fill !== undefined ? [style.fill] : [])))];
+  const fills =
+    `<fills count="${2 + fillColours.length}"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>` +
+    fillColours.map((rgb) => `<fill><patternFill patternType="solid"><fgColor rgb="FF${rgb}"/><bgColor rgb="FF${rgb}"/></patternFill></fill>`).join("") +
+    "</fills>";
+  const band = spec.styles.some((style) => style.borderTopBottom === true);
+  const borders = band
+    ? '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+      '<border><left/><right/><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>'
+    : '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>';
   const cellStyleXfs = '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>';
   const xfs = spec.styles
     .map((style) => {
+      const fillId = style.fill !== undefined ? 2 + fillColours.indexOf(style.fill) : 0;
+      const borderId = style.borderTopBottom === true ? 1 : 0;
+      const aligned = style.horizontal !== undefined || style.wrap === true;
       const attributes =
-        `numFmtId="${style.numFmtId}" fontId="${style.bold === true ? 1 : 0}" fillId="0" borderId="0" xfId="0"` +
+        `numFmtId="${style.numFmtId}" fontId="${style.bold === true ? 1 : 0}" fillId="${fillId}" borderId="${borderId}" xfId="0"` +
         (style.numFmtId !== 0 ? ' applyNumberFormat="1"' : "") +
         (style.bold === true ? ' applyFont="1"' : "") +
-        (style.horizontal !== undefined ? ' applyAlignment="1"' : "") +
+        (fillId !== 0 ? ' applyFill="1"' : "") +
+        (borderId !== 0 ? ' applyBorder="1"' : "") +
+        (aligned ? ' applyAlignment="1"' : "") +
         (style.quotePrefix === true ? ' quotePrefix="1"' : "");
-      return style.horizontal !== undefined
-        ? `<xf ${attributes}><alignment horizontal="${style.horizontal}"/></xf>`
-        : `<xf ${attributes}/>`;
+      const alignment =
+        (style.horizontal !== undefined ? ` horizontal="${style.horizontal}"` : "") + (style.wrap === true ? ' wrapText="1"' : "");
+      return aligned ? `<xf ${attributes}><alignment${alignment}/></xf>` : `<xf ${attributes}/>`;
     })
     .join("");
   return (
@@ -351,7 +375,9 @@ function renderSheet(spec: XlsxSpec): Rendered {
   const sheet =
     XML_DECLARATION +
     `<worksheet xmlns="${NS_MAIN}"><dimension ref="A1:${lastCell}"/>` +
-    '<sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews>' +
+    (spec.freezeFirstRow === true
+      ? '<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+      : '<sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews>') +
     '<sheetFormatPr defaultRowHeight="15"/>' +
     `${cols}<sheetData>${rows}</sheetData>` +
     '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>';

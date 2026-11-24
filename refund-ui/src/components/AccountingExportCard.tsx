@@ -36,7 +36,9 @@ import {
   accountingExportFileName,
   blockedSummary,
   downloadAccountingFile,
+  downloadRegisterFile,
   getAccountingExport,
+  registerFileName,
 } from '../lib/accountingExportApi'
 import type { AccountingExportSummary, MissingRateReason, UnclassifiedLineBlocker } from '../lib/accountingExportApi'
 import { formatDate } from '../lib/dates'
@@ -78,7 +80,8 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
   const reasonId = useId()
   const resource = useLoadedResource(() => getAccountingExport(batchId))
   const { replace } = resource
-  const [downloading, setDownloading] = useState(false)
+  /** Which file is being prepared: the journal or the register extract (one at a time). */
+  const [downloading, setDownloading] = useState<'journal' | 'register' | null>(null)
   const [rechecking, setRechecking] = useState(false)
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
@@ -150,21 +153,21 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
     }
   }
 
-  const download = async () => {
-    if (downloading || summary === null || !summary.exportable) return
-    setDownloading(true)
+  const download = async (kind: 'journal' | 'register') => {
+    if (downloading !== null || summary === null || !summary.exportable) return
+    setDownloading(kind)
     setDownloadError(null)
     setDownloaded(null)
     setTurnedBlocked(false)
     let objectUrl: string | null = null
     try {
-      const blob = await downloadAccountingFile(batchId)
+      const blob = kind === 'register' ? await downloadRegisterFile(batchId) : await downloadAccountingFile(batchId)
       objectUrl = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = objectUrl
-      anchor.download = accountingExportFileName(cutoff, batchId)
+      anchor.download = kind === 'register' ? registerFileName(cutoff, batchId) : accountingExportFileName(cutoff, batchId)
       anchor.click()
-      setDownloaded(t.downloaded(summary.rowCount))
+      setDownloaded(kind === 'register' ? t.registerDownloaded(summary.rowCount) : t.downloaded(summary.rowCount))
       void rereadQuietly()
     } catch (error) {
       const blocked = blockedSummary(error)
@@ -187,7 +190,7 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
     } finally {
       // The click has already been dispatched, so releasing the Blob handle does not affect the download.
       if (objectUrl !== null) URL.revokeObjectURL(objectUrl)
-      setDownloading(false)
+      setDownloading(null)
     }
   }
 
@@ -204,7 +207,8 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
 
   return (
     <Card title={t.title} data-testid="accounting-export-card">
-      <p className="mb-3 text-sm text-soft">{t.descriptionExcel}</p>
+      <p className="mb-1 text-sm text-soft">{t.descriptionExcel}</p>
+      <p className="mb-3 text-sm text-soft">{t.descriptionRegister}</p>
 
       {resource.status === 'loading' && (
         <>
@@ -365,15 +369,25 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
               </VisuallyHidden>
             )}
             <Button
+              variant="secondary"
+              busy={downloading === 'register'}
+              aria-disabled={blocked || downloading === 'journal' || undefined}
+              aria-describedby={blocked ? reasonId : undefined}
+              onClick={() => void download('register')}
+              data-testid="accounting-export-download-register"
+            >
+              {downloading === 'register' ? t.downloading : t.downloadRegister}
+            </Button>
+            <Button
               ref={downloadRef}
               variant="secondary"
-              busy={downloading}
-              aria-disabled={blocked || undefined}
+              busy={downloading === 'journal'}
+              aria-disabled={blocked || downloading === 'register' || undefined}
               aria-describedby={blocked ? reasonId : undefined}
-              onClick={() => void download()}
+              onClick={() => void download('journal')}
               data-testid="accounting-export-download"
             >
-              {downloading ? t.downloading : t.downloadExcel}
+              {downloading === 'journal' ? t.downloading : t.downloadExcel}
             </Button>
           </div>
         </div>

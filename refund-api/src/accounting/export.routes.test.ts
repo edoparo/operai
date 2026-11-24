@@ -1339,3 +1339,68 @@ describe("the export log (AC-6.10)", () => {
     expect(await exportLog()).toHaveLength(0);
   });
 });
+
+// ─── The register extract (the accountant's register layout) ─────────────────
+
+describe("GET /batches/:id/accounting-export/register-file", () => {
+  const registerOf = async (batchId: string, sub?: string) => {
+    const res = await call(exportRouter, `/batches/${batchId}/accounting-export/register-file`, {}, sub);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    return { res, status: res.status, bytes, text: new TextDecoder().decode(bytes) };
+  };
+
+  it("serves the batch's WellD CH lines as register rows, named and logged as a register file", async () => {
+    const { batchId, requestIds } = await createBatch([
+      { lines: [{ motivo: "Toner", date: "2026-03-04" }, { entity: "welld_it" }] },
+      { owner: ANNA, lines: [{ type: "travel_km", km: 40, requested: 2800, approved: 2800, account: KM, vat: null, date: "2026-03-02" }] },
+    ]);
+    await db.refundRequest.update({ where: { id: requestIds[0]! }, data: { decidedByName: "Luca Bianchi" } });
+
+    const out = await registerOf(batchId);
+    expect(out.status).toBe(200);
+    expect(out.res.headers.get("Content-Type")).toBe(CONTENT_TYPE);
+    expect(out.res.headers.get("Content-Disposition")).toBe(`attachment; filename="refund-register-2026-03-31-${batchId}.xlsx"`);
+    expect(out.res.headers.get("X-Export-Row-Count")).toBe("2");
+    expect(out.res.headers.get("X-Export-Excluded-Line-Count")).toBe("1");
+    expect(out.res.headers.get("Cache-Control")).toBe("private, no-store");
+
+    const book = readWorkbook(out.bytes);
+    expect(book.sheetNames).toEqual(["2026"]);
+    const rows = book.rows.map(cellValues);
+    expect(rows[0]![0]).toBe("Worker");
+    // Period 3 for both; Anna before Matteo.
+    expect(rows.slice(1).map((row) => [row[0], row[1], row[3], row[8], row[9], row[10], row[15]])).toEqual([
+      ["Anna Rossi", { n: "3" }, "Spese di viaggio (km)", { n: "40" }, null, { n: "28.00" }, "acct-1@welld.ch"],
+      ["Matteo Codogno", { n: "3" }, "Spese materiale ufficio", null, null, { n: "20.80" }, "Luca B."],
+    ]);
+
+    const log = await exportLog();
+    expect(log.map((row) => [row.kind, row.formatVersion, row.rowCount, row.contentSha256])).toEqual([
+      ["register", 1, 2, sha256Hex(out.bytes)],
+    ]);
+  });
+
+  it("the journal download is still logged as a journal", async () => {
+    const { batchId } = await createBatch([{ lines: [{}] }]);
+    expect((await fileOf(batchId)).status).toBe(200);
+    expect((await exportLog()).map((row) => [row.kind, row.formatVersion])).toEqual([["journal", FORMAT_VERSION]]);
+  });
+
+  it("is blocked by what blocks the journal, with the summary as the body, and logs nothing", async () => {
+    const { batchId } = await createBatch([{ lines: [{ account: null }] }]);
+    const out = await registerOf(batchId);
+    expect(out.status).toBe(409);
+    expect(JSON.parse(out.text)).toMatchObject({ code: "accounting_export_blocked", exportable: false });
+    expect(await exportLog()).toHaveLength(0);
+  });
+
+  it("refuses a reviewer whose scope does not cover WellD CH, and a discarded batch", async () => {
+    const { batchId } = await createBatch([{ lines: [{}] }]);
+    as(IT_REVIEWER);
+    expect((await registerOf(batchId)).status).toBe(403);
+    as(GLOBAL_REVIEWER);
+    await db.refundBatch.update({ where: { id: batchId }, data: { status: "discarded" } });
+    expect((await registerOf(batchId)).status).toBe(409);
+    expect(await exportLog()).toHaveLength(0);
+  });
+});

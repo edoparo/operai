@@ -52,10 +52,12 @@ import {
 } from "./accountingClient";
 import type { RatePairWire, WireRateCurrency } from "./accountingWire";
 import { classifiableInput, monthOf, resolveClassification } from "./classification";
-import { buildAccountingFile, employeeCell, type AccountingExportLine, type AccountingFile } from "./export";
+import { buildAccountingFile, employeeCell, type AccountingFile } from "./export";
 import type { ExportBlockers, ExportSummary } from "./export.schemas";
 import { compareCodePoints, FORMAT_VERSION } from "./exportFormat";
 import { copyPendingRates, type PendingRateCopy } from "./rateCopy.repo";
+import { buildRegisterExtract, type RegisterExtractLine } from "./registerExtract";
+import { REGISTER_FORMAT_VERSION } from "./registerExtractFormat";
 import { UNVERIFIED_SNAPSHOT } from "./referenceSnapshot";
 
 type Client = Prisma.TransactionClient;
@@ -70,6 +72,7 @@ const exportLineSelect = {
   currency: true,
   motivo: true,
   km: true,
+  appliedRateMicros: true,
   requestedAmountCents: true,
   approvedTotalCents: true,
   rejectionReason: true,
@@ -94,6 +97,8 @@ const exportItemSelect = {
       ownerUserId: true,
       ownerEmail: true,
       ownerName: true,
+      decidedByName: true,
+      decidedByEmail: true,
       lines: { select: exportLineSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
     },
   },
@@ -108,6 +113,8 @@ interface SourceLine {
   readonly ownerUserId: string;
   readonly ownerName: string | null;
   readonly ownerEmail: string;
+  readonly approverName: string | null;
+  readonly approverEmail: string | null;
 }
 
 export interface ExportSource {
@@ -139,6 +146,8 @@ export async function loadExportSource(batchId: string, client: Client = db): Pr
           ownerUserId: request.ownerUserId,
           ownerName: request.ownerName,
           ownerEmail: request.ownerEmail,
+          approverName: request.decidedByName,
+          approverEmail: request.decidedByEmail,
         });
       } else excludedLineCount++;
     }
@@ -201,8 +210,8 @@ export type ExportEvaluation = Omit<ExportSummary, "viewer">;
 
 export interface Evaluated {
   readonly summary: ExportEvaluation;
-  /** The lines of the file; empty unless `summary.exportable`. */
-  readonly lines: readonly AccountingExportLine[];
+  /** The lines of the file (with what the register extract shows too); empty unless `summary.exportable`. */
+  readonly lines: readonly RegisterExtractLine[];
   /** The rates to copy onto the pending rows when the file is produced; empty unless `summary.exportable`. */
   readonly copies: readonly PendingRateCopy[];
 }
@@ -227,7 +236,7 @@ export function evaluateExport(source: ExportSource, rates: ExportRates, options
   const missingRates = new Map<string, ExportBlockers["missingRates"][number]>();
   const unclassified: (ExportBlockers["unclassifiedLines"][number] & { employee: string })[] = [];
   const unnumbered: ExportBlockers["unnumberedLines"] = [];
-  const lines: AccountingExportLine[] = [];
+  const lines: RegisterExtractLine[] = [];
   const copies: PendingRateCopy[] = [];
   let ratePendingLineCount = 0;
   let waitsForAccounting = false;
@@ -313,6 +322,14 @@ export function evaluateExport(source: ExportSource, rates: ExportRates, options
         approvedCents: line.approvedTotalCents ?? line.requestedAmountCents,
         rateMicros,
         accountNumber: classification.bookable.account.number,
+        type: line.type,
+        km: line.km,
+        mileageRateMicros: line.appliedRateMicros,
+        accountName: line.accountName,
+        vatCode: line.vatCodeCopy,
+        vatRateBasisPoints: line.vatRateBasisPoints,
+        approverName: src.approverName,
+        approverEmail: src.approverEmail,
       });
     }
   }
@@ -358,7 +375,7 @@ export type ExportComputation =
       readonly summary: ExportEvaluation;
       readonly batch: { readonly id: string; readonly cutoff: Date };
       /** The lines of the file; empty unless `summary.exportable`. */
-      readonly lines: readonly AccountingExportLine[];
+      readonly lines: readonly RegisterExtractLine[];
       readonly copies: readonly PendingRateCopy[];
       /** What Accounting said, kept so the export transaction evaluates the re-read lines against the same answers. */
       readonly rates: ExportRates;
@@ -390,6 +407,13 @@ export async function prepareExport(
 
 // ─── The export ──────────────────────────────────────────────────────────────
 
+/**
+ * Which file the export produces from the same lines: `journal`, the import file of the accounting system (`exportFormat.ts`),
+ * or `register`, the rows of the accountant's register (`registerExtractFormat.ts`). Both are logged, each with its kind and
+ * its own format version.
+ */
+export type ExportFileKind = "journal" | "register";
+
 export interface ExportActor {
   readonly userId: string;
   readonly email: string;
@@ -402,6 +426,7 @@ export type ExportOutcome =
   | { readonly kind: "blocked"; readonly summary: ExportEvaluation }
   | {
       readonly kind: "exported";
+      readonly fileKind: ExportFileKind;
       readonly file: AccountingFile;
       readonly sha256: string;
       readonly summary: ExportEvaluation;
@@ -435,6 +460,7 @@ export async function exportBatchFile(
   batchId: string,
   actor: ExportActor,
   accounting: AccountingPort = accountingPort(),
+  kind: ExportFileKind = "journal",
 ): Promise<ExportOutcome> {
   const first = await prepareExport(batchId, accounting);
   if (first.kind !== "ready") return first;
@@ -450,7 +476,7 @@ export async function exportBatchFile(
       const again = evaluateExport(source, first.rates, { copiesOnly: true });
       if (!again.summary.exportable) throw new ExportRefused({ kind: "blocked", summary: again.summary });
 
-      const file = buildAccountingFile(again.lines);
+      const file = kind === "register" ? buildRegisterExtract(again.lines, source.batch.cutoff) : buildAccountingFile(again.lines);
       const sha256 = sha256Hex(file.bytes);
       await recordExport(
         {
@@ -460,11 +486,13 @@ export async function exportBatchFile(
           rowCount: file.rowCount,
           excludedLineCount: again.summary.excludedLineCount,
           contentSha256: sha256,
+          kind,
         },
         tx,
       );
       return {
         kind: "exported",
+        fileKind: kind,
         file,
         sha256,
         summary: again.summary,
@@ -490,12 +518,17 @@ export interface ExportLogEntry {
   readonly rowCount: number;
   readonly excludedLineCount: number;
   readonly contentSha256: string;
+  /** Which file left; `journal` when absent. */
+  readonly kind?: ExportFileKind;
 }
 
 /**
  * Appends one `refund_batch_export` row (AC-6.10): who exported which batch, when, how many rows, the hash of the
- * bytes and the format version. Throws on failure, and the route then sends NO file (record, then deliver).
+ * bytes, the kind of file and its format version. Throws on failure, and the route then sends NO file (record, then deliver).
  */
 export async function recordExport(entry: ExportLogEntry, client: Client = db): Promise<void> {
-  await client.refundBatchExport.create({ data: { ...entry, formatVersion: FORMAT_VERSION } });
+  const kind = entry.kind ?? "journal";
+  await client.refundBatchExport.create({
+    data: { ...entry, kind, formatVersion: kind === "register" ? REGISTER_FORMAT_VERSION : FORMAT_VERSION },
+  });
 }

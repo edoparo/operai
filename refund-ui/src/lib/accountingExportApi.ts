@@ -108,6 +108,22 @@ export const downloadAccountingFile = async (batchId: string): Promise<Blob> => 
   return response.blob()
 }
 
+/**
+ * `GET /batches/:id/accounting-export/register-file`: the same lines as rows of the accountant's register (its sixteen columns),
+ * as an Excel file. The same refusals as the journal: 409 `accounting_export_blocked` with the summary, 403, `batch_discarded`.
+ */
+export const downloadRegisterFile = async (batchId: string): Promise<Blob> => {
+  const response = await apiFetch(
+    `${refundApiBase()}/batches/${encodeURIComponent(batchId)}/accounting-export/register-file`,
+  )
+  if (!response.ok) return throwFromResponse(response)
+  return response.blob()
+}
+
+/** `refund-register-<cutoff YYYY-MM-DD>-<batchId>.xlsx`, as the server names it. */
+export const registerFileName = (cutoff: string, batchId: string): string =>
+  `refund-register-${cutoff.slice(0, 10)}-${batchId}.xlsx`
+
 /** `refund-accounting-<cutoff YYYY-MM-DD>-<batchId>.xlsx`; the cutoff is the batch's ISO instant, only its date is used. */
 export const accountingExportFileName = (cutoff: string, batchId: string): string =>
   `refund-accounting-${cutoff.slice(0, 10)}-${batchId}.xlsx`

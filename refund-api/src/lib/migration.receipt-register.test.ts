@@ -161,7 +161,10 @@ describe("the receipt-register migration carries a database with numbered lines"
     expect(trg).toEqual([{ tgdeferrable: true, tginitdeferred: true }]);
   });
 
-  it("prisma migrate diff finds no difference between the schema file and the carried database", () => {
+  it("prisma migrate diff finds no difference between the schema file and the carried database", async () => {
+    // schema.prisma describes the head of the chain: carry the database through the migrations written after this one too.
+    const next = migrationNames[migrationNames.indexOf(MIGRATION) + 1];
+    if (next) await apply(sql, "99999999999999", next);
     const r = prismaDiff(url);
     expect(r.out).toContain("No difference detected");
     expect(r.code).toBe(0);

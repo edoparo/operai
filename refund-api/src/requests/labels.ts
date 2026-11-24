@@ -28,6 +28,7 @@
 import labels from "./document-labels.json";
 
 const EXPENSE_TYPE: Record<string, string> = labels.expenseType;
+const EXPENSE_TYPE_IT: Record<string, string> = labels.expenseTypeIt;
 const ENTITY: Record<string, string> = labels.entity;
 const REQUEST_STATUS: Record<string, string> = labels.requestStatus;
 
@@ -39,6 +40,8 @@ const REQUEST_STATUS: Record<string, string> = labels.requestStatus;
  * reader.
  */
 export const expenseTypeLabel = (type: string): string => EXPENSE_TYPE[type] ?? type;
+/** The Italian wording (refund-ui's `labelIt`): the accountant's register is Italian. */
+export const expenseTypeLabelIt = (type: string): string => EXPENSE_TYPE_IT[type] ?? type;
 export const entityLabel = (entity: string): string => ENTITY[entity] ?? entity;
 export const requestStatusLabel = (status: string): string => REQUEST_STATUS[status] ?? status;
 

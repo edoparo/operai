@@ -893,6 +893,11 @@ const en = {
             ? '1 WellD Italia line is left out: the export covers WellD CH only.'
             : `${n} WellD Italia lines are left out: the export covers WellD CH only.`,
         downloadExcel: 'Download Excel file',
+        /** The register extract: the same rows in the layout of the accountant's register (its sixteen columns). */
+        descriptionRegister:
+          'The register extract has the same rows in the columns of the accounting register (worker, period, number, … approved by), ready to paste.',
+        downloadRegister: 'Download register extract',
+        registerDownloaded: (n: number) => `Register extract downloaded: ${n} rows`,
         downloading: 'Preparing file…',
         downloadLabel: (batchId: string) => `Download the accounting export of batch ${batchId}`,
         downloaded: (n: number) => `Export downloaded: ${n} rows`,
@@ -1848,6 +1853,10 @@ const it: Strings = {
             ? '1 riga WellD Italia è esclusa: l’esportazione riguarda solo WellD CH.'
             : `${n} righe WellD Italia sono escluse: l’esportazione riguarda solo WellD CH.`,
         downloadExcel: 'Scarica file Excel',
+        descriptionRegister:
+          'L’estratto per il registro ha le stesse righe nelle colonne del registro contabile (dipendente, periodo, numero, … approvato da), pronte da incollare.',
+        downloadRegister: 'Scarica estratto per il registro',
+        registerDownloaded: (n: number) => `Estratto per il registro scaricato: ${n} righe`,
         downloading: 'Preparazione del file…',
         downloadLabel: (batchId: string) => `Scarica l’esportazione contabile del lotto ${batchId}`,
         downloaded: (n: number) => `Esportazione scaricata: ${n} righe`,

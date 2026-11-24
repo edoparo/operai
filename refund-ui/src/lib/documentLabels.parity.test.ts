@@ -41,6 +41,22 @@ const CANONICAL = {
     postal: 'Postal',
     telephone: 'Telephone',
   },
+  expenseTypeIt: {
+    travel_highway: 'Spese di viaggio (autostrada)',
+    travel_km: 'Spese di viaggio (km)',
+    travel_parking: 'Spese di viaggio (parcheggio)',
+    travel_train: 'Spese di viaggio (treno)',
+    travel_other_public_transport: 'Spese di viaggio (altri mezzi pubblici)',
+    travel_flight: 'Spese di viaggio (aereo)',
+    travel_taxi: 'Spese di viaggio (taxi)',
+    company_manuals: 'Spese manualistica societaria',
+    stationery: 'Spese di cancelleria',
+    representation_meals: 'Pranzi/cene con clienti',
+    representation_gifts: 'Spese di rappresentanza (regali)',
+    office_material: 'Spese materiale ufficio',
+    postal: 'Spese postali',
+    telephone: 'Spese telefoniche',
+  },
   entity: {
     welld_it: 'WellD Italia',
     welld_ch: 'WellD CH',
@@ -60,6 +76,12 @@ describe('document label parity with refund-api', () => {
   it('every expense type label matches the canonical table', () => {
     for (const option of EXPENSE_TYPES) {
       expect(option.labelEn).toBe(CANONICAL.expenseType[option.id as keyof typeof CANONICAL.expenseType])
+    }
+  })
+
+  it('every Italian label matches the canonical table (the register extract is Italian)', () => {
+    for (const option of EXPENSE_TYPES) {
+      expect(option.labelIt).toBe(CANONICAL.expenseTypeIt[option.id as keyof typeof CANONICAL.expenseTypeIt])
     }
   })
 
