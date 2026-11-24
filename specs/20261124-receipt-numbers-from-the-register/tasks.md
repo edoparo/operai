@@ -274,7 +274,7 @@ Derived from these committed files:
     - A test hook (not a CLI flag) throws after the first employee for AC-5.2.
   - done when: `$ST $WT refund_rn_t13 scripts/accounting-release.test.ts scripts/accounting-release.cli.test.ts scripts/accounting-release.run.test.ts` is green with the int rows of plan § Test strategy for AC-1.1–AC-1.3, AC-1.5–AC-1.11, AC-1.13–AC-1.16, AC-1.18, AC-2.4–AC-2.7, AC-2.9, AC-3.1–AC-3.6, AC-4.11, AC-4.12, AC-5.1 (cli matrix 2, 4, 5, 6, 7, 8, 9 with a DB snapshot unchanged), AC-5.2, AC-5.4 (409 before the real run, also after a dry run; 200 after), AC-5.5 (check numbers = real-run numbers line by line) and AC-5.7; the whole suite `$ST $WT refund_rn_t13` is green; `bun run typecheck` green.
 
-- [ ] T14: refund-api — adversarial and cross-cutting release tests: the synthetic production shape end to end, output privacy across every mode and refusal, the audit whitelist and register-content scan, rerun after completion — refs: AC-1.2, AC-1.17, AC-1.18, AC-5.1, AC-5.3, AC-5.6, AC-5.7 — deps: T13
+- [x] T14: refund-api — adversarial and cross-cutting release tests: the synthetic production shape end to end, output privacy across every mode and refusal, the audit whitelist and register-content scan, rerun after completion — refs: AC-1.2, AC-1.17, AC-1.18, AC-5.1, AC-5.3, AC-5.6, AC-5.7 — deps: T13
   - touch: `refund-api/scripts/accounting-release.privacy.test.ts`, `refund-api/scripts/accounting-release.production-shape.test.ts`
   - agent: qe · run
   - Details:
@@ -644,3 +644,11 @@ Deviations and findings recorded while a task closed (branch `rn/release`, T6 to
 - **T13, the assertion of AC-1.2.** After numbering, every pre-release line has a number, a line took the kind of number its decision
   says (`issued` iff `new`), every counter moved by exactly the number of lines that took a new number in its year and the 2026
   counter started after the baseline; otherwise the run is rolled back (exit 1).
+- **T14, nothing found.** The production-shape, privacy and rerun tests found no defect in T12 or T13; they only add test files. The
+  production shape builds its own worksheet with the writer of `src/accounting/xlsx.ts` because the T7 builder cannot write an empty
+  expense date (the statement rows); the builder is untouched. The register's worker texts are the employees' names in capitals so a scan
+  of every table can tell register content from an employee's own name.
+- **T12 to T14, the real register (T31 in part).** The propose mode's reader step was run once against the real `Recap_RS_2026.xlsx` on
+  a scratch database (`refund_rn_real`, no Refund data, fake ports): the workbook was read without a refusal (253 rows, 19 distinct
+  workers, no formula without a stored value, no malformed number, no row without date or total, 7 rows without a number, 2 with a
+  sequence 000, 7 with a year other than 26). The pairing against production lines is the owner's step T31, which needs production.
