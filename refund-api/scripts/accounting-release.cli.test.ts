@@ -711,6 +711,20 @@ describe("paths in a git worktree (AC-5.6, L-1)", () => {
     expect(existsSync(out)).toBe(false);
     expect(refused.stdout).not.toContain("Pairing file written");
   });
+
+  it("(D11, L-1) on an already released database --propose inside a git worktree exits 0 'already completed' and writes nothing: the marker is checked first", async () => {
+    await legacyRequest(["2026-03-02"]);
+    expect((await cli()).exitCode).toBe(0);
+    const before = await footprint();
+    world.requests.length = 0;
+    const out = join(checkout(), "nested", "accounting-release-pairing.csv");
+    const res = await cliBare({}, "--dry-run", "--register", REGISTER, "--propose", out);
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toContain("was already completed");
+    expect(existsSync(out)).toBe(false);
+    expect(await footprint()).toEqual(before);
+    expect(world.requests).toEqual([]);
+  });
 });
 
 describe("the baseline from --offsets, run as the operator runs it", () => {

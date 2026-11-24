@@ -23,7 +23,7 @@
  *   1. Accounting, read first (exit 2). 2. auth, for the owners' names (exit 4). 3. The inputs given (exit 5). 4. The inputs readable
  *   (exit 6). 5. Stale (exit 7). 6. Decided (exit 8). 7. The transaction (shared prefix, exit 9). 8. The report.
  *   Exit 1 is any other failure (usage, a pairing path that exists, a --propose path inside a git worktree, an internal assertion);
- *   3 is retired and never produced. A --propose path inside a git worktree is REFUSED before anything is read or written (the file
+ *   3 is retired and never produced. A --propose path inside a git worktree is REFUSED right after the marker check (a released database exits 0 first) and before anything else is read or written (the file
  *   names employees and must never be committed); the paths that are only read (--register, --pairing, --offsets) get a warning.
  *
  * Inside the transaction (a failure anywhere changes nothing): owner names, Refund's default accounts, one baseline row per employee
@@ -385,6 +385,8 @@ export interface ReleaseOptions {
   readonly pairing?: Lazy<string>;
   /** `true` in a dry run that PROPOSES the pairing file (the report carries `pairingCsv`); exclusive with `pairing`. */
   readonly propose?: boolean;
+  /** Called right after the completed-release marker check and before any other read or write; throws to refuse the run (L-1). */
+  readonly afterMarker?: () => void;
   /** The list of last hand-issued 2026 numbers; optional, it complements the register (AC-3.1). */
   readonly offsets?: Lazy<readonly OffsetRow[]>;
   /** Refund's defaults by natural key; default: the file of `scripts/data`. */
@@ -700,6 +702,7 @@ export async function runAccountingRelease(options: ReleaseOptions = {}): Promis
   // 0. The marker first (AC-5.3, D11): a completed release is a success and reads nothing, from nobody, and writes nothing.
   const marker = await db.refundSetting.findFirst({ where: { key: RELEASE_MARKER_KEY }, orderBy: { createdAt: "desc" }, select: { value: true } });
   if (marker?.value != null && marker.value !== "") return completedReport(mode, dryRun, marker.value);
+  options.afterMarker?.();
 
   const accounting = options.accounting ?? accountingPort();
   const ownerNames = options.ownerNames ?? ownerNamePort();
@@ -1326,13 +1329,6 @@ export function parseArguments(argv: readonly string[]): Cli {
 
 async function main(argv: readonly string[]): Promise<void> {
   const cli = parseArguments(argv);
-  // L-1: a file this command WRITES with names and emails never goes inside a git worktree (exit 1, nothing read or written).
-  if (cli.propose !== undefined && pathInsideGitWorktree(cli.propose) !== null) {
-    throw new ReleaseError(
-      "propose_inside_worktree",
-      "the pairing file to write is inside a git worktree: it names employees and must never be committed. Choose a path outside the repository (for example in your home directory). Nothing was written",
-    );
-  }
   for (const [path, what] of [
     [cli.register, "the register export"],
     [cli.pairing, "the pairing file"],
@@ -1344,6 +1340,16 @@ async function main(argv: readonly string[]): Promise<void> {
   const report = await runAccountingRelease({
     dryRun: cli.dryRun,
     propose: cli.propose !== undefined,
+    // L-1: a file this command WRITES with names and emails never goes inside a git worktree (exit 1, nothing read or written).
+    // Checked after the completed-release marker (D11: a released database exits 0 whatever the flags) and before any other read.
+    afterMarker: () => {
+      if (cli.propose !== undefined && pathInsideGitWorktree(cli.propose) !== null) {
+        throw new ReleaseError(
+          "propose_inside_worktree",
+          "the pairing file to write is inside a git worktree: it names employees and must never be committed. Choose a path outside the repository (for example in your home directory). Nothing was written",
+        );
+      }
+    },
     ...(cli.register !== undefined ? { register: () => readFileSync(cli.register!) } : {}),
     ...(cli.pairing !== undefined ? { pairing: () => readFileSync(cli.pairing!, "utf8") } : {}),
     ...(cli.sheet !== undefined ? { sheet: cli.sheet } : {}),
