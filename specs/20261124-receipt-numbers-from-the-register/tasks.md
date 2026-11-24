@@ -195,7 +195,7 @@ Derived from these committed files:
     - The fixture is the builder's header-only output, committed.
   - done when: `$ST $WT refund_rn_t7 scripts/release/xlsxReader.test.ts src/test-support/registerWorkbook.test.ts` is green, with: every builder option read back to the same cells; each refusal (DOCTYPE, zip bomb, ZIP64, encryption, method 12, CRC flip, too many entries) named and quoting no cell text; the fixture's bytes equal the builder's header-only output; `bun run typecheck` green.
 
-- [ ] T8: refund-api — `registerExport.ts`: sheet → `RegisterRow[]` (header detection, cell coercion, merges, dates, totals to the cent on the decimal string, number classification) — refs: AC-1.13, AC-2.1 — deps: T6, T7
+- [x] T8: refund-api — `registerExport.ts`: sheet → `RegisterRow[]` (header detection, cell coercion, merges, dates, totals to the cent on the decimal string, number classification) — refs: AC-1.13, AC-2.1 — deps: T6, T7
   - touch: `refund-api/scripts/release/registerExport.ts`, `refund-api/scripts/release/registerExport.test.ts`
   - agent: backend-dev · xlsx
   - Details: plan § Register export bullets "Date", "Total", "No.", "Position": headers `Worker`,
