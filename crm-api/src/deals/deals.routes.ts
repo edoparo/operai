@@ -86,6 +86,13 @@ const FileCodeSchema = z
   .nullable()
   .optional();
 
+/** US-10: only a tender has a submission deadline. */
+const deadlineOnlyOnTenders = () =>
+  unprocessable("Only a tender has a submission deadline", { field: "submissionDeadline" }, "deadline_only_on_tenders");
+
+/** specs/20261101-crm US-10: a deal is standard or a public tender. */
+const DealKindSchema = z.enum(["standard", "tender"]);
+
 const CreateDealSchema = z
   .object({
     companyId: idText(),
@@ -103,6 +110,9 @@ const CreateDealSchema = z
     sourceDetail: optionalText(200),
     // The deal's code in its offers' file names (2026-11-24); empty = the initials of the title.
     fileCode: FileCodeSchema,
+    // US-10: a tender and the date its bid is due (a standard deal has none: 422 deadline_only_on_tenders).
+    kind: DealKindSchema.optional(),
+    submissionDeadline: DateOnlySchema.nullable().optional(),
   })
   .strict();
 
@@ -119,6 +129,9 @@ const UpdateDealSchema = z
     sourceDetail: optionalText(200),
     // The deal's code in its offers' file names (2026-11-24); empty = the initials of the title.
     fileCode: FileCodeSchema,
+    // US-10: a tender and the date its bid is due (a standard deal has none: 422 deadline_only_on_tenders).
+    kind: DealKindSchema.optional(),
+    submissionDeadline: DateOnlySchema.nullable().optional(),
   })
   .strict();
 
@@ -138,6 +151,8 @@ const ListDealsQuery = z.object({
   companyId: idText(64, 0).optional(),
   ownerId: idText(64, 0).optional(),
   entity: EntitySchema.optional(),
+  // US-10: only tenders, or only standard deals.
+  kind: DealKindSchema.optional(),
   // The pipeline board loads every open deal at once (D-16).
   ...pageQuery(200),
 });
@@ -156,6 +171,8 @@ const DealSummarySchema = z.object({
   /** The hand-set file code, or null; `fileCodeDefault` is what the file names use while it is null. */
   fileCode: z.string().nullable(),
   fileCodeDefault: z.string(),
+  kind: DealKindSchema,
+  submissionDeadline: z.string().nullable(),
   expectedCloseDate: z.string().nullable(),
   owner: PersonRefSchema,
   closedAt: z.string().nullable(),
@@ -289,6 +306,8 @@ async function toViews(c: ViewSource, rows: readonly DealRow[]) {
       sourceDetail: row.sourceDetail,
       fileCode: row.fileCode,
       fileCodeDefault: dealCode(row.title),
+      kind: row.kind,
+      submissionDeadline: toDateOnly(row.submissionDeadline),
       expectedCloseDate: toDateOnly(row.expectedCloseDate),
       owner: person(row.ownerUserId),
       closedAt: row.closedAt?.toISOString() ?? null,
@@ -474,6 +493,7 @@ const pipelineRoute = createRoute({
       // One owner's deals only, like the board's list (`GET /deals?ownerId=`).
       ownerId: idText(64, 0).optional(),
       year: BoardYearSchema.optional(),
+      kind: DealKindSchema.optional(),
     }),
   },
   responses: { 200: { description: "The pipeline", ...json(PipelineSchema) }, ...commonErrors },
@@ -496,7 +516,7 @@ export const dealsRouter = new OpenAPIHono<{ Variables: AuthzVariables }>({
 });
 
 dealsRouter.openapi(listRoute, async (c) => {
-  const { q, stage, open, board, year, companyId, ownerId, entity, page, pageSize } = c.req.valid("query");
+  const { q, stage, open, board, year, companyId, ownerId, entity, kind, page, pageSize } = c.req.valid("query");
   const stageFilter: Prisma.DealWhereInput =
     board === "true"
       ? { AND: [boardWhere(year).where, ...(stage !== undefined ? [{ stage }] : [])] }
@@ -512,6 +532,7 @@ dealsRouter.openapi(listRoute, async (c) => {
     ...(companyId ? { companyId } : {}),
     ...(ownerId ? { ownerUserId: ownerId } : {}),
     ...(entity ? { entity } : {}),
+    ...(kind ? { kind } : {}),
     ...(q?.trim() ? { title: { contains: q.trim(), mode: "insensitive" } } : {}),
   };
   const orderBy: Prisma.DealOrderByWithRelationInput[] =
@@ -550,6 +571,7 @@ dealsRouter.openapi(createDealRoute, async (c) => {
     select: { entity: true, archivedAt: true },
   });
   if (!company) throw unprocessable("The company does not exist", { field: "companyId" }, "company_not_found");
+  if ((body.kind ?? "standard") !== "tender" && body.submissionDeadline) throw deadlineOnlyOnTenders();
   if (company.archivedAt) {
     throw unprocessable("The company is archived; unarchive it first", { field: "companyId" }, "company_archived");
   }
@@ -583,6 +605,8 @@ dealsRouter.openapi(createDealRoute, async (c) => {
       source: body.source ?? null,
       sourceDetail: body.source ? (body.sourceDetail ?? null) : null,
       fileCode: body.fileCode ?? null,
+      kind: body.kind ?? "standard",
+      submissionDeadline: fromDateOnly(body.submissionDeadline) ?? null,
       ownerUserId,
       notes: body.notes ?? null,
       createdBy: userId,
@@ -614,12 +638,17 @@ dealsRouter.openapi(getRoute, async (c) => {
 async function casUpdate(
   c: HeaderSource & ScopeSource & { get(key: "userId"): string },
   id: string,
-  build: (current: { stage: DealRow["stage"]; closedAt: Date | null; ownerUserId: string }) => Prisma.DealUncheckedUpdateInput,
+  build: (current: {
+    stage: DealRow["stage"];
+    closedAt: Date | null;
+    ownerUserId: string;
+    kind: DealRow["kind"];
+  }) => Prisma.DealUncheckedUpdateInput,
 ) {
   const expected = requireIfMatch(c);
   const current = await db.deal.findUnique({
     where: { id },
-    select: { version: true, entity: true, stage: true, closedAt: true, ownerUserId: true },
+    select: { version: true, entity: true, stage: true, closedAt: true, ownerUserId: true, kind: true },
   });
   if (!current) throw notFound("Deal not found");
   assertInScope(dealScope(c), current.entity);
@@ -649,12 +678,22 @@ dealsRouter.openapi(updateRoute, async (c) => {
   if (body.ownerUserId !== undefined && body.ownerUserId !== c.get("userId")) {
     await requireCrmUsers(c, [{ id: body.ownerUserId, field: "ownerUserId" }]);
   }
-  const { amountCents, expectedCloseDate, ...rest } = withSource(body);
+  const { amountCents, expectedCloseDate, submissionDeadline, ...rest } = withSource(body);
   let previousOwner: string | null = null;
   const row = await casUpdate(c, id, (current) => {
     previousOwner = current.ownerUserId;
+    // US-10: a deadline only on a tender; a deal made standard again loses its deadline.
+    const kind = rest.kind ?? current.kind;
+    if (kind !== "tender" && submissionDeadline) throw deadlineOnlyOnTenders();
+    const deadline =
+      kind !== "tender"
+        ? { submissionDeadline: null }
+        : submissionDeadline !== undefined
+          ? { submissionDeadline: fromDateOnly(submissionDeadline) ?? null }
+          : {};
     return {
       ...definedOnly(rest),
+      ...deadline,
       ...(amountCents !== undefined ? { amountCents: amountCents === null ? null : BigInt(amountCents) } : {}),
       ...(expectedCloseDate !== undefined ? { expectedCloseDate: fromDateOnly(expectedCloseDate) ?? null } : {}),
     };
@@ -707,10 +746,16 @@ dealsRouter.openapi(stageRoute, async (c) => {
 });
 
 dealsRouter.openapi(pipelineRoute, async (c) => {
-  const { entity, companyId, ownerId, year: asked } = c.req.valid("query");
+  const { entity, companyId, ownerId, kind, year: asked } = c.req.valid("query");
   const { year, where } = boardWhere(asked);
   const deals = await db.deal.findMany({
-    where: { ...where, ...(entity ? { entity } : {}), ...(companyId ? { companyId } : {}), ...(ownerId ? { ownerUserId: ownerId } : {}) },
+    where: {
+      ...where,
+      ...(entity ? { entity } : {}),
+      ...(companyId ? { companyId } : {}),
+      ...(ownerId ? { ownerUserId: ownerId } : {}),
+      ...(kind ? { kind } : {}),
+    },
     select: { stage: true, currency: true, amountCents: true },
   });
   const stages = summarisePipeline(deals);

@@ -14,7 +14,7 @@ import {
 } from '@operai/ui'
 import type { DataTableColumn } from '@operai/ui'
 import ActivityTimeline from '../components/ActivityTimeline'
-import { ArchivedBadge, CompanyStatusBadge, DealStageBadge, EntityBadge } from '../components/Badges'
+import { ArchivedBadge, CompanyStatusBadge, DealStageBadge, EntityBadge, TenderBadge } from '../components/Badges'
 import CompanyFormDialog from '../components/CompanyFormDialog'
 import ContactFormDialog from '../components/ContactFormDialog'
 import DealFormDialog from '../components/DealFormDialog'
@@ -25,6 +25,7 @@ import { getCompany, getContact, listContacts, listDeals, setCompanyArchived } f
 import { errorMessage, statusOf } from '../lib/errors'
 import { dealAmount } from '../lib/money'
 import { contactName, personName } from '../lib/people'
+import { kindOf } from '../lib/types'
 import type { Company, Contact, ContactSummary, DealSummary } from '../lib/types'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
@@ -400,9 +401,12 @@ function CompanyDealsCard({ company }: { company: Company }) {
       header: strings.deals.columns.title,
       rowHeader: true,
       render: (deal) => (
-        <Link to="/deals/$id" params={{ id: deal.id }} className="link">
-          {deal.title}
-        </Link>
+        <span className="inline-flex flex-wrap items-center gap-2">
+          <Link to="/deals/$id" params={{ id: deal.id }} className="link">
+            {deal.title}
+          </Link>
+          {kindOf(deal) === 'tender' && <TenderBadge testId={`crm-company-deal-tender-${deal.id}`} />}
+        </span>
       ),
     },
     { id: 'stage', header: strings.deals.columns.stage, render: (deal) => <DealStageBadge stage={deal.stage} /> },

@@ -12,7 +12,7 @@ import { getPipeline, listDealOwners, listDeals, moveDealStage } from '../lib/cr
 import { codeOf, errorMessage } from '../lib/errors'
 import { personName } from '../lib/people'
 import { ENTITIES } from '../lib/types'
-import type { DealStage, DealSummary, Entity } from '../lib/types'
+import type { DealKind, DealStage, DealSummary, Entity } from '../lib/types'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
 import { useResource } from '../hooks/useResource'
@@ -31,6 +31,7 @@ const BOARD_PAGE_SIZE = 200
  * banner. The entity, company and owner filters narrow both the figures and the board, server-side.
  * The owner filter offers "Mine" and everyone who owns a deal (`GET /deals/owners`); if that list
  * fails to load, it offers "Mine" only. It starts on "Mine" for a person who manages deals.
+ * The type filter (2026-11-24) shows tenders only, or every deal but tenders, in the figures and the board alike.
  */
 export default function PipelinePage() {
   const t = strings.deals.pipeline
@@ -47,6 +48,8 @@ export default function PipelinePage() {
    */
   const [ownerChoice, setOwnerChoice] = useState<string | null>(null)
   const ownerId = ownerChoice ?? (canManageDeals && currentUserId ? currentUserId : '')
+  /** Tenders only, or every other deal; '' = both. */
+  const [kind, setKind] = useState<DealKind | ''>('')
   /** The calendar year whose won and lost deals show (AC-3.6); null = this year, the server's. */
   const [year, setYear] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
@@ -63,7 +66,7 @@ export default function PipelinePage() {
   const load = useCallback(
     (signal: AbortSignal) =>
       Promise.all([
-        getPipeline(entity, { signal }, year ?? undefined, company?.id, ownerId || undefined),
+        getPipeline(entity, { signal }, year ?? undefined, company?.id, ownerId || undefined, kind || undefined),
         listDeals(
           {
             board: true,
@@ -71,14 +74,17 @@ export default function PipelinePage() {
             ...(year !== null ? { year } : {}),
             ...(company ? { companyId: company.id } : {}),
             ...(ownerId ? { ownerId } : {}),
+            ...(kind ? { kind } : {}),
             pageSize: BOARD_PAGE_SIZE,
           },
           { signal },
         ),
       ]),
-    [entity, year, company, ownerId],
+    [entity, year, company, ownerId, kind],
   )
-  const board = useResource(load, { cacheKey: `pipeline:${JSON.stringify([entity, year, company?.id ?? null, ownerId])}` })
+  const board = useResource(load, {
+    cacheKey: `pipeline:${JSON.stringify([entity, year, company?.id ?? null, ownerId, kind])}`,
+  })
   const loadOwners = useCallback((signal: AbortSignal) => listDealOwners({ signal }), [])
   const owners = useResource(loadOwners, { cacheKey: 'deal-owners' })
   const otherOwners = (owners.data?.items ?? []).filter((person) => person.id !== currentUserId)
@@ -188,7 +194,7 @@ export default function PipelinePage() {
         }
       />
       <div className="flex flex-col gap-4">
-        <div className="grid max-w-5xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid max-w-6xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Field label={t.entityFilter} testId="crm-pipeline-entity">
             {(control) => (
               <select {...control} value={entity} onChange={(event) => setEntity(event.target.value as Entity | '')}>
@@ -218,6 +224,15 @@ export default function PipelinePage() {
                     {personName(person)}
                   </option>
                 ))}
+              </select>
+            )}
+          </Field>
+          <Field label={t.kindFilter} testId="crm-pipeline-kind">
+            {(control) => (
+              <select {...control} value={kind} onChange={(event) => setKind(event.target.value as DealKind | '')}>
+                <option value="">{t.allKinds}</option>
+                <option value="tender">{t.tenders}</option>
+                <option value="standard">{t.otherDeals}</option>
               </select>
             )}
           </Field>

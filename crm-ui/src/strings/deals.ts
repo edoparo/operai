@@ -25,6 +25,10 @@ const en = {
     ownerFilter: 'Owner',
     allOwners: 'Everyone',
     mine: 'Mine',
+    kindFilter: 'Type',
+    allKinds: 'All',
+    tenders: 'Tenders',
+    otherDeals: 'Other deals',
     allEntities: 'Both entities',
     stageTitle: (stage: string, count: number) => `${stage} · ${count}`,
     probability: (percent: string) => `Win probability ${percent}`,
@@ -34,8 +38,8 @@ const en = {
     dealsLabel: (stage: string) => `Deals in ${stage}`,
     closedIn: (year: number) => `Closed in ${year}`,
     boardLabel: 'Pipeline board, one column per stage',
-    cardLabel: (title: string, awaitingEstimate: boolean) =>
-      `${title}.${awaitingEstimate ? ' Waiting for the technical estimate.' : ''} Press Enter to open, Space to move.`,
+    cardLabel: (title: string, awaitingEstimate: boolean, tender = false) =>
+      `${title}.${tender ? ' Tender.' : ''}${awaitingEstimate ? ' Waiting for the technical estimate.' : ''} Press Enter to open, Space to move.`,
     awaitingEstimate: 'Waiting for estimate',
     dragInstructions:
       'To move a deal, focus it and press Space, choose a stage with the left and right arrow keys, then press Space to drop it or Escape to cancel. Enter opens the deal.',
@@ -72,6 +76,7 @@ const en = {
     weighted: (percent: string) => `Weighted (${percent})`,
     entity: 'Entity',
     expected: 'Expected close',
+    submissionDeadline: 'Submission deadline',
     owner: 'Owner',
     closedAt: 'Closed',
     lostReason: 'Reason lost',
@@ -112,6 +117,10 @@ const en = {
     entity: 'wellD entity',
     entityHint: 'Defaults to the company’s entity.',
     expected: 'Expected close date',
+    tender: 'Public tender',
+    tenderHint: 'A call for tenders: the company is the body that issues it.',
+    submissionDeadline: 'Submission deadline',
+    submissionDeadlineHint: 'The last day to submit the offer, if known.',
     fileCode: 'Code in file names',
     fileCodeHint: (initials: string) =>
       initials === ''
@@ -158,6 +167,10 @@ const it: typeof en = {
     ownerFilter: 'Responsabile',
     allOwners: 'Tutti',
     mine: 'Le mie',
+    kindFilter: 'Tipo',
+    allKinds: 'Tutte',
+    tenders: 'Bandi',
+    otherDeals: 'Altre opportunità',
     allEntities: 'Entrambe le società',
     stageTitle: (stage: string, count: number) => `${stage} · ${count}`,
     probability: (percent: string) => `Probabilità di successo ${percent}`,
@@ -167,8 +180,8 @@ const it: typeof en = {
     dealsLabel: (stage: string) => `Opportunità in fase ${stage}`,
     closedIn: (year: number) => `Chiuse nel ${year}`,
     boardLabel: 'Board della pipeline, una colonna per fase',
-    cardLabel: (title: string, awaitingEstimate: boolean) =>
-      `${title}.${awaitingEstimate ? ' In attesa della stima tecnica.' : ''} Invio per aprire, Spazio per spostare.`,
+    cardLabel: (title: string, awaitingEstimate: boolean, tender = false) =>
+      `${title}.${tender ? ' Bando di gara.' : ''}${awaitingEstimate ? ' In attesa della stima tecnica.' : ''} Invio per aprire, Spazio per spostare.`,
     awaitingEstimate: 'In attesa di stima',
     dragInstructions:
       "Per spostare un'opportunità, portaci il focus e premi Spazio, scegli la fase con le frecce sinistra e destra, poi premi Spazio per rilasciarla o Esc per annullare. Invio apre l'opportunità.",
@@ -205,6 +218,7 @@ const it: typeof en = {
     weighted: (percent: string) => `Ponderato (${percent})`,
     entity: 'Società',
     expected: 'Chiusura prevista',
+    submissionDeadline: 'Scadenza di presentazione',
     owner: 'Responsabile',
     closedAt: 'Chiusa il',
     lostReason: 'Motivo della perdita',
@@ -243,6 +257,10 @@ const it: typeof en = {
     entity: 'Società wellD',
     entityHint: "Predefinita: la società dell'azienda.",
     expected: 'Data di chiusura prevista',
+    tender: 'Bando di gara',
+    tenderHint: "Un bando pubblico: l'azienda è l'ente che lo emette.",
+    submissionDeadline: 'Scadenza di presentazione',
+    submissionDeadlineHint: "L'ultimo giorno per presentare l'offerta, se è noto.",
     fileCode: 'Codice nei nomi file',
     fileCodeHint: (initials: string) =>
       initials === ''

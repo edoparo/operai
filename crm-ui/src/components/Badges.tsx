@@ -31,6 +31,15 @@ export function EntityBadge({ entity }: { entity: Entity }) {
   return <Badge tone="neutral">{strings.badges.entity[entity]}</Badge>
 }
 
+/** A public tender (2026-11-24) is a kind of deal, not a status: metadata, emphasised (design-system § Data). */
+export function TenderBadge({ testId }: { testId?: string }) {
+  return (
+    <Badge tone="accent" data-testid={testId}>
+      {strings.badges.tender}
+    </Badge>
+  )
+}
+
 export function EstimateStateBadge({ state }: { state: EstimateState }) {
   return <StatusBadge status={ESTIMATE_STATE_MEANING[state]}>{strings.badges.estimateState[state]}</StatusBadge>
 }

@@ -1,7 +1,7 @@
 ---
 spec: 20261101
 status: in-progress
-synced: 2026-11-23
+synced: 2026-11-24
 ---
 
 # Tasks — CRM (specs/20261101-crm)
@@ -45,3 +45,4 @@ verified by the named check; `[ ]` = open, with the reason.
 | T32 | Pipeline company filter and card order (AC-3.4 amendment): `companyId` on `GET /pipeline`, a company picker beside entity and year narrowing figures and board; the card shows the company first, the title under it | [x] | crm-api 355/355 on `crm_test`; crm-ui lint + build + 216 tests |
 | T33 | Pipeline owner filter (AC-3.4 amendment 2026-11-17): `ownerId` on `GET /pipeline`, `GET /deals/owners` (crm:access, the `/companies/owners` shape), an Owner select (Everyone / Mine / owners) beside entity, company and year narrowing figures and board | [x] | crm-api 2128/2129 on `crm_test` (the one failure, `offerDrafts.preview` LETTERHEAD env, fails on main too); crm-ui lint + build + 1616 tests |
 | T34 | Pipeline owner filter starts on Mine (AC-3.4 amendment 2026-11-23) for a person who manages deals; Everyone for crm-technical | [x] | crm-ui lint + build + 1755 tests |
+| T35 | Public tenders (US-10): `deal.kind` (`standard`/`tender`) + `submissionDeadline` (CHECK only on tenders, migration `20261124140000_deal_kind_tender`), create/PATCH (422 `deadline_only_on_tenders`, standard clears the deadline), `kind` filter on `GET /deals` and `GET /pipeline`; crm-ui form, "Tender" badge, deadline on the deal page, Type filter | [x] | crm-api deals 29/29 on `crm_test`, typecheck; crm-ui lint + build + 1860 tests |

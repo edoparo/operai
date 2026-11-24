@@ -20,6 +20,7 @@ const en = {
   taskState: { open: 'Open', in_progress: 'In progress', overdue: 'Overdue', blocked: 'Blocked', done: 'Done' } as Record<TaskState, string>,
   estimateState: { requested: 'Requested', ready: 'Ready' } as Record<EstimateState, string>,
   archived: 'Archived',
+  tender: 'Tender',
 }
 
 const it: typeof en = {
@@ -37,6 +38,7 @@ const it: typeof en = {
   taskState: { open: 'Aperta', in_progress: 'In corso', overdue: 'Scaduta', blocked: 'Bloccata', done: 'Completata' },
   estimateState: { requested: 'Richiesta', ready: 'Pronta' },
   archived: 'Archiviato',
+  tender: 'Bando',
 }
 
 export const badges = { en, it }

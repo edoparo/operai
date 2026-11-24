@@ -17,6 +17,7 @@ import type {
   Currency,
   Attachment,
   Deal,
+  DealKind,
   DealStage,
   DealSummary,
   DirectoryUser,
@@ -146,6 +147,8 @@ export type DealListQuery = PageQuery & {
   companyId?: string
   ownerId?: string
   entity?: Entity | ''
+  /** Tenders only, or every deal but tenders; absent or '' = both (2026-11-24). */
+  kind?: DealKind | ''
 }
 
 export type DealInput = {
@@ -164,6 +167,10 @@ export type DealInput = {
   sourceDetail?: string | null
   /** The code in its offers' file names; null or "" = the initials of the title (2026-11-24). */
   fileCode?: string | null
+  /** 2026-11-24. Making a tender standard again clears its deadline on the server. */
+  kind?: DealKind
+  /** A tender's submission deadline (`YYYY-MM-DD`); a standard deal is refused one (422 `deadline_only_on_tenders`). */
+  submissionDeadline?: string | null
 }
 
 export type DealUpdate = Partial<Omit<DealInput, 'companyId' | 'stage'>>
@@ -183,15 +190,23 @@ export const moveDealStage = (id: string, version: number, stage: DealStage, los
   )
 /**
  * `year`: whose won and lost deals count (specs/20261101-crm AC-3.6); this year when absent. `companyId`: one
- * company's deals. `ownerId`: one owner's deals.
+ * company's deals. `ownerId`: one owner's deals. `kind`: tenders only, or every deal but tenders.
  */
-export const getPipeline = (entity?: Entity | '', init?: Init, year?: number, companyId?: string, ownerId?: string) =>
+export const getPipeline = (
+  entity?: Entity | '',
+  init?: Init,
+  year?: number,
+  companyId?: string,
+  ownerId?: string,
+  kind?: DealKind,
+) =>
   getJson<Pipeline>(
     `/pipeline${query({
       entity,
       ...(year !== undefined ? { year } : {}),
       ...(companyId ? { companyId } : {}),
       ...(ownerId ? { ownerId } : {}),
+      ...(kind ? { kind } : {}),
     })}`,
     init,
   )

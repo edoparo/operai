@@ -80,7 +80,11 @@ const renderBoard = async ({ financials = true, move: answerMove, dealScope = ['
       }),
       'GET /deals': (url) => {
         boardQueries.push(url.search)
-        const rows = [deal('d1', 'proposal', 'welld_ch', 3), { ...deal('d2', 'lead', 'welld_it', 1), estimateState: 'requested' }]
+        // d1 is a tender (2026-11-24); d2 comes without a kind, as from an older server: a standard deal.
+        const rows = [
+          { ...deal('d1', 'proposal', 'welld_ch', 3), kind: 'tender', submissionDeadline: '2026-12-15' },
+          { ...deal('d2', 'lead', 'welld_it', 1), estimateState: 'requested' },
+        ]
         return {
           status: 200,
           body: page(
@@ -300,6 +304,32 @@ describe('PipelinePage board', () => {
     fireEvent.change(select, { target: { value: '' } })
     await waitFor(() => expect(boardQueries.at(-1)).not.toContain('ownerId'))
     expect(pipelineQueries().at(-1)!.searchParams.get('ownerId')).toBeNull()
+  })
+
+  it('marks a tender on its card, and only a tender (2026-11-24)', async () => {
+    await renderBoard()
+    expect(within(screen.getByTestId('crm-pipeline-deal-d1')).getByTestId('crm-pipeline-tender-d1').textContent).toBe('Tender')
+    expect(screen.getByTestId('crm-pipeline-deal-d1').getAttribute('aria-label')).toContain('Tender.')
+    expect(screen.queryByTestId('crm-pipeline-tender-d2')).toBeNull()
+  })
+
+  it('the type filter narrows both the figures and the board to tenders, or to every other deal', async () => {
+    const { boardQueries, pipelineQueries } = await renderBoard()
+    expect(boardQueries[0]).not.toContain('kind')
+    expect(pipelineQueries()[0]!.searchParams.get('kind')).toBeNull()
+    const select = screen.getByLabelText('Type') as HTMLSelectElement
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['All', 'Tenders', 'Other deals'])
+    fireEvent.change(select, { target: { value: 'tender' } })
+    await waitFor(() => expect(boardQueries.at(-1)).toContain('kind=tender'))
+    expect(pipelineQueries().at(-1)!.searchParams.get('kind')).toBe('tender')
+    // The owner default (Mine) still applies alongside it.
+    expect(boardQueries.at(-1)).toContain('ownerId=u-ada')
+    fireEvent.change(select, { target: { value: 'standard' } })
+    await waitFor(() => expect(boardQueries.at(-1)).toContain('kind=standard'))
+    expect(pipelineQueries().at(-1)!.searchParams.get('kind')).toBe('standard')
+    fireEvent.change(select, { target: { value: '' } })
+    await waitFor(() => expect(boardQueries.at(-1)).not.toContain('kind'))
+    expect(pipelineQueries().at(-1)!.searchParams.get('kind')).toBeNull()
   })
 
   it('someone who cannot own a deal (crm-technical) starts on Everyone, not an empty board', async () => {

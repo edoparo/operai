@@ -224,6 +224,25 @@ owner, so that I find what I look for in a list of more than a hundred (owner, 2
   company (the list every CRM user can already read, ADR 20260811-derived-projection-reuses-existing-gate-reconstructibility-test), alongside the existing
   name search, status and "show archived".
 
+### US-10 Public tenders
+*(Added 2026-11-24, owner.)* As a salesperson, I want to record a public tender ("bando di
+gara", e.g. a Horizon Chips JU call) as a deal and see it apart from the other deals, so that
+funded calls are tracked in the CRM instead of GitLab.
+
+- AC-10.1 A deal is either a standard deal or a **tender**. A tender's company is the body
+  that issues it (e.g. "Chips Joint Undertaking"): a deal still always has a company (the
+  owner's decision, 2026-11-24: activities, offers and the project hand-off all need one).
+- AC-10.2 A tender may carry a **submission deadline** (a date). Only a tender has one: a
+  deadline on a standard deal is refused (422 `deadline_only_on_tenders`), and a tender made
+  standard again loses its deadline. Every deal existing before this is standard.
+- AC-10.3 A tender is marked "Tender" wherever a deal is shown (pipeline card, deals list,
+  deal page); the deal page shows its deadline.
+- AC-10.4 The pipeline and the deals list filter by type: all, tenders, other deals; on the
+  pipeline the filter narrows the figures and the board together, like the other filters.
+- AC-10.5 Everything else is unchanged for a tender (stages, estimate gate, offers, hand-off).
+  Further tender data (programme, funding amount, wellD's share, partners) is out of scope
+  until asked for.
+
 ## Non-goals (v1)
 
 - Email/calendar sync, inbox integration, attachments on activities.

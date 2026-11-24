@@ -16,10 +16,11 @@ import { StatusBadge, formatDate } from '@operai/ui'
 import { dealAmount, formatTotals, percent } from '../lib/money'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { personName } from '../lib/people'
-import { DEAL_STAGES, isOpenStage } from '../lib/types'
+import { DEAL_STAGES, isOpenStage, kindOf } from '../lib/types'
 import type { DealStage, DealSummary, Pipeline, PipelineStage } from '../lib/types'
 import { ESTIMATE_STATE_MEANING } from '../lib/statusMeanings'
 import { strings } from '../strings'
+import { TenderBadge } from './Badges'
 
 /**
  * PipelineBoard — the pipeline as a board in the Jira/GitLab shape (AC-3.3,
@@ -245,7 +246,7 @@ function DraggableCard({
       {...listeners}
       onKeyDown={onKeyDown}
       onClick={open}
-      aria-label={strings.deals.pipeline.cardLabel(deal.title, deal.estimateState === 'requested')}
+      aria-label={strings.deals.pipeline.cardLabel(deal.title, deal.estimateState === 'requested', kindOf(deal) === 'tender')}
       className={`${CARD} cursor-grab touch-none hover:border-dim focus-visible:outline-2 focus-visible:outline-acc ${isDragging ? 'opacity-40' : ''}`}
       data-testid={`crm-pipeline-deal-${deal.id}`}
     >
@@ -261,6 +262,11 @@ function CardContent({ deal, currentUserId }: { deal: DealSummary; currentUserId
       {/* The client first, the deal under it, each in its own style (owner, 2026-11-07). */}
       <span className="text-xs text-soft">{deal.company.name}</span>
       <span className="text-sm font-medium text-text">{deal.title}</span>
+      {kindOf(deal) === 'tender' && (
+        <span>
+          <TenderBadge testId={`crm-pipeline-tender-${deal.id}`} />
+        </span>
+      )}
       {deal.estimateState === 'requested' && (
         <span data-testid={`crm-pipeline-awaiting-estimate-${deal.id}`}>
           <StatusBadge status={ESTIMATE_STATE_MEANING.requested}>{strings.deals.pipeline.awaitingEstimate}</StatusBadge>

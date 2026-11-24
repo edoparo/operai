@@ -38,6 +38,12 @@ enum LeadSource {
   other
 }
 
+/// specs/20261101-crm US-10: a public tender ("bando di gara") is a deal whose company is the issuing body.
+enum DealKind {
+  standard
+  tender
+}
+
 enum DealStage {
   lead
   qualified
@@ -131,6 +137,9 @@ model Deal {
   /// The deal's code in its offers' file names (`WellD_CH_<client>_<fileCode>_<reference>.pdf`), set by hand; null =
   /// the initials of the title. Upper-case letters and digits, 1–10 (CHECK `deal_file_code_shape`).
   fileCode          String?
+  /// specs/20261101-crm US-10: `tender` for a public tender; only a tender has a submission deadline (CHECK).
+  kind              DealKind  @default(standard)
+  submissionDeadline DateTime? @db.Date
   version           Int       @default(1)
   createdBy         String
   updatedBy         String
@@ -145,6 +154,7 @@ model Deal {
   @@index([stage])
   @@index([companyId])
   @@index([closedAt])
+  @@index([kind])
   @@map("deal")
 }
 

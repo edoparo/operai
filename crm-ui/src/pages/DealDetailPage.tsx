@@ -14,7 +14,7 @@ import {
 } from '@operai/ui'
 import ActivityTimeline from '../components/ActivityTimeline'
 import AttachmentsCard from '../components/AttachmentsCard'
-import { DealStageBadge, EntityBadge } from '../components/Badges'
+import { DealStageBadge, EntityBadge, TenderBadge } from '../components/Badges'
 import DealFormDialog from '../components/DealFormDialog'
 import DeliveryCard from '../components/DeliveryCard'
 import EstimateCard from '../components/EstimateCard'
@@ -28,6 +28,7 @@ import { statusOf } from '../lib/errors'
 import { dealAmount, weightedCents } from '../lib/money'
 import { personName } from '../lib/people'
 import { mayRecordOnDeal, recordHoursPropsOfDeal } from '../lib/recordHours'
+import { kindOf } from '../lib/types'
 import type { Deal, DealStage, Pipeline } from '../lib/types'
 import { useCrmCapabilities } from '../hooks/scopeContext'
 import { useCurrentUserId } from '../hooks/useCurrentUserId'
@@ -126,7 +127,12 @@ export default function DealDetailPage() {
       <PageHeader
         title={current.title}
         titleId={titleId}
-        status={<DealStageBadge stage={current.stage} />}
+        status={
+          <>
+            <DealStageBadge stage={current.stage} />
+            {kindOf(current) === 'tender' && <TenderBadge testId="crm-deal-tender" />}
+          </>
+        }
         description={
           <Link to="/companies/$id" params={{ id: current.company.id }} className="link">
             {current.company.name}
@@ -200,6 +206,15 @@ export default function DealDetailPage() {
                   ]
                 : []),
               { id: 'entity', term: t.entity, value: <EntityBadge entity={current.entity} /> },
+              ...(kindOf(current) === 'tender'
+                ? [
+                    {
+                      id: 'submission-deadline',
+                      term: t.submissionDeadline,
+                      value: current.submissionDeadline ? formatDate(current.submissionDeadline) : strings.common.none,
+                    },
+                  ]
+                : []),
               {
                 id: 'expected',
                 term: t.expected,

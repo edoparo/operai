@@ -22,6 +22,40 @@ describe("deals (US-3)", () => {
     });
   });
 
+  it("a deal can be a tender with a submission deadline; only a tender has one; a standard deal again loses it (US-10)", async () => {
+    const company = await makeCompany({ entity: "welld_ch", name: "Chips Joint Undertaking" });
+    const plain = await call("POST", "/deals", { as: "salesCh", body: { companyId: company.id, title: "Support", currency: "EUR" } });
+    expect(plain.json).toMatchObject({ kind: "standard", submissionDeadline: null });
+    const refused = await call("POST", "/deals", {
+      as: "salesCh",
+      body: { companyId: company.id, title: "X", currency: "EUR", submissionDeadline: "2027-02-15" },
+    });
+    expect(refused.status).toBe(422);
+    expect(refused.json).toMatchObject({ code: "deadline_only_on_tenders", field: "submissionDeadline" });
+
+    const tender = await call("POST", "/deals", {
+      as: "salesCh",
+      body: { companyId: company.id, title: "Horizon Chips JU call", currency: "EUR", kind: "tender", submissionDeadline: "2027-02-15" },
+    });
+    expect(tender.status).toBe(201);
+    expect(tender.json).toMatchObject({ kind: "tender", submissionDeadline: "2027-02-15" });
+    const moved = await call("PATCH", `/deals/${tender.json.id}`, { as: "salesCh", ifMatch: 1, body: { submissionDeadline: "2027-03-01" } });
+    expect(moved.json.submissionDeadline).toBe("2027-03-01");
+    const standard = await call("PATCH", `/deals/${tender.json.id}`, { as: "salesCh", ifMatch: 2, body: { kind: "standard" } });
+    expect(standard.json).toMatchObject({ kind: "standard", submissionDeadline: null });
+    const noDeadline = await call("PATCH", `/deals/${tender.json.id}`, { as: "salesCh", ifMatch: 3, body: { submissionDeadline: "2027-03-01" } });
+    expect(noDeadline.json.code).toBe("deadline_only_on_tenders");
+
+    // The list and the pipeline filter by kind.
+    await call("PATCH", `/deals/${tender.json.id}`, { as: "salesCh", ifMatch: 3, body: { kind: "tender" } });
+    const tenders = await call("GET", "/deals?kind=tender", { as: "salesCh" });
+    expect(tenders.json.items.map((d: { id: string }) => d.id)).toEqual([tender.json.id]);
+    const others = await call("GET", "/deals?kind=standard", { as: "salesCh" });
+    expect(others.json.items.map((d: { id: string }) => d.id)).not.toContain(tender.json.id);
+    expect((await call("GET", "/pipeline?kind=tender", { as: "salesCh" })).status).toBe(200);
+    expect((await call("GET", "/deals?kind=grant", { as: "salesCh" })).status).toBe(422);
+  });
+
   it("a file code can be set by hand, is stored upper case, and cleared back to the title's initials (2026-11-24)", async () => {
     const company = await makeCompany({ entity: "welld_ch" });
     const created = await call("POST", "/deals", {

@@ -13,6 +13,8 @@ export type Entity = 'welld_ch' | 'welld_it'
 export type Currency = 'CHF' | 'EUR'
 export type CompanyStatus = 'prospect' | 'customer' | 'former'
 export type DealStage = 'lead' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost'
+/** A public tender ("bando di gara", 2026-11-24) or any other deal. */
+export type DealKind = 'standard' | 'tender'
 export type ActivityType = 'note' | 'call' | 'meeting' | 'email' | 'task'
 /** Where a company or a lead came from (specs/20261101-crm US-7). */
 export type LeadSource = 'inbound' | 'outbound' | 'event' | 'referral' | 'other'
@@ -117,6 +119,10 @@ export type DealSummary = {
   fileCode?: string | null
   /** The initials of the title: what the file names use while `fileCode` is null. */
   fileCodeDefault?: string
+  /** 2026-11-24. Absent from an older server: read it as `standard` (`kindOf`). */
+  kind?: DealKind
+  /** The date (`YYYY-MM-DD`) a tender's submission is due; only a tender has one. Absent from an older server. */
+  submissionDeadline?: string | null
   expectedCloseDate: string | null
   owner: PersonRef
   closedAt: string | null
@@ -477,3 +483,6 @@ export type OfferIncomplete = { missing: Issue[]; invalid: InvalidIssue[] }
 
 /** A template's problems as a 422 `template_invalid` lists them (positions and codes only). */
 export type TemplateProblem = Problem
+
+/** A deal's kind; a server that predates it sends none, and every deal it knows is standard. */
+export const kindOf = (deal: { kind?: DealKind }): DealKind => deal.kind ?? 'standard'

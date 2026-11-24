@@ -7,8 +7,8 @@ import { errorMessage, fieldErrorOf } from '../lib/errors'
 import { focusRefusal } from '../lib/focusRefusal'
 import { centsToInput } from '../lib/money'
 import { personName } from '../lib/people'
-import { CURRENCIES, NEW_DEAL_STAGES } from '../lib/types'
-import type { CompanyRef, Currency, Deal, DealStage, Entity, LeadSource } from '../lib/types'
+import { CURRENCIES, NEW_DEAL_STAGES, kindOf } from '../lib/types'
+import type { CompanyRef, Currency, Deal, DealKind, DealStage, Entity, LeadSource } from '../lib/types'
 import { first, hasErrors, maxLength, optional, required } from '../lib/validate'
 import type { Errors } from '../lib/validate'
 import { useCrmCapabilities } from '../hooks/scopeContext'
@@ -32,6 +32,7 @@ type FieldName =
   | 'notes'
   | 'sourceDetail'
   | 'fileCode'
+  | 'deadline'
 
 type Draft = {
   title: string
@@ -44,6 +45,10 @@ type Draft = {
   source: LeadSource | ''
   sourceDetail: string
   fileCode: string
+  /** A public tender (2026-11-24). */
+  tender: boolean
+  /** The tender's submission deadline, `YYYY-MM-DD`; '' = not known. Kept empty while `tender` is off. */
+  deadline: string
 }
 
 /** The server's rule (crm-api `FILE_CODE_PATTERN`): 1–10 letters or digits; the server stores it upper case. */
@@ -61,6 +66,7 @@ const SERVER_FIELDS: Record<string, FieldName> = {
   notes: 'notes',
   sourceDetail: 'sourceDetail',
   fileCode: 'fileCode',
+  submissionDeadline: 'deadline',
 }
 
 const CODE_FIELDS: Record<string, FieldName> = {
@@ -71,6 +77,22 @@ const CODE_FIELDS: Record<string, FieldName> = {
   owner_not_crm_user: 'owner',
   stage_requires_estimate: 'stage',
   out_of_scope: 'entity',
+  deadline_only_on_tenders: 'deadline',
+}
+
+/**
+ * What to send about the kind and the deadline (2026-11-24). A create sends them only for a tender, so a standard deal
+ * reads exactly as before. An edit sends only what changed; making a tender standard sends `kind` alone, and the server
+ * clears the deadline.
+ */
+function kindChanges(deal: Deal | undefined, draft: Draft): { kind?: DealKind; submissionDeadline?: string | null } {
+  const kind: DealKind = draft.tender ? 'tender' : 'standard'
+  const deadline = draft.tender && draft.deadline !== '' ? draft.deadline : null
+  if (!deal) return draft.tender ? { kind, ...(deadline !== null ? { submissionDeadline: deadline } : {}) } : {}
+  return {
+    ...(kind !== kindOf(deal) ? { kind } : {}),
+    ...(draft.tender && deadline !== (deal.submissionDeadline ?? null) ? { submissionDeadline: deadline } : {}),
+  }
 }
 
 /**
@@ -112,9 +134,14 @@ export default function DealFormDialog({
     source: deal ? (deal.source ?? '') : (company?.source ?? ''),
     sourceDetail: deal ? (deal.sourceDetail ?? '') : (company?.sourceDetail ?? ''),
     fileCode: deal?.fileCode ?? '',
+    tender: deal !== undefined && kindOf(deal) === 'tender',
+    deadline: deal?.submissionDeadline ?? '',
   }))
   // The file-name code (2026-11-24) is edited on an existing deal whose server knows it (it sends `fileCodeDefault`).
   const showFileCode = deal !== undefined && typeof deal.fileCodeDefault === 'string'
+  // The kind (2026-11-24): always offered on a create; on an edit only when the server sent the deal's kind, so an edit
+  // against a server that predates it never shows or sends it.
+  const showKind = deal === undefined || deal.kind !== undefined
   const [owner, setOwner] = useState<PersonChoice | null>(
     deal ? { id: deal.owner.id, label: personName(deal.owner) } : null,
   )
@@ -169,6 +196,7 @@ export default function DealFormDialog({
       ...(showFileCode && draft.fileCode.trim().toUpperCase() !== (deal?.fileCode ?? '')
         ? { fileCode: draft.fileCode.trim() === '' ? null : draft.fileCode.trim().toUpperCase() }
         : {}),
+      ...(showKind ? kindChanges(deal, draft) : {}),
     }
     setBusy(true)
     setError(null)
@@ -187,13 +215,14 @@ export default function DealFormDialog({
       if (isStaleWrite(failure)) return onStale()
       setRefusedAt((n) => n + 1)
       const byCode = failure instanceof ApiError && failure.code ? CODE_FIELDS[failure.code] : undefined
-      if (byCode && failure instanceof ApiError) {
+      if (byCode && failure instanceof ApiError && !(byCode === 'deadline' && !draft.tender)) {
         setErrors({ [byCode]: failure.detail ?? strings.common.validation.fixErrors })
         return
       }
       const field = fieldErrorOf(failure)
       const mapped = field ? SERVER_FIELDS[field.field] : undefined
-      if (field && mapped) {
+      // A deadline refused while the tender box is off has no field on screen to land on: the banner says it.
+      if (field && mapped && !(mapped === 'deadline' && !draft.tender)) {
         setErrors({ [mapped]: field.message })
         return
       }
@@ -306,6 +335,38 @@ export default function DealFormDialog({
             <DateInput {...control} value={draft.expected} onChange={(event) => set('expected', event.target.value)} />
           )}
         </Field>
+        {showKind && (
+          <div data-testid="crm-deal-form-tender">
+            <label className="flex items-start gap-2 text-sm text-text">
+              <input
+                type="checkbox"
+                checked={draft.tender}
+                onChange={(event) => {
+                  const tender = event.target.checked
+                  // Unticking forgets the deadline: only a tender has one.
+                  setDraft((current) => ({ ...current, tender, deadline: tender ? current.deadline : '' }))
+                  if (!tender) setErrors((current) => ({ ...current, deadline: undefined }))
+                }}
+              />
+              <span>
+                {t.tender}
+                <span className="block text-xs text-soft">{t.tenderHint}</span>
+              </span>
+            </label>
+          </div>
+        )}
+        {showKind && draft.tender && (
+          <Field
+            label={t.submissionDeadline}
+            hint={t.submissionDeadlineHint}
+            error={errors.deadline}
+            testId="crm-deal-form-deadline"
+          >
+            {(control) => (
+              <DateInput {...control} value={draft.deadline} onChange={(event) => set('deadline', event.target.value)} />
+            )}
+          </Field>
+        )}
         {deal && (
           <PersonPicker
             appId="crm"

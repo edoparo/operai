@@ -137,6 +137,22 @@ describe('DealDetailPage', () => {
     expect(await screen.findByTestId('host-meetings-panel')).not.toBeNull()
   })
 
+  it('a tender shows its badge beside the stage and its submission deadline in the facts (2026-11-24)', async () => {
+    await renderDeal(['welld_ch'], {
+      'GET /deals/d1': () => ({ status: 200, body: { ...DEAL, kind: 'tender', submissionDeadline: '2026-12-15' } }),
+    })
+    expect(screen.getByTestId('crm-deal-tender').textContent).toBe('Tender')
+    const facts = screen.getByTestId('crm-deal-facts')
+    expect(facts.textContent).toContain('Submission deadline')
+    expect(facts.textContent).toContain('15.12.2026')
+  })
+
+  it('a standard deal, or one from a server without the kind, has neither', async () => {
+    await renderDeal(['welld_ch'])
+    expect(screen.queryByTestId('crm-deal-tender')).toBeNull()
+    expect(screen.getByTestId('crm-deal-facts').textContent).not.toContain('Submission deadline')
+  })
+
   it('outside the entity scope the deal is read-only (AC-3.5)', async () => {
     await renderDeal(['welld_it'])
     expect(screen.queryByTestId('crm-deal-move')).toBeNull()
