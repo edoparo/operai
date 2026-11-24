@@ -384,7 +384,7 @@ Derived from these committed files:
 
 ## DOCS — runbook, AGENTS.md, ADR amendment, changeset
 
-- [ ] T24: infra and repo docs (document only, never deploy): `infra/README.md` § Accounting release runbook steps 0 and 6–8 rewritten, the exit table, `receipt-baseline:from-register` out of the runbook; AGENTS.md (domain terms and the release's three steps); `refund-api/.env.example` comments — refs: none (release plumbing; supports AC-2.8, AC-5.6) — deps: T5, T13, T22
+- [x] T24: infra and repo docs (document only, never deploy): `infra/README.md` § Accounting release runbook steps 0 and 6–8 rewritten, the exit table, `receipt-baseline:from-register` out of the runbook; AGENTS.md (domain terms and the release's three steps); `refund-api/.env.example` comments — refs: none (release plumbing; supports AC-2.8, AC-5.6) — deps: T5, T13, T22
   - touch: `infra/README.md`, `AGENTS.md`, `refund-api/.env.example`
   - agent: devops · docs
   - Details: plan § Runbook changes verbatim (step 6 receipt codes incl. the test account's code and
@@ -393,6 +393,7 @@ Derived from these committed files:
     gains the terms pre-release line, register export, pairing file, imported number, receipt code,
     prefix, and the e2e setup's three steps. No `railway`, `vercel` or deploy command is run.
   - done when: `bash -n infra/check.sh` passes; `mise run env:doctor` is green; every path, script, flag and exit status named in the new text exists in the code (checked by a reviewer, list in the commit message).
+  - evidence: `bash -n infra/check.sh` ok; `mise run env:doctor` all checks passed (secrets unresolved, non-secret checks ran); `bun test tools/env-doctor` 299 pass, 1 fail (`push.test.ts` PUSH_ENABLED=false pin vs the template's `true`; fails identically with these edits stashed, so pre-existing, not touched). Runbook steps 0 and 6-8 rewritten, exit table added (0,1,2,4,5,6,7,8,9; 3 retired), old seed step renamed 5b with its three cross-references; AGENTS.md terms and e2e three steps; `.env.example` comment. No railway, vercel or deploy command run.
 
 - [x] T25: ADR amendment by the `adr-writer`: ADR 20261124-a-receipt-code-per-employee-…, decision 5, the Settings flag covers a shared prefix with or without a code (plan DS-8, ADR candidates "A2 amendment") — refs: none (ADR) — deps: none
   - touch: `docs/adr/20261124-a-receipt-code-per-employee-overrides-the-derived-initials-for-new-numbers-only-is-stored-as-a-unique-current-row-with-an-append-only-history-and-is-managed-by-its-own-capability.md`

@@ -1083,7 +1083,8 @@ at cutover time, never a recurring job.
 
 **Release runbook — refund accounting export (specs/20261118-refund-accounting-export; the release itself is task T40).**
 **Amended by specs/20261119-accounting: steps 1–4 stand, but the lists, the script and its inputs moved, so step 5 is now
-the one in § Accounting release runbook (step 7 there) and the two releases are cut together (D21), never one after the other.**
+the one in § Accounting release runbook (steps 7 and 8 there) and the two releases are cut together (D21), never one after the other.**
+**Superseded by specs/20261124-receipt-numbers-from-the-register: the `--offsets` baseline list below (required, exit 3) and `receipt-baseline:from-register` are no longer the release's input; the register export and the pairing file are, and `--offsets` is optional (§ Accounting release runbook, steps 6–8).**
 The feature adds a migration, a permission, a shell formatter and one operator-run script. Do these in order; each step
 names the check that lets the next one start.
 
@@ -1134,11 +1135,11 @@ afterwards, for new approvals and for unpaid lines, not for those paid ones.
    on every approval answers 409 `accounting_release_pending`, and the UI says so, until step 5.
 4. **refund-ui** (Vercel).
 5. **Run the release script, once**, from a checkout at the released commit, **after accounting-api is live and has its catalog**
-   (§ Accounting release runbook, steps 3–6): the script reads Accounting first and exits 2, writing nothing, if it cannot
+   (§ Accounting release runbook, steps 3–6; the release itself is steps 7 and 8 there): the script reads Accounting first and exits 2, writing nothing, if it cannot
    (AC-7.4). **The refund-api Docker image does not contain `scripts/`** (its Dockerfile copies `src` and `prisma` only), so this cannot
    be run inside the Railway service: it runs from a checkout (`bun install` and `bun run db:generate` in `refund-api/` first: the
    Prisma client is generated, not committed) under `railway run`, which injects refund-api's own variables (the service client
-   included), with the three overrides the exact commands of § Accounting release runbook, step 7, spell out: the `refund` database through
+   included), with the three overrides the exact commands of § Accounting release runbook, step 7 and 8, spell out: the `refund` database through
    its public connection string, and accounting-api and auth through their public hosts, because the private ones do not resolve from a laptop.
    The arguments are the ones this runbook names:
 
@@ -1888,7 +1889,7 @@ of the shell); refund-api reads it over private networking with a scoped service
 
 | Setting | Value | Why |
 |---|---|---|
-| `build` | `DOCKERFILE`, `Dockerfile` | The image copies `src`, `prisma` **and `scripts/`** (the data they read included; the tests, `src/test-support` and the test fixtures are excluded by `.dockerignore`, whose `**/*.test.ts` is the recursive form: a bare `*.test.ts` matches the build-context root only), so `seed:welld-ch` runs inside the service (§ Accounting release runbook, step 6). |
+| `build` | `DOCKERFILE`, `Dockerfile` | The image copies `src`, `prisma` **and `scripts/`** (the data they read included; the tests, `src/test-support` and the test fixtures are excluded by `.dockerignore`, whose `**/*.test.ts` is the recursive form: a bare `*.test.ts` matches the build-context root only), so `seed:welld-ch` runs inside the service (§ Accounting release runbook, step 5b). |
 | `start` / `preDeploy` | `bun run src/index.ts` / `bun run db:deploy` | The one Prisma migration runs against `accounting` before every start; the database must exist before the first deploy (step 1). |
 | `healthcheck` | `/health`, 30 s | 200 with `db.status` `ok`; 503 when Prisma cannot reach Postgres. |
 | `replicas` | `{ "europe-west4-drams3a": 1 }` | EU only. The rate fetch is single-flight per (entity, month) in process, so a second replica doubles the outbound calls, it does not share them. |
@@ -2974,16 +2975,18 @@ pairing must fail closed during the window:
 | the shell before accounting-ui | the remote's error panel, and only for holders of the derived app |
 | `auth` edited with a scope it does not know | `auth` refuses to start (R13): never edit `SERVICE_CLIENTS` before step 4's check |
 
-**Approvals are refused from step 3 to step 7.** Run the release outside the monthly batch day; with steps 0–2 done beforehand the window
+**Approvals are refused from step 3 until the real run of step 8 has completed (production approvals stay blocked until then, `accounting_release_pending`).** Run the release outside the monthly batch day; with steps 0–2 done beforehand the window
 is minutes (R1). Do not start step 3 until step 2 is complete and `mise run env:doctor -- --env production` is green.
 
 **Step 0 — Before.**
 - Accounting signed off the lists and the defaults on 2026-11-19 (T50 of this spec, T39 of 20261118): `accounting-api/scripts/data/seed.welld-ch.json`
   (19 ledger accounts, 6 VAT codes) and `refund-api/scripts/data/accounting-defaults.welld-ch.json` (the default account of each of the 14 expense types; no VAT
   default). What stays open: the seed or typing by hand, and the VAT code labels, written by the operator until accounting confirms them.
-- **The 2026 baseline list is a release input** (`--offsets <csv>`, required; § Release runbook — refund accounting export, "Before anything"): prepared
-  **outside the repository** (it names people), derived with `bun run receipt-baseline:from-register --register <csv>` (T64) and confirmed by accounting.
-  Without it step 7 writes nothing and exits 3. A header-only file states that no employee has a hand-issued number.
+- **The register export is the release input** (specs/20261124-receipt-numbers-from-the-register): accounting's `Recap_RS_2026.xlsx` (sheet `2026`, the default of `--sheet`), taken **on release day**
+  and kept **outside any git worktree** (for example `~/Recap_RS_2026.xlsx`), as are the pairing file and the report: they name people. `--offsets <csv>` is now optional (a list of last hand-issued numbers
+  the register does not hold); the retired `receipt-baseline:from-register` script is not part of the release any more. Without `--register` and a confirmed `--pairing` the real run writes nothing and exits 5.
+- **`auth` deploys first.** The release needs the new `auth` live with its seed: its deploy log (step 3) shows the seed line ending `+ receipt-code grants` (capability `receipt-code:manage`, granted to
+  `accounting` and `admin` only). Until then nobody can set a receipt code (403), which is step 6's input. Holders may need a fresh session before **Refund → Settings → Receipt codes** shows.
 - The AFC live check, once from a networked machine: `cd accounting-api && ACCOUNTING_LIVE_RATES=1 bun test src/rates/afc.live.test.ts` (EUR 0.9246 for 2026-03).
 - From a checkout of the release commit (the one whose `.railway/railway.ts` declares `accounting-api`), at the repository root:
   `mise run env:doctor -- --env production` is green, and `railway link -p 3bafd4c0-226f-4621-821b-a063976498a2 -e production` is done.
@@ -3042,7 +3045,7 @@ Then `mise run env:doctor -- --env production --live` (it pulls the real values 
 If it does not come back, the scope is the first suspect: remove it again.
 
 In the same change set (a follow-up commit, not part of the push), make the contract say the same, or `env:doctor` fails in the other direction (a scope
-held on one side only): add `accounting.reference.read` (only: `users.contact` is held for the release window and removed after it, step "Release Refund") to refund-api's `requiredScopes` in `tools/env-doctor/manifest.ts` and to the `refund-api` entry of the
+held on one side only): add `accounting.reference.read` (only: `users.contact` is held for the release window and removed after it, step 8) to refund-api's `requiredScopes` in `tools/env-doctor/manifest.ts` and to the `refund-api` entry of the
 `SERVICE_CLIENTS` line in `tools/env-doctor/templates/production/auth.env`, and rewrite the test of `tools/env-doctor/check.test.ts` that pins the pending state.
 
 **Step 5 — Verify.**
@@ -3051,7 +3054,7 @@ held on one side only): add `accounting.reference.read` (only: `users.contact` i
 - `auth`'s seed log shows the accounting grants (step 4's check).
 - An accounting user sees **Accounting** in the menu, and a user without the capability does not.
 
-**Step 6 — Seed Accounting** (optional: accounting may type the list in the app instead). `bun run seed:welld-ch [--dry-run]` adds each account and VAT code of
+**Step 5b — Seed Accounting** (optional: accounting may type the list in the app instead). `bun run seed:welld-ch [--dry-run]` adds each account and VAT code of
 `seed.welld-ch.json` (the signed-off **19 accounts and 6 VAT codes**) that does not exist yet, as `system:accounting-seed`, in one transaction; it never deactivates, reactivates or renames anything, never touches
 WellD Italia, and prints counts and the numbers and codes added, no personal data. The accounting-api image **contains `scripts/` and their data**, so it runs
 inside the service with its own `DATABASE_URL`, over private networking (the activities-api and auth precedent):
@@ -3067,48 +3070,77 @@ exit
 (Alternative, from a checkout: `railway run --service accounting-api --environment production -- sh -c 'DATABASE_URL="$ACCOUNTING_PUBLIC_DATABASE_URL" bun run seed:welld-ch --dry-run'`
 with the `accounting` database's **public** connection string in that variable, assembled the way step 7 assembles Refund's. Never type a URL on a command line.)
 
-**Step 7 — Release Refund** (`accounting:release`; D20). It **reads Accounting first** and exits **2**, writing nothing, if it cannot (AC-7.4), so this step needs steps 3–6
-done (and step 4: refund-api cannot read without the scope). It runs from a checkout of the release commit under `railway run`, which injects refund-api's own variables,
-the service client included; it reaches three things that the private hosts of those variables cannot give a laptop, so three are overridden: the `refund` database
-(public connection string), accounting-api and `auth` (their public hosts). The credentials are injected by `railway run`, never typed. Operator shell only, never CI or any
-job whose output is shipped to a log service (SR-4). Offsets and personal data: § Release runbook — refund accounting export, step 5.
+**The release's exit statuses** (`bun run accounting:release`, `refund-api/scripts/accounting-release.ts`; read it with `echo "exit $?"` after every run). Status **3 is retired**: it is never produced and never reused.
 
-**The release has three inputs**: the seed (step 6: 19 accounts, 6 VAT codes), the defaults (`accounting-defaults.welld-ch.json`: the 14 expense types' accounts, read by
-default, `--defaults <json>` replaces it) and the **baseline list** (`--offsets <file.csv>`, required, kept outside the repository). Put the list in a path outside any
-git worktree (for example `~/accounting-offsets-2026.csv`) and delete it after the run.
+| Exit | Meaning | Written |
+|---|---|---|
+| 0 | done; or a dry run done (propose: the pairing file is written; check: the real run would succeed); or "already completed" | real run: everything; otherwise nothing (propose writes the pairing file only) |
+| 1 | any other failure (usage, a pairing path that already exists, an internal assertion, a database error), rolled back | nothing |
+| 2 | Accounting cannot be read | nothing |
+| 4 | `auth` cannot be read for the owner names (`users.contact`, step 4) | nothing |
+| 5 | register export or pairing file not given (real run), or a dry run without its mode (`--propose` or `--pairing`) | nothing |
+| 6 | an input unreadable or malformed (workbook, sheet, header, pairing file format, offsets) | nothing |
+| 7 | stale: the register export or the pre-release lines are not those the pairing file was built from | nothing |
+| 8 | the pairing file is not fully decided, or is inconsistent | nothing |
+| 9 | a new number would go to an employee who shares a prefix with another and holds no receipt code | nothing |
+
+A completed release is detected first: a rerun exits 0 with "already completed", whatever the inputs, reading and writing nothing. The order of the other checks is the order of the statuses (Accounting, `auth`, inputs given, inputs readable, stale, decided, shared prefix).
+
+**Step 6 — Receipt codes** (accounting, in the app, **before** the real run). Needs `auth` live with its seed (step 0; the log line `+ receipt-code grants`) and a user holding `receipt-code:manage`. In **Refund → Settings → Receipt codes**
+accounting sets the codes decided on 2026-11-24 (LCM and LCP for the two employees whose initials are LC, FRO and FRI for the two whose initials are FR) and a code for the owner's test account. The list must then show no
+"Shares initials" badge for anyone who will receive a new number (the run exits 9 for an employee who does). **No code is edited from here until step 8 has run**: the prefix of every new number is read from the code at the release.
+
+**Step 7 — Dry run with the register, then the pairing** (accounting decides; the operator runs). The release **reads Accounting first** and exits **2**, writing nothing, if it cannot, so it needs steps 3 to 6 done (and step 4: refund-api cannot read without the
+scope). It runs from a checkout of the release commit under `railway run`, which injects refund-api's own variables, the service client included, and three are overridden because the private hosts of those variables do not resolve from a laptop: the `refund`
+database (public connection string), accounting-api and `auth` (their public hosts). The credentials are injected by `railway run`, never typed. **Operator shell only**, never CI or any job whose output is shipped to a log service. The register export and the pairing file name people:
+they stay in a path **outside any git worktree** (the script warns on stderr when a path is inside one) and are never committed or pasted into a ticket.
 
 ```bash
 cd refund-api && bun install && bun run db:generate
 # the refund database through the shared Postgres's PUBLIC url (kept in this shell only; never echoed, never on a command line). (unverified)
 export REFUND_PUBLIC_DATABASE_URL="$(railway run --service Postgres --environment production -- sh -c 'printf %s "${DATABASE_PUBLIC_URL%/*}/refund"')"
 echo "${REFUND_PUBLIC_DATABASE_URL##*/}"      # the database NAME only: "refund"
-
-railway run --service refund-api --environment production -- sh -c \
-  'DATABASE_URL="$REFUND_PUBLIC_DATABASE_URL" ACCOUNTING_INTERNAL_URL=https://accounting-api.operai.welld.io AUTH_BASE_URL=https://auth.operai.welld.io bun run accounting:release --dry-run --offsets ~/accounting-offsets-2026.csv'
-echo "exit $?"   # 0: read it. 2: Accounting cannot be read, nothing written (see below). 3: the baseline list is missing, nothing written. 1: failed, rolled back.
 ```
 
-Accounting reads the dry-run report: numbers per employee and year, the defaults **skipped** because the entry is not active in Accounting, "rate pending: N lines", and "left unclassified".
-A paid legacy line left unclassified stays locked (R2), so the owner decides whether to set the defaults or the catalog first. **Run the real one only after a clean, read dry run**, with the same
-arguments (the same `--offsets <file.csv>`; the baseline can only be loaded on this first run):
+1. **Propose.** Writes the proposed pairing file (mode 0600, **never over an existing file**: a path that exists is exit 1, so pick a new name for each proposal) and prints a report with no personal data; it writes nothing to any database:
+
+   ```bash
+   railway run --service refund-api --environment production -- sh -c \
+     'DATABASE_URL="$REFUND_PUBLIC_DATABASE_URL" ACCOUNTING_INTERNAL_URL=https://accounting-api.operai.welld.io AUTH_BASE_URL=https://auth.operai.welld.io bun run accounting:release --dry-run --register ~/Recap_RS_2026.xlsx --propose ~/pairing-2026.csv'
+   echo "exit $?"
+   ```
+
+   Expect exit 0. Read the report: counts per category, the workers without a match, the codes still needed, and for each employee the highest sequence and the first new number. The optional arguments are `--sheet <name>` (default `2026`), `--offsets <csv>` and `--defaults <json>`
+   (the 14 expense types' default accounts, read by default from `accounting-defaults.welld-ch.json`).
+2. **Accounting decides the pairing file** (`~/pairing-2026.csv`, opened in Excel or a text editor, saved as CSV). Accounting:
+   - maps every worker (`E<n>`, an email, or `not-operai`);
+   - marks the test account's `employee` record `excluded`;
+   - decides every doubtful line (`paper` and the number, `new`, or `split` and its group);
+   - acknowledges the malformed rows and the rows with a number and no worker;
+   - sets every `worker`, `line` and `row` record to `confirmed`. A `proposed` record is not accepted by the real run, even when it is an exact match.
+3. **Check.** The same command with `--pairing ~/pairing-2026.csv` in place of `--propose ~/pairing-2026.csv` (still `--dry-run`): it validates the decided file and runs the whole release in a transaction that is rolled back, so it prints
+   **the exact numbers each line would receive**, which accounting reads and keeps. Exit 0 = the real run would succeed. Exit 7: the register export or the lines changed since the proposal, so go back to 1 with a new file name. Exit 8: the report lists the open or inconsistent records by id, decide them and run the check again.
+   Exit 9: an employee who will receive a new number shares a prefix and has no code, so set it (step 6) and run the check again. Exit 2: check accounting-api's health, that `ACCOUNTING_INTERNAL_URL` is the **public** host here, and that step 4 is done. Exit 4: `users.contact` is missing from refund-api's `SERVICE_CLIENTS` entry (step 4) or `auth` is down.
+
+**Step 8 — Real run, then check, then clean up.** Run it **only after a clean, read check** and with the same register export and pairing file (the register is read again: a changed file is exit 7). The same command as 7.3 without `--dry-run`, in one transaction:
 
 ```bash
 railway run --service refund-api --environment production -- sh -c \
-  'DATABASE_URL="$REFUND_PUBLIC_DATABASE_URL" ACCOUNTING_INTERNAL_URL=https://accounting-api.operai.welld.io AUTH_BASE_URL=https://auth.operai.welld.io bun run accounting:release --offsets ~/accounting-offsets-2026.csv'
+  'DATABASE_URL="$REFUND_PUBLIC_DATABASE_URL" ACCOUNTING_INTERNAL_URL=https://accounting-api.operai.welld.io AUTH_BASE_URL=https://auth.operai.welld.io bun run accounting:release --register ~/Recap_RS_2026.xlsx --pairing ~/pairing-2026.csv'
 echo "exit $?"; unset REFUND_PUBLIC_DATABASE_URL
 ```
 
-Exit **2** prints `Accounting cannot be read: nothing was numbered or classified; run again later` and wrote nothing: check accounting-api's health, that `ACCOUNTING_INTERNAL_URL` is the public host
-here, and that step 4 is done, then run it again. Exit **3** prints `the list of last hand-issued 2026 numbers is missing: nothing was numbered (AC-7.4)` and wrote nothing: pass `--offsets <file.csv>` (a
-header-only file if no employee has a hand-issued number) and run it again; no number was consumed meanwhile. A second run finds nothing to do and writes no second marker. File the report.
+Exit 0 is the release: **production approvals open now, and not before** (until this run they answer 409 `accounting_release_pending`). Check: the first production approval of a WellD CH request succeeds, the line carries the copied account and VAT code, its receipt number carries the employee's code or initials
+after the paper numbers already issued, and a compiled batch's export card says how many rows it will export. A rerun prints "already completed" and exits 0; a failure rolled back and changed nothing (a nonzero status in the table). Then, in this order:
 
-**Step 8 — Check.** The first production approval of a WellD CH request succeeds (it no longer answers 409 `accounting_release_pending`), the line carries the copied account and VAT code,
-and a compiled batch's export card says how many rows it will export. From here approvals are open again.
+1. **Remove `users.contact`** from refund-api's entry in auth's `SERVICE_CLIENTS` (back to `notifications.push emails.send accounting.reference.read`; step 4, least privilege): the scope is held **for the release window only**. Do the same in `tools/env-doctor/templates/production/auth.env` if it was added there, and read `auth`'s health after it restarts.
+2. **Accounting archives** the confirmed pairing file and the report in its own records, **outside Operai**.
+3. **Delete the local copies** of the register export and the pairing file (the operator files), and the shell variable above is already unset. Receipt codes may be edited again.
 
 **Rollback.**
 - *Before step 3's push:* nothing is built. Applying `.railway/railway.ts` from a checkout that no longer declares `accounting-api` would delete the service, so read that plan: it is a decision, not a reflex.
 - *Step 4 failed* (`auth` does not start): remove the scope from refund-api's entry; `auth` restarts on the previous value.
-- *Between steps 3 and 7:* approvals are refused by design. **Migrations are one way: there is no down migration, and none of them is reset or edited to go back.** refund-api's `preDeploy` applies, in one go,
+- *Between steps 3 and the real run of step 8:* approvals are refused by design. **Migrations are one way: there is no down migration, and none of them is reset or edited to go back.** refund-api's `preDeploy` applies, in one go,
   `20261119090000_accounting_export` (the tables, columns and type of the unreleased 20261118), `20261119120000_accounting_copies` (adds the copy columns, the two history tables of copies and the new guard; additive)
   and `20261119130000_accounting_reference_moved_out`, **which drops** the old ledger account, VAT code, rate and attempt tables, `accounting_catalog_status`, `expense_type_default`, the two FK columns of `refund_line` and the type
   `ExchangeRateOrigin`. accounting-api has one migration, `20261119120000_init` (additive, on its own database `accounting`).
@@ -3120,7 +3152,7 @@ and a compiled batch's export card says how many rows it will export. From here 
 - *accounting-api:* it can be taken out by removing the service (the block in `.railway/railway.ts`, applied from a checkout that has it, never from `main`; see above). That leaves its `accounting` database and what accounting typed or
   seeded there in place, and deleting that database is the owner's separate, destructive decision. Redeploying an older accounting-api image needs no schema step (its one migration is additive and has nothing to undo), but with no
   accounting-api refund-api answers 503 `accounting_unavailable`.
-- *After step 7:* the release wrote numbers, copies and the marker in one transaction. It is not undone by a redeploy; reverting it is the owner's decision with the plan (§ Risks R1, R2), and the marker is never deleted by hand.
+- *After step 8:* the release wrote numbers, copies and the marker in one transaction. It is not undone by a redeploy; reverting it is the owner's decision with the plan (§ Risks R1, R2), and the marker is never deleted by hand.
 
 ## Push notifications (specs/20261111-push-notifications, ADR 20261111-web-push-encrypted-payloads-not-fcm/0085)
 
