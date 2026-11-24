@@ -173,7 +173,7 @@ Derived from these committed files:
       `PairingCategory`, `PairingProposal`, `PairingDecision`, `PairingFileRecord`. Types only.
   - done when: `$ST $WT refund_rn_t6 scripts/lib/operatorFiles.test.ts scripts/receipt-baseline-from-register.test.ts` is green, including: a path inside a temporary `git init` directory → warning, outside → none; `shapeOf("AA99/9a")` → `AA99/9A`-shape without the cell text; `writeFileExclusive` on an existing path throws and leaves it unchanged, and a new file has mode 0600; `bun run typecheck` green.
 
-- [ ] T7: refund-api — the dependency-free xlsx reader and the synthetic register workbook builder, plus the committed header-only fixture — refs: AC-2.1, AC-2.7 — deps: none
+- [x] T7: refund-api — the dependency-free xlsx reader and the synthetic register workbook builder, plus the committed header-only fixture — refs: AC-2.1, AC-2.7 — deps: none
   - touch: `refund-api/scripts/release/xlsxReader.ts`, `refund-api/scripts/release/xlsxReader.test.ts`, `refund-api/src/test-support/registerWorkbook.ts`, `refund-api/src/test-support/registerWorkbook.test.ts`, `refund-api/scripts/fixtures/synthetic-register-header-only.xlsx`
   - agent: backend-dev · xlsx
   - Details:
