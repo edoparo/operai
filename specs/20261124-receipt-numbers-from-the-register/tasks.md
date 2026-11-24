@@ -231,7 +231,7 @@ Derived from these committed files:
     problems named by id; `format` unknown or meta missing is an input error (exit 6 in T12).
   - done when: `$ST $WT refund_rn_t10 scripts/release/pairingFile.test.ts` is green with: a writer → reader round trip, also through a `;`-delimited Excel-style re-save with CRLF; fingerprints kept as text (`sha256:` prefix); one validator test per problem (line missing, unresolved, a `proposed` record, extra line, paper number not on a row of the line's employee, number on two lines outside a split, a split group with two dates / two numbers / two employees, `new` in a group, a group of one accepted, paper on a non-2026 line, paper for an excluded employee, worker unmapped, worker mapped to an excluded employee, malformed row unacknowledged, an offsets row for an excluded employee), each naming the id.
 
-- [ ] T11: refund-api — `report.ts`: the AC-2.2 report, privacy-safe by construction — refs: AC-1.9, AC-2.2, AC-3.1, AC-3.4, AC-4.11, AC-5.6 — deps: T6, T9
+- [x] T11: refund-api — `report.ts`: the AC-2.2 report, privacy-safe by construction — refs: AC-1.9, AC-2.2, AC-3.1, AC-3.4, AC-4.11, AC-5.6 — deps: T6, T9
   - touch: `refund-api/scripts/release/report.ts`, `refund-api/scripts/release/report.test.ts`
   - agent: backend-dev · pair
   - Details: counts per category and reason (lines and rows), splits, no counterpart, rows with no

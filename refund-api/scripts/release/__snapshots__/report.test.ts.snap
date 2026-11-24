@@ -1,0 +1,48 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the report text (AC-2.2) matches its snapshot over a fixture that covers every category 1`] = `
+"Register export: 321 rows read from sheet 2026, last expense date 2026-11-20
+  (from the release on, accounting stops numbering by hand the expenses Refund numbers: a number written after this date could repeat one)
+
+Pre-release lines: 12
+  exact matches: 1 line, 1 row
+  split receipts: 1 line, 1 row, 1 group
+  no paper counterpart: 1 line
+  outside 2026 (a new number): 1 line
+  matches a row without a number: 1 line, 1 row
+  several candidates: 1 line, 1 row
+  amount differs: 1 line, 1 row
+  total unreadable: 1 line, 1 row
+  wrong year: 1 line, 1 row
+  sequence 000: 1 line, 1 row
+  prefix differs: 1 line, 1 row
+  number already taken: 1 line, 1 row
+  8 decisions still open: the real run would refuse (exit 8) until a person has decided them in the pairing file
+
+Register rows
+  with no pre-release line (feed an employee's maximum only): 21
+  without a number (never taken, count toward no maximum): 6
+  with a number but no readable date or total (listed, their number counts): 2 (R101 R102)
+  with a malformed number (to be acknowledged, count toward nothing): 1 (R103 AA99/9A)
+  with a number and no worker (to be acknowledged): 1 (R104)
+  workers not mapped to an employee: 2
+
+Employees that need a receipt code (a prefix shared with another employee, AC-4.11): 1
+  FR · 9z8y7x6w
+
+Per employee (4)
+  LCM · 1a2b3c4d: 12 lines; offsets 30, register maximum 39, imported maximum 41, baseline 41; first new number LCM26/042; offsets 30 differ from the register maximum 39
+  FR · 9z8y7x6w: 3 lines; offsets 0, register maximum 5, imported maximum 0, baseline 5; first new number FR26/006
+  XX · 00000000: 3 lines; offsets 0, register maximum 0, imported maximum 0, baseline 0; first new number XX26/001; excluded from the register; has pre-release lines and no mapped worker: check the mapping
+  not yet in Refund: 0 lines; offsets 7, register maximum 7, imported maximum 0, baseline 7; first new number none
+
+Doubtful lines (8)
+  line-05  2026-03-05  14.44 CHF  matches a row without a number: R44 AB26/014
+  line-06  2026-03-06  15.55 EUR  several candidates: R45 AB26/015
+  line-07  2026-03-07  16.66 CHF  amount differs: R46 AB26/016
+  line-08  2026-03-08  17.77 EUR  total unreadable: R47 AB26/017
+  line-09  2026-03-09  18.88 CHF  wrong year: R48 AB26/018
+  line-10  2026-03-10  19.99 EUR  sequence 000: R49 AB26/019
+  line-11  2026-03-11  21.10 CHF  prefix differs: R50 AB26/020
+  line-12  2026-03-12  22.21 EUR  number already taken: R51 AB26/021"
+`;
