@@ -40,10 +40,10 @@ const employee = (overrides: Partial<ReceiptCodeEmployee> = {}): ReceiptCodeEmpl
 const problem = (status: number, code?: string) =>
   new ApiError({ type: 't', title: 'x', status, code, detail: 'English server text that must never show' })
 
-const setup = (current: ReceiptCodeEmployee = employee()) => {
+const setup = (current: ReceiptCodeEmployee = employee(), onNotFound?: () => void) => {
   const onSaved = vi.fn()
   const onCancel = vi.fn()
-  render(<ReceiptCodeDialog employee={current} onSaved={onSaved} onCancel={onCancel} />)
+  render(<ReceiptCodeDialog employee={current} onSaved={onSaved} onCancel={onCancel} onNotFound={onNotFound} />)
   return { onSaved, onCancel }
 }
 
@@ -235,9 +235,10 @@ describe('ReceiptCodeDialog', () => {
       expect(save().disabled).toBe(false)
     })
 
-    it('404: a dialog error, no field error, Save stays disabled; Cancel closes', async () => {
+    it('404: a dialog error, no field error, Save stays disabled, the caller told; Cancel closes', async () => {
       vi.mocked(api.putCode).mockRejectedValueOnce(problem(404, 'employee_not_found'))
-      const { onCancel } = setup()
+      const onNotFound = vi.fn()
+      const { onCancel } = setup(employee(), onNotFound)
       type('lcx')
       fireEvent.click(save())
       await waitFor(() =>
@@ -247,6 +248,7 @@ describe('ReceiptCodeDialog', () => {
       )
       expect(screen.queryByTestId('receipt-code-field-error')).toBeNull()
       expect(save().disabled).toBe(true)
+      expect(onNotFound).toHaveBeenCalledTimes(1)
       fireEvent.click(screen.getByTestId('receipt-code-cancel'))
       expect(onCancel).toHaveBeenCalledTimes(1)
     })

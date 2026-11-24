@@ -16,7 +16,8 @@
  *     is gone) and Cancel closes it, the card then reloads the list.
  *   - The description says what a code does: new numbers only, the sequence continues, issued numbers do not change.
  *
- * It owns its field and the `PUT`; the card owns the focus after a save.
+ * It owns its field and the `PUT`; the card owns the focus after a save. `onNotFound` (T20) tells the card the employee
+ * is gone, so it reloads the list when this dialog is closed.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -40,9 +41,11 @@ export type ReceiptCodeDialogProps = {
   onCancel: () => void
   /** The row the server answered (the same shape as the list's). */
   onSaved: (row: ReceiptCodeEmployee) => void
+  /** A 404 `employee_not_found` came back: the list is stale. */
+  onNotFound?: () => void
 }
 
-export default function ReceiptCodeDialog({ employee, onCancel, onSaved }: ReceiptCodeDialogProps) {
+export default function ReceiptCodeDialog({ employee, onCancel, onSaved, onNotFound }: ReceiptCodeDialogProps) {
   const [value, setValue] = useState(employee.code ?? '')
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [dialogError, setDialogError] = useState<string | null>(null)
@@ -85,6 +88,7 @@ export default function ReceiptCodeDialog({ employee, onCancel, onSaved }: Recei
         setFocusRequest({ select: true })
       } else if (kind === 'employee_not_found') {
         setGone(true)
+        onNotFound?.()
         setDialogError(t.errors.notFound)
       } else if (kind === 'forbidden' || (error instanceof ApiError && error.status === 403)) {
         setDialogError(tc.forbidden)
