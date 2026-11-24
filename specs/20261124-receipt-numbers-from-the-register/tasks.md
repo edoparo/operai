@@ -108,7 +108,7 @@ Derived from these committed files:
       number, and the new index exists while the old one does not.
   - done when: `$ST $WT refund_rn_t2 src/lib/db.receipt-register.test.ts src/lib/migration.receipt-register.test.ts` is green; `cd $WT/refund-api && bun run db:generate && bun run typecheck` is green; the whole suite `$ST $WT refund_rn_t2` is green.
 
-- [ ] T3: refund-api — pure receipt-number rules: `formatReceiptNumber` for 2 or 3 letters, `parseReceiptNumber`, `RECEIPT_CODE_PATTERN` and `normaliseReceiptCode` — refs: AC-4.2, AC-4.4, AC-4.5 — deps: none
+- [x] T3: refund-api — pure receipt-number rules: `formatReceiptNumber` for 2 or 3 letters, `parseReceiptNumber`, `RECEIPT_CODE_PATTERN` and `normaliseReceiptCode` — refs: AC-4.2, AC-4.4, AC-4.5 — deps: none
   - touch: `refund-api/src/accounting/receiptNumber.ts`, `refund-api/src/accounting/receiptNumber.test.ts`
   - agent: backend-dev · core
   - Details:

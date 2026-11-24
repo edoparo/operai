@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { formatReceiptNumber, initials } from "./receiptNumber";
+import { RECEIPT_CODE_PATTERN, formatReceiptNumber, initials, normaliseReceiptCode, parseReceiptNumber } from "./receiptNumber";
 
 describe("initials from the name (AC-4.2)", () => {
   it("Matteo Codogno -> MC", () => {
@@ -137,15 +137,98 @@ describe("formatReceiptNumber (AC-4.2)", () => {
     expect(formatReceiptNumber(initials("Matteo Codogno", "m@welld.ch"), 2026, 81)).toBe("MC26/081");
   });
 
-  it("refuses initials that are not two letters A-Z, a bad year and a bad sequence", () => {
+  it("a three-letter prefix (a receipt code, AC-4.4): LCX + 2026 + 40 -> LCX26/040, and 2027 restarts at 001", () => {
+    expect(formatReceiptNumber("LCX", 2026, 40)).toBe("LCX26/040");
+    expect(formatReceiptNumber("LCX", 2027, 1)).toBe("LCX27/001");
+    expect(formatReceiptNumber("LCX", 2026, 1000)).toBe("LCX26/1000");
+    expect(formatReceiptNumber("LCX", 2026, 99999)).toBe("LCX26/99999");
+  });
+
+  it("refuses a prefix that is not two or three letters A-Z, a bad year and a bad sequence", () => {
     expect(() => formatReceiptNumber("M", 2026, 1)).toThrow(RangeError);
     expect(() => formatReceiptNumber("mc", 2026, 1)).toThrow(RangeError);
-    expect(() => formatReceiptNumber("MCC", 2026, 1)).toThrow(RangeError);
+    expect(() => formatReceiptNumber("mcc", 2026, 1)).toThrow(RangeError);
+    expect(() => formatReceiptNumber("MCCC", 2026, 1)).toThrow(RangeError);
+    expect(() => formatReceiptNumber("", 2026, 1)).toThrow(RangeError);
+    expect(() => formatReceiptNumber("M C", 2026, 1)).toThrow(RangeError);
     expect(() => formatReceiptNumber("M1", 2026, 1)).toThrow(RangeError);
     expect(() => formatReceiptNumber("MC", 26, 1)).toThrow(RangeError);
     expect(() => formatReceiptNumber("MC", 2026.5, 1)).toThrow(RangeError);
     expect(() => formatReceiptNumber("MC", 2026, 0)).toThrow(RangeError);
     expect(() => formatReceiptNumber("MC", 2026, -3)).toThrow(RangeError);
     expect(() => formatReceiptNumber("MC", 2026, 1.5)).toThrow(RangeError);
+  });
+});
+
+describe("parseReceiptNumber (AC-4.5)", () => {
+  it("reads two- and three-letter numbers", () => {
+    expect(parseReceiptNumber("AB26/005")).toEqual({ prefix: "AB", yy: 26, seq: 5, text: "AB26/005" });
+    expect(parseReceiptNumber("LCX26/040")).toEqual({ prefix: "LCX", yy: 26, seq: 40, text: "LCX26/040" });
+    expect(parseReceiptNumber("MC26/12345")).toEqual({ prefix: "MC", yy: 26, seq: 12345, text: "MC26/12345" });
+  });
+
+  it("trims and upper-cases first, and returns the normalised text", () => {
+    expect(parseReceiptNumber(" ab26/5 ")).toEqual({ prefix: "AB", yy: 26, seq: 5, text: "AB26/5" });
+    expect(parseReceiptNumber("\tlcx26/040\n")).toEqual({ prefix: "LCX", yy: 26, seq: 40, text: "LCX26/040" });
+  });
+
+  it("reads the year as written, whatever it is: LG25/003 is year 25", () => {
+    expect(parseReceiptNumber("LG25/003")).toEqual({ prefix: "LG", yy: 25, seq: 3, text: "LG25/003" });
+  });
+
+  it("a zero sequence is well-formed (a paper number AB26/000); the caller decides what it means", () => {
+    expect(parseReceiptNumber("AB26/000")).toEqual({ prefix: "AB", yy: 26, seq: 0, text: "AB26/000" });
+  });
+
+  it("is null for what is not a receipt number", () => {
+    for (const bad of ["AA99/9A", "ABCD26/001", "A26/001", "AB26/", "AB26/123456", "AB2026/001", "AB26-001", "AB 26/001", "", "   ", "26/001", "ÀB26/001", "AB２６/001", "ß26/001", "ßA26/001"]) {
+      expect(parseReceiptNumber(bad)).toBeNull();
+    }
+    for (const notText of [null, undefined, 26, {}, ["AB26/005"]]) {
+      expect(parseReceiptNumber(notText)).toBeNull();
+    }
+  });
+
+  it("round-trips with formatReceiptNumber for a sequence of 1 or more", () => {
+    for (const [prefix, year, seq] of [["MC", 2026, 14], ["LCX", 2026, 40], ["LCX", 2027, 1], ["XX", 2025, 12345]] as const) {
+      const parsed = parseReceiptNumber(formatReceiptNumber(prefix, year, seq))!;
+      expect(parsed).toMatchObject({ prefix, yy: year % 100, seq });
+    }
+  });
+});
+
+describe("RECEIPT_CODE_PATTERN and normaliseReceiptCode (AC-4.2)", () => {
+  it("the pattern is two or three upper-case letters", () => {
+    for (const ok of ["AB", "LCX", "ZZ"]) expect(RECEIPT_CODE_PATTERN.test(ok)).toBe(true);
+    for (const bad of ["A", "ABCD", "ab", "A1", "A B", "", "AB\n"]) expect(RECEIPT_CODE_PATTERN.test(bad)).toBe(false);
+  });
+
+  it("is invalid unless two or three letters a-z: A, ABCD, A1, ÀB, 'A B', ßA, and what is not text", () => {
+    for (const bad of ["A", "ABCD", "A1", "ÀB", "A B", "ßA", "ß", "ab-", "1AB", "AB!", "ÀBC", "ＡＢ", "ab\ncd"]) {
+      expect(normaliseReceiptCode(bad)).toEqual({ kind: "invalid" });
+    }
+    for (const notText of [undefined, 12, true, {}, ["LCX"]]) {
+      expect(normaliseReceiptCode(notText)).toEqual({ kind: "invalid" });
+    }
+  });
+
+  it("trims and upper-cases a valid code", () => {
+    expect(normaliseReceiptCode(" lcx ")).toEqual({ kind: "code", code: "LCX" });
+    expect(normaliseReceiptCode("Lc")).toEqual({ kind: "code", code: "LC" });
+    expect(normaliseReceiptCode("ABC")).toEqual({ kind: "code", code: "ABC" });
+    expect(normaliseReceiptCode("\tab\n")).toEqual({ kind: "code", code: "AB" });
+  });
+
+  it("an empty string, only blanks and null clear the code", () => {
+    expect(normaliseReceiptCode("")).toEqual({ kind: "clear" });
+    expect(normaliseReceiptCode("   ")).toEqual({ kind: "clear" });
+    expect(normaliseReceiptCode(null)).toEqual({ kind: "clear" });
+  });
+
+  it("every normalised code satisfies the pattern", () => {
+    for (const input of ["ab", " abc ", "XY"]) {
+      const r = normaliseReceiptCode(input);
+      expect(r.kind === "code" && RECEIPT_CODE_PATTERN.test(r.code)).toBe(true);
+    }
   });
 });
