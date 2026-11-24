@@ -204,3 +204,7 @@ Stack: auth, notify-api, refund-api, accounting-api on the shared dev Postgres (
 - Live e2e `pnpm e2e e2e/refund- e2e/accounting` on the local stack: 30/30 (4.2 min).
 - Live measurement at 320 px (`/refund/settings`, `/accounting`): no page-level horizontal scroll, nav 64 px, `main` 251 px; overlay opens with a backdrop and closes on Escape. At 1280 px unchanged (224 → 64 px toggle).
 - Body-scoped axe: only `color-contrast` on the shell footer (A11Y-F2, pre-existing since specs/003, design.md § Browser accessibility pass); `main`-scoped axe clean.
+
+## Production release (T31, T33, T34, 2026-11-24)
+
+Counts only (no names). Propose on production: exit 0; 89 pre-release lines: 44 exact, 40 no paper counterpart, 3 several candidates, 1 amount differs, 1 outside 2026; 253 register rows; 8 workers unmapped. The 40 are explained by one employee's register worker left unmapped by the propose (same name as the test account); mapped by hand, 33 of its 37 lines took their paper number. Check on production: exit 0. Real run: exit 0, 89 lines numbered (81 paper, 8 new), 17 baselines, release marker written. Not verified here: the rerun ("already completed") and the first WellD CH approval after the release.

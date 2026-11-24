@@ -47,4 +47,14 @@ describe('Footer', () => {
     const position = window.getComputedStyle(root).position
     expect(['fixed', 'sticky']).not.toContain(position)
   })
+
+  it('uses the readable text token, never --muted (A11Y-F2: --muted is 3.0:1 light and 2.8:1 dark at 11 px)', () => {
+    const { container } = render(<Footer />)
+    const classes = [container.firstElementChild!, ...container.querySelectorAll('a')].map((el) => el.className)
+    for (const cls of classes) {
+      expect(cls).toMatch(/\btext-soft\b/)
+      expect(cls).not.toMatch(/\btext-muted\b/)
+    }
+    for (const link of container.querySelectorAll('a')) expect(link.className).toMatch(/hover:text-acc-text\b/)
+  })
 })

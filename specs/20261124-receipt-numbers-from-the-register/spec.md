@@ -374,32 +374,32 @@ an AC is not named here it stands as written.
   a code of its own because its initials equal those of the owner's real account. — owner: Matteo
   Codogno **Answered 2026-11-24 by Matteo Codogno: "do not consider it" — it is excluded from the
   register (AC-1.15); its lines follow the fallback (own sequence, own code), never paired with paper.**
-- [ ] The monthly statement rows (motorway, telematics) of the register, unnumbered and being
+- [x] The monthly statement rows (motorway, telematics) of the register, unnumbered and being
   renumbered: no answer yet. Fallback (AC-1.13): a register row without a receipt number is treated as
   having no paper number, so an Operai line matching it takes a new number after the employee's
   maximum, listed in the dry run for confirmation. Open: is the export for the release taken after the
   renumbering is finished, and how do statement rows, which carry a period and no expense date, pair
   with Operai lines (fallback: never automatically, a person pairs them by hand in the pairing file)?
-  — owner: accounting
-- [ ] Which amount does the register's "Total" hold for a line in a foreign currency: the original
+  — owner: accounting **Answered 2026-11-24 at the release: fallback applied. The export was taken on 2026-11-24 (last expense date 2026-10-30); the 4 Operai lines matching unnumbered statement rows were paired by hand and took new numbers.**
+- [x] Which amount does the register's "Total" hold for a line in a foreign currency: the original
   currency or CHF? Fallback: compared with the approved total in the line's own currency, so a foreign
   line with a different figure is "amount differs" and is decided by a person (AC-1.3). — owner:
-  accounting
-- [ ] Wrong-year numbers (`LG25/001-007` on 2026 expenses, then `LG26/008`): taken as written, or
+  accounting **Answered 2026-11-24 by the data: the register's Total of a foreign line holds CHF (133.45 EUR ↔ 126.87 CHF, 9.00 EUR ↔ 8.56 CHF at 0.9507); the amount-differs cases were decided by hand.**
+- [x] Wrong-year numbers (`LG25/001-007` on 2026 expenses, then `LG26/008`): taken as written, or
   does accounting correct them in the register first? Fallback: decided line by line by a person
-  (AC-1.10); the numbers count toward the maximum. — owner: accounting
-- [ ] The `..26/000` number (a highlighted legacy reimbursement): taken as written, or a new number?
-  Fallback: a new number (AC-1.11). — owner: accounting
-- [ ] Who confirms the doubtful and unmatched cases (11 lines today) and who maps the register's workers
+  (AC-1.10); the numbers count toward the maximum. — owner: accounting **Fallback accepted 2026-11-24 (taken as written; no Operai line pairs with them).**
+- [x] The `..26/000` number (a highlighted legacy reimbursement): taken as written, or a new number?
+  Fallback: a new number (AC-1.11). — owner: accounting **Fallback accepted 2026-11-24 (no Operai line paired with a `/000` number).**
+- [x] Who confirms the doubtful and unmatched cases (11 lines today) and who maps the register's workers
   to Operai employees? Fallback: accounting decides, the owner runs the release with its file. — owner:
-  Matteo Codogno
-- [ ] Cut-off: from the release on, does accounting stop numbering by hand the expenses that Refund
+  Matteo Codogno **Answered 2026-11-24: the owner decided the pairing file with accounting's answers and ran the release.**
+- [x] Cut-off: from the release on, does accounting stop numbering by hand the expenses that Refund
   numbers (a number written by hand after the export, for example in November, could repeat a number
-  Refund issues)? What is the last register date covered by the export? — owner: accounting
-- [ ] Where and by whom the receipt code is managed: fallback, Refund's Settings, for a capability held
-  by the accounting role and the admin role (AC-4.9); or the Accounting app. — owner: Matteo Codogno
-- [ ] After the release, when an employee's prefix is shared with another employee who has no code,
+  Refund issues)? What is the last register date covered by the export? — owner: accounting **Fallback accepted 2026-11-24 by the owner: the export covers up to 2026-10-30; from the release Refund numbers its expenses.**
+- [x] Where and by whom the receipt code is managed: fallback, Refund's Settings, for a capability held
+  by the accounting role and the admin role (AC-4.9); or the Accounting app. — owner: Matteo Codogno **Answered: Refund's Settings (the codes were set there on 2026-11-24).**
+- [x] After the release, when an employee's prefix is shared with another employee who has no code,
   should the approval be refused until a code is set, or only flagged to accounting? Fallback: not
-  refused, name beside the number (20261118 AC-4.6), flagged in review. — owner: Matteo Codogno
-- [ ] If a wrong pairing is found after the release, what is the remedy, given that numbers are
-  immutable? Fallback: accounting corrects its register and the books by hand. — owner: accounting
+  refused, name beside the number (20261118 AC-4.6), flagged in review. — owner: Matteo Codogno **Answered: fallback, informative only.**
+- [x] If a wrong pairing is found after the release, what is the remedy, given that numbers are
+  immutable? Fallback: accounting corrects its register and the books by hand. — owner: accounting **Fallback accepted 2026-11-24.**

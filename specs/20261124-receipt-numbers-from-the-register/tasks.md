@@ -456,7 +456,7 @@ Derived from these committed files:
 ## OWNER
   - evidence 2026-11-24: QE PASS (qe-report.md, re-run after the A11Y-F1 fix), OWASP PASS with notes (T28), eval round 3 PASS 83.5 at `473ad2f2` (eval-report.md), live e2e 30/30 after `06998068`; T1–T29, T32, T35, T36 checked. Open: [OWNER] T31, T33, T34 (release steps, after the gate). Status → done.
 
-- [ ] T31: [OWNER] Propose-mode dry run on the real register, days before the release (plan R1) — refs: AC-2.1, AC-2.2, AC-2.3 (live evidence) — deps: T12
+- [x] T31: [OWNER] Propose-mode dry run on the real register, days before the release (plan R1) — refs: AC-2.1, AC-2.2, AC-2.3 (live evidence) — deps: T12
   - touch: none (the register export and the pairing file stay outside the repository)
   - agent: owner
   - Details: on a copy of production restored into a scratch database with this branch's migrations
@@ -466,7 +466,7 @@ Derived from these committed files:
     If the reader refuses the workbook (exit 6), save it again as `.xlsx` in Excel and retry; a
     feature it still refuses is a new task for the XLSX track.
   - done when: exit 0; the report's counts are close to the 2026-11-24 facts (77 exact, 8 amount differs, 3 unmatched over 88 lines of 9 employees) or every difference is explained; the report shows no name, email or worker text; the result (counts only) is noted in `qe-report.md` by the owner.
-
+  - evidence 2026-11-24 (owner's go; run by the orchestrator): propose run on PRODUCTION (`--dry-run`, nothing written), not on a restored copy; exit 0. Counts: 89 pre-release lines (one more than the 88 of the analysis): 44 exact, 40 no paper counterpart (37 of them one employee whose register worker the propose could not map, since the test account bears the same name), 3 several candidates, 1 amount differs, 1 outside 2026; 253 register rows, last expense date 2026-10-30; 8 workers unmapped. Every difference is explained by the unmapped worker; once mapped, 33 of the 37 matched paper numbers. The report showed no name, email or worker text. Noted in qe-report.md.
 - [x] T32: [OWNER] Live e2e and the manual browser accessibility pass — refs: AC-4.1, AC-4.3, AC-4.7, AC-4.9, AC-2.8 (live evidence) — deps: T22, T23
   - touch: `specs/20261124-receipt-numbers-from-the-register/qe-report.md`, `specs/20261124-receipt-numbers-from-the-register/design.md`
   - agent: owner
@@ -477,12 +477,12 @@ Derived from these committed files:
   - done when: `cd $WT/shell && pnpm e2e e2e/refund-` passes, every existing `refund-*.spec.ts` included; the browser pass is recorded in design.md ("Browser accessibility pass"); the result is noted in qe-report.md.
   - evidence 2026-11-24 (run by the orchestrator on the owner's request): live e2e 30/30 after `1e28a399` (qe-report.md § Live e2e); browser pass recorded in design.md § Browser accessibility pass: every check of this view passes; one suite-wide finding outside this feature, A11Y-F1 (the shell sidebar does not collapse at 320 px, WCAG 1.4.10), left to the owner. A11Y-F1 then fixed on the owner's request by `06998068` (re-measured live at 320 and 1280 px); e2e re-run after it: 30/30. A pre-existing footer contrast finding outside this feature recorded as A11Y-F2.
 
-- [ ] T33: [OWNER] Accounting decisions for the release: the open questions of spec.md answered or their fallbacks accepted; the receipt-code holders (LCM/LCP, FRO/FRI, the test account's code); the pairing file decided (workers mapped, the test account `excluded`, every doubtful line decided, malformed and worker-less rows acknowledged, every record `confirmed`) — refs: AC-1.3, AC-1.4, AC-1.10, AC-1.11, AC-1.13, AC-1.14, AC-1.15, AC-4.11 (decisions) — deps: T31
+- [x] T33: [OWNER] Accounting decisions for the release: the open questions of spec.md answered or their fallbacks accepted; the receipt-code holders (LCM/LCP, FRO/FRI, the test account's code); the pairing file decided (workers mapped, the test account `excluded`, every doubtful line decided, malformed and worker-less rows acknowledged, every record `confirmed`) — refs: AC-1.3, AC-1.4, AC-1.10, AC-1.11, AC-1.13, AC-1.14, AC-1.15, AC-4.11 (decisions) — deps: T31
   - touch: `specs/20261124-receipt-numbers-from-the-register/spec.md` (only to record answers to open questions)
   - agent: owner (accounting, product)
   - done when: each open question of spec.md has its answer or accepted fallback recorded; the decided pairing file exists outside the repository and a check-mode dry run on the production copy (`--dry-run --register … --pairing …`) exits 0 with the numbers accounting accepts.
-
-- [ ] T34: [OWNER] Release, by the runbook of `infra/README.md` (deploy auth, refund-api 0.5.0 and refund-ui; step 6 receipt codes set in Settings; step 7 propose, decide, check on production; step 8 real run, `SERVICE_CLIENTS` clean-up, archive and delete the local files) — refs: none (release) — deps: T30, T33
+  - evidence 2026-11-24: the owner decided the pairing file with the orchestrator (workers mapped to an employee, an email for 5 employees not yet in Operai, `not-operai` for 2 former employees; the test account `excluded`; the 4 doubtful lines decided; every record `confirmed`); receipt codes set in Settings for every employee (three letters; one kept two). Check-mode dry run on production: exit 0, 89 lines numbered (81 paper, 8 new). Open questions of spec.md answered or their fallbacks accepted (spec.md § Open questions).
+- [x] T34: [OWNER] Release, by the runbook of `infra/README.md` (deploy auth, refund-api 0.5.0 and refund-ui; step 6 receipt codes set in Settings; step 7 propose, decide, check on production; step 8 real run, `SERVICE_CLIENTS` clean-up, archive and delete the local files) — refs: none (release) — deps: T30, T33
   - touch: `CHANGELOG.md`, `*/CHANGELOG.md`, `*/package.json`, `shell/src/lib/suiteVersion.generated.json`, `.changeset/*`
   - agent: owner
   - done when: RELEASING.md "Before" checks pass; `operai@<X.Y.Z>` is tagged; auth's deploy log shows `+ receipt-code grants`; the Settings list shows no "Shares prefix" badge for anyone who receives a new number; the real run exits 0 and a rerun prints "already completed"; the first WellD CH approval after it succeeds with a number after the employee's baseline carrying the code or initials.
@@ -491,7 +491,7 @@ Derived from these committed files:
 
 Appended after the QE verdict (T27) as T28's done-when requires. Both rounds come after T27 and T28 in
 the graph and before T27's re-run, T29 and T30.
-
+  - evidence 2026-11-24 (owner's go for each step; run by the orchestrator): RELEASING.md "Before" checks green; `operai@0.11.0` tagged and pushed (auth 0.10.0, refund-api 0.5.0, refund-ui 0.4.0, shell 0.6.1); auth's deploy log shows `+ receipt-code grants`; `users.contact` granted for the window; propose, check and the real run on production all exit 0 (release marker written, 89 lines, 17 baselines); `users.contact` removed afterwards, auth healthy. Not verified here: the rerun printing "already completed" (not run) and the first WellD CH approval after the release (owner, in the app). Clean-up of the operator files is pending accounting's archive.
 - [x] T35: Security fix round (L-1, L-2, I-4, I-9 of `security-review.md`) — refs: AC-5.6, AC-2.3, AC-5.3 (L-1, L-2, I-4); AC-2.8 (I-9, the e2e setup) — deps: T27, T28
   - touch: `refund-api/scripts/accounting-release.ts`, `refund-api/scripts/accounting-release.cli.test.ts`, `refund-api/scripts/accounting-release.privacy.test.ts`, `refund-api/scripts/release/pairingFile.ts`, `refund-api/scripts/release/pairingFile.test.ts`, `shell/e2e/global-setup.ts`, `shell/src/e2eGlobalSetup.test.ts`, `.gitignore`, `infra/README.md`, `specs/20261124-receipt-numbers-from-the-register/security-review.md`
   - agent: backend-dev · secfix (worktree `rn/secfix`)

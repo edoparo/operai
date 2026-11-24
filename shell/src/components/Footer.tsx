@@ -23,12 +23,12 @@ import { strings } from '../strings'
 
 export default function Footer() {
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3 text-2xs text-muted">
+    <div className="flex items-center justify-between gap-4 px-4 py-3 text-2xs text-soft">
       <a
         href={LEGAL_URL}
         target="_blank"
         rel="noreferrer"
-        className="text-muted hover:text-acc underline underline-offset-2 transition-colors"
+        className="text-soft hover:text-acc-text underline underline-offset-2 transition-colors"
       >
         {strings.footer.legal}
       </a>
@@ -46,7 +46,7 @@ export default function Footer() {
             href={APP_AUTHOR_URL}
             target="_blank"
             rel="noreferrer"
-            className="text-muted hover:text-acc underline underline-offset-2 transition-colors"
+            className="text-soft hover:text-acc-text underline underline-offset-2 transition-colors"
           >
             {APP_AUTHOR}
           </a>
