@@ -330,13 +330,14 @@ Derived from these committed files:
   - done when: `cd $WT/refund-ui && pnpm exec vitest run src/components/ChangeHistoryDrawer.test.tsx src/pages/settings/DefaultsSettingsView.test.tsx && pnpm exec tsc -b && pnpm lint` is green, with jsdom axe (`expectNoAxeViolations`) on loading, error, empty and loaded, and the existing defaults-history tests unchanged.
   - evidence: refund-ui vitest 78 files / 1357 tests green (ChangeHistoryDrawer.test.tsx 14, +5 for loading/error/retry-in-flight/unchanged/axe; DefaultsSettingsView history tests unchanged), tsc -b and eslint clean.
 
-- [ ] T19: refund-ui — `ReceiptCodeDialog` (Set/Change, one field, no Clear, no `maxLength`, a–z upper-cased as typed, client shape check, 422/409 field errors, 403/404/network dialog errors) — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.4, AC-4.5, AC-4.6 — deps: T16, T17
+- [x] T19: refund-ui — `ReceiptCodeDialog` (Set/Change, one field, no Clear, no `maxLength`, a–z upper-cased as typed, client shape check, 422/409 field errors, 403/404/network dialog errors) — refs: AC-4.1, AC-4.2, AC-4.3, AC-4.4, AC-4.5, AC-4.6 — deps: T16, T17
   - touch: `refund-ui/src/components/settings/ReceiptCodeDialog.tsx`, `refund-ui/src/components/settings/ReceiptCodeDialog.test.tsx`
   - agent: frontend-dev · rui
   - Details: design S3, RC-5, RC-6, RC-7 and the accessibility bullets for the dialog: `FormDialog`
     `size="sm"`, description with the employee's initials, Save disabled while empty or equal to the
     saved code, focus moved to the field after a failed submit, value kept and selected on a 409.
   - done when: `cd $WT/refund-ui && pnpm exec vitest run src/components/settings/ReceiptCodeDialog.test.tsx && pnpm exec tsc -b && pnpm lint` is green, covering: no request on a bad shape (`A`, `ABCD`, `A1`, `ÀB`, `A B`); `lcx` typed shows `LCX`; `ß` and `À` not altered; Save disabled when empty or equal; 422 and 409 as field errors with local text (never the server `detail`); 404, 403 and network as dialog errors; jsdom axe on empty, valid, 422, 409, busy and dialog error, in en and it.
+  - evidence: refund-ui vitest 80 files / 1390 tests green (ReceiptCodeDialog.test.tsx 29 en incl. axe; ReceiptCodeDialog.italian.test.tsx 3 for the it axe pass), tsc -b and eslint clean. Added file outside touch list: ReceiptCodeDialog.italian.test.tsx (language is resolved once per module graph; pattern of MyRequestsPage.italian.test.tsx).
 
 - [ ] T20: refund-ui — `ReceiptCodesCard`: the table (S2) with Last changed (DS-2), the "Shares prefix" badge on every flagged row and the count note (DS-8), the Clear row action with `ConfirmDialog` (DS-3), History via the drawer fetched on open (DS-4), success banners and focus rules — refs: AC-4.1, AC-4.3, AC-4.6, AC-4.7, AC-4.8, AC-4.9, AC-4.11 — deps: T17, T18, T19
   - touch: `refund-ui/src/components/settings/ReceiptCodesCard.tsx`, `refund-ui/src/components/settings/ReceiptCodesCard.test.tsx`
