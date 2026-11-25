@@ -232,6 +232,8 @@ describe('AC-5.7 — no hardcoded user-facing strings outside strings.ts (specs/
         'composer-error',
         'composer-km',
         'composer-round-trip',
+        'composer-trip',
+        'repeat(auto-fit, minmax(240px, 1fr))',
         'composer-from',
         'composer-to',
         'fromAddress',

@@ -389,7 +389,9 @@ export default function ExpenseLineRow({
     const nextType = value as ExpenseType
     const wasKm = requiresKm(draft.type as ExpenseType)
     const willBeKm = requiresKm(nextType)
-    setDraft((prev) => ({ ...prev, type: nextType,
+    setDraft((prev) => ({
+      ...prev,
+      type: nextType,
       km: willBeKm ? prev.km : '',
       roundTrip: willBeKm && prev.roundTrip,
       fromAddress: willBeKm ? prev.fromAddress : '',
@@ -864,12 +866,8 @@ export default function ExpenseLineRow({
         </Field>
 
         {/* specs/20260720-mileage-rate AC-1.1: for travel_km, Amount is replaced by the
-            read-only computed breakdown (MileageAmountField) — not merely disabled. */}
-        {showKm ? (
-          <div className="flex flex-col gap-1">
-            <MileageAmountField entity={draft.entity} date={draft.date} km={draft.km} />
-          </div>
-        ) : (
+            read-only computed breakdown (MileageAmountField, in the trip block below) — not merely disabled. */}
+        {!showKm && (
           <Field label={composerStrings.amountLabel} error={validation.errorFor('amount')} required>
             {(control) => (
               <MoneyInput
@@ -922,79 +920,87 @@ export default function ExpenseLineRow({
             )}
           </Field>
         )}
+      </div>
 
-        {showKm && (
-          <Field label={composerStrings.fromLabel} hint={composerStrings.addressHint} error={validation.errorFor('fromAddress')} required>
-            {(control) => (
-              <AddressAutocomplete
-                id={control.id}
-                value={draft.fromAddress}
-                onValueChange={(value) => setDraft((prev) => ({ ...prev, fromAddress: value }))}
-                onPick={(suggestion) =>
-                  setDraft((prev) => ({ ...prev, fromAddress: suggestion.text || suggestion.mainText }))
-                }
-                texts={composerStrings.addressSuggest}
-                places="any"
-                createSuggester={createTripSuggester}
-                ariaInvalid={control['aria-invalid']}
-                ariaDescribedBy={control['aria-describedby']}
-                ariaRequired={control['aria-required']}
-                onBlur={validation.touch('fromAddress')}
-                testId={`row-${line.id}-from`}
-              />
-            )}
-          </Field>
-        )}
-
-        {showKm && (
-          <Field label={composerStrings.toLabel} hint={composerStrings.addressHint} error={validation.errorFor('toAddress')} required>
-            {(control) => (
-              <AddressAutocomplete
-                id={control.id}
-                value={draft.toAddress}
-                onValueChange={(value) => setDraft((prev) => ({ ...prev, toAddress: value }))}
-                onPick={(suggestion) =>
-                  setDraft((prev) => ({ ...prev, toAddress: suggestion.text || suggestion.mainText }))
-                }
-                texts={composerStrings.addressSuggest}
-                places="any"
-                createSuggester={createTripSuggester}
-                ariaInvalid={control['aria-invalid']}
-                ariaDescribedBy={control['aria-describedby']}
-                ariaRequired={control['aria-required']}
-                onBlur={validation.touch('toAddress')}
-                testId={`row-${line.id}-to`}
-              />
-            )}
-          </Field>
-        )}
-
-        {/* A distance is a quantity, not money: it stays `type="number"` (INC-17). */}
-        {showKm && (
-          <Field
-            label={composerStrings.kmLabel}
-            hint={composerStrings.kmHelp}
-            error={validation.errorFor('km')}
-            required
+      {/* The trip of a mileage line, in its own block: where it starts and ends, then the distance with its computed
+          amount (specs/20260720-mileage-rate AC-1.1: the amount is read-only), then whether it is a round trip. */}
+      {showKm && (
+        <div className="mt-3 flex flex-col gap-3" data-testid={`row-${line.id}-trip`}>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            <Field label={composerStrings.fromLabel} error={validation.errorFor('fromAddress')} required>
+              {(control) => (
+                <AddressAutocomplete
+                  id={control.id}
+                  value={draft.fromAddress}
+                  onValueChange={(value) => setDraft((prev) => ({ ...prev, fromAddress: value }))}
+                  onPick={(suggestion) =>
+                    setDraft((prev) => ({ ...prev, fromAddress: suggestion.text || suggestion.mainText }))
+                  }
+                  texts={composerStrings.addressSuggest}
+                  placeholder={composerStrings.addressPlaceholder}
+                  places="any"
+                  createSuggester={createTripSuggester}
+                  ariaInvalid={control['aria-invalid']}
+                  ariaDescribedBy={control['aria-describedby']}
+                  ariaRequired={control['aria-required']}
+                  onBlur={validation.touch('fromAddress')}
+                  testId={`row-${line.id}-from`}
+                />
+              )}
+            </Field>
+            <Field label={composerStrings.toLabel} error={validation.errorFor('toAddress')} required>
+              {(control) => (
+                <AddressAutocomplete
+                  id={control.id}
+                  value={draft.toAddress}
+                  onValueChange={(value) => setDraft((prev) => ({ ...prev, toAddress: value }))}
+                  onPick={(suggestion) =>
+                    setDraft((prev) => ({ ...prev, toAddress: suggestion.text || suggestion.mainText }))
+                  }
+                  texts={composerStrings.addressSuggest}
+                  placeholder={composerStrings.addressPlaceholder}
+                  places="any"
+                  createSuggester={createTripSuggester}
+                  ariaInvalid={control['aria-invalid']}
+                  ariaDescribedBy={control['aria-describedby']}
+                  ariaRequired={control['aria-required']}
+                  onBlur={validation.touch('toAddress')}
+                  testId={`row-${line.id}-to`}
+                />
+              )}
+            </Field>
+          </div>
+          <div
+            className="grid items-start gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}
           >
-            {(control) => (
-              <input
-                {...control}
-                type="number"
-                min="1"
-                step="1"
-                className="input-figure"
-                value={draft.km}
-                onChange={(e) => setDraft((prev) => ({ ...prev, km: e.target.value }))}
-                onBlur={validation.touch('km')}
-                data-testid={`row-${line.id}-km`}
-              />
-            )}
-          </Field>
-        )}
-
-        {showKm && (
-          <label className="flex items-center gap-2 self-end pb-2 text-sm">
+            {/* A distance is a quantity, not money: it stays `type="number"` (INC-17). */}
+            <Field
+              label={composerStrings.kmLabel}
+              hint={composerStrings.kmHelp}
+              error={validation.errorFor('km')}
+              required
+            >
+              {(control) => (
+                <input
+                  {...control}
+                  type="number"
+                  min="1"
+                  step="1"
+                  className="input-figure"
+                  value={draft.km}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, km: e.target.value }))}
+                  onBlur={validation.touch('km')}
+                  data-testid={`row-${line.id}-km`}
+                />
+              )}
+            </Field>
+            <div className="flex flex-col gap-1">
+              <MileageAmountField entity={draft.entity} date={draft.date} km={draft.km} />
+            </div>
+          </div>
+          {/* Informative: the km typed are the whole trip, never doubled. */}
+          <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={draft.roundTrip}
@@ -1003,8 +1009,8 @@ export default function ExpenseLineRow({
             />
             {composerStrings.roundTripLabel}
           </label>
-        )}
-      </div>
+        </div>
+      )}
 
       <SplitReceiptHint id={splitHintId} shown={showSplitHint} text={composerStrings.splitReceiptHint} />
 

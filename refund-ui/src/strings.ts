@@ -356,7 +356,7 @@ const en = {
         currencyPlaceholder: 'Select a currency…',
         fromLabel: 'From',
         toLabel: 'To',
-        addressHint: 'Start typing an address, a company or a town.',
+        addressPlaceholder: 'Address, company or town',
         /** The From/To suggestions (the library's AddressAutocomplete). "Powered by Google" is Google's attribution, never translated. */
         addressSuggest: {
           searching: 'Searching…',
@@ -1464,7 +1464,7 @@ const it: Strings = {
         currencyPlaceholder: 'Selezionare una valuta…',
         fromLabel: 'Da',
         toLabel: 'A',
-        addressHint: 'Inizia a scrivere un indirizzo, un’azienda o una località.',
+        addressPlaceholder: 'Indirizzo, azienda o località',
         addressSuggest: {
           searching: 'Ricerca in corso…',
           noResults: 'Nessun suggerimento trovato: è comunque possibile scrivere l’indirizzo.',
