@@ -10,6 +10,27 @@
  * operai-ui/docs/building-pages.md.
  */
 
+export { AddressAutocomplete } from './components/AddressAutocomplete'
+export type { AddressAutocompleteProps, AddressAutocompleteTexts } from './components/AddressAutocomplete'
+export {
+  ADDRESS_PRIMARY_TYPES,
+  CH_IT_LOCATION_BIAS,
+  createAddressSuggester,
+  loadPlacesLibrary,
+  mapAddressComponents,
+  quantizeCoordinate,
+} from './lib/googlePlaces'
+export type {
+  AddressComponents,
+  AddressLocale,
+  AddressSuggester,
+  AddressSuggesterDeps,
+  AddressSuggesterOptions,
+  GoogleAddressComponent,
+  PlaceDetails,
+  PlaceKinds,
+  PlaceSuggestion,
+} from './lib/googlePlaces'
 export { AttachmentList } from './components/AttachmentList'
 export type { AttachmentItem, AttachmentListProps } from './components/AttachmentList'
 export { Badge } from './components/Badge'

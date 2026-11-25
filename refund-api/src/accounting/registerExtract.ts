@@ -30,6 +30,9 @@ import { writeXlsx, type XlsxCell } from "./xlsx";
 export interface RegisterExtractLine extends AccountingExportLine {
   /** The expense type (`travel_km`, …): the register's Description, in Italian. */
   readonly type: string;
+  /** A mileage trip's start and end (the register's From and To); absent or null when not recorded. */
+  readonly fromAddress?: string | null;
+  readonly toAddress?: string | null;
   /** Kilometres of a mileage line, else `null`. */
   readonly km: number | null;
   /** The CHF rate per km applied to a mileage line, times 1e6, else `null`. */
@@ -88,8 +91,8 @@ function rowOf(line: RegisterExtractLine, period: string): XlsxCell[] {
     number(periodCellOf(period)),
     text(sanitizeText(line.receiptNumber)),
     text(line.roundTrip === true ? `${expenseTypeLabelIt(line.type)} ${ROUND_TRIP}` : expenseTypeLabelIt(line.type)),
-    text(null), // From: Operai keeps no route
-    text(null), // To
+    text(line.fromAddress ? sanitizeText(line.fromAddress) : null), // From
+    text(line.toAddress ? sanitizeText(line.toAddress) : null), // To
     text(sanitizeText(line.motivo)),
     { kind: "number", value: dateSerial(line.date), style: STYLE.date },
     first,

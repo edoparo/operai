@@ -227,6 +227,22 @@ describe("POST /requests/:id/lines", () => {
     expect(other.roundTrip).toBe(false);
   });
 
+  it("a mileage line keeps its trip's start and end, trimmed; any other type may not have them", async () => {
+    const request = await makeRequest();
+    const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
+    const post = (body: Record<string, unknown>) =>
+      linesRouter.request(`/requests/${request.id}/lines`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(body) });
+
+    const res = await post(validLineBody({ type: "travel_km", km: 240, fromAddress: " Via Cantonale 1, Lugano ", toAddress: "Piazza Duomo, Milano" }));
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string; fromAddress: string; toAddress: string };
+    expect([body.fromAddress, body.toAddress]).toEqual(["Via Cantonale 1, Lugano", "Piazza Duomo, Milano"]);
+
+    expect((await post(validLineBody({ fromAddress: "Lugano" }))).status).toBe(422);
+    expect((await post(validLineBody({ type: "travel_km", km: 10, fromAddress: "x".repeat(301), toAddress: "y" }))).status).toBe(422);
+    expect(await db.refundLine.count({ where: { requestId: request.id } })).toBe(1);
+  });
+
   it("roundTrip on any type but travel_km → 422", async () => {
     const request = await makeRequest();
     const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });

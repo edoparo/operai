@@ -297,6 +297,8 @@ model RefundLine {
   // boundary, not by a CHECK constraint, so the same table shape serves every
   // expense type without a partial/conditional column.
   km                   Int?
+  fromAddress          String? // a mileage trip's start, as chosen from the address suggestions or typed; null for any other type
+  toAddress            String? // a mileage trip's end
   roundTrip            Boolean     @default(false) // a mileage line's trip is there and back (informative: km are the whole trip); false for any other type
   approvedTotalCents   Int?
 

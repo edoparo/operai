@@ -18,7 +18,7 @@
  * - Km / Monthly avg rate and Multiplier / Foreign Amount hold the km and the CHF rate per km for a mileage line; the monthly
  *   rate (CHF per unit) and the amount in its currency for a foreign-currency line; nothing for a CHF line.
  * - Total is CHF. IVA is the VAT code, IVA2 the VAT contained in the CHF total (the register's `K - K / (1 + rate)`).
- * - From and To exist in the register but Operai keeps no route: they are present and empty.
+ * - From and To are a mileage trip's start and end (recorded since 2026-11-25); empty for any other line.
  * - No cell is a formula: where the register computes (Period, the account's description, IVA2, Approved by), the extract
  *   writes the value.
  *
@@ -29,7 +29,7 @@ import { compareCodePoints, sanitizeText } from "./exportFormat";
 import type { XlsxStyle } from "./xlsx";
 
 /** Written to the export log (kind `register`) with every download of the extract; bump it with every change in this file. */
-export const REGISTER_FORMAT_VERSION = 3; // 2: Period is the competence month; 3: `A/R` after a round trip's description
+export const REGISTER_FORMAT_VERSION = 4; // 2: Period is the competence month; 3: `A/R` after a round trip's description; 4: From and To
 
 export const HEADERS = [
   "Worker",

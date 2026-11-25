@@ -94,6 +94,8 @@ export function listReviewQueueRequests(): Effect.Effect<
               requestedAmountCents: true,
               km: true,
               roundTrip: true,
+              fromAddress: true,
+              toAddress: true,
               approvedTotalCents: true,
             },
           },

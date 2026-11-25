@@ -96,6 +96,13 @@ describe("register extract: layout", () => {
     expect(oneWay![3]).toBe("Spese di viaggio (km)");
   });
 
+  it("a mileage trip's start and end fill From and To; a line without them leaves both empty", () => {
+    const [, routed] = rowsOf([line({ type: "travel_km", km: 240, fromAddress: "Via Cantonale 1, Lugano", toAddress: "Piazza Duomo, Milano" })]);
+    const [, bare] = rowsOf([line()]);
+    expect(routed!.slice(4, 6)).toEqual(["Via Cantonale 1, Lugano", "Piazza Duomo, Milano"]);
+    expect(bare!.slice(4, 6)).toEqual([null, null]);
+  });
+
   it("a mileage line with no rate kept on it: the km, and J left empty", () => {
     const [, row] = rowsOf([line({ type: "travel_km", km: 40, mileageRateMicros: null })]);
     expect(row!.slice(8, 10)).toEqual([{ n: "40" }, null]);

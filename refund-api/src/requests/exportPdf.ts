@@ -428,6 +428,9 @@ export async function renderRequestExportPdf(
       const detailRate = applied
         ? `${line.km ?? "—"} km${line.roundTrip ? " round trip" : ""} × ${formatRatePerKm(applied.ratePerKm, applied.currency)} · valid from ${formatDate(applied.validFrom)}`
         : null;
+      // A mileage trip's route, when it was recorded (lines before 2026-11-25 have none).
+      const detailRoute =
+        line.fromAddress && line.toAddress ? `From ${line.fromAddress} to ${line.toAddress}` : null;
       const descriptionLines = wrapText(line.motivo || "—", fonts.value, TYPE.value, COL.description - 8);
       // specs/20260716-refund-service amendment (2026-11-10): a line refused on its own carries
       // its reason beside it — an approved figure of 0 with no explanation
@@ -440,6 +443,7 @@ export async function renderRequestExportPdf(
         // line, spelled out in full (only the batch PDF compresses runs). A rejected or not yet numbered line has none.
         ...(line.receiptNumber ? [`Receipt no. ${line.receiptNumber}`] : []),
         ...(detailRate ? wrapText(detailRate, fonts.value, TYPE.small, COL.detail - 8) : []),
+        ...(detailRoute ? wrapText(detailRoute, fonts.value, TYPE.small, COL.detail - 8) : []),
         ...(detailRejection ? wrapText(detailRejection, fonts.value, TYPE.small, COL.detail - 8) : []),
       ];
       const rowHeight = Math.max(descriptionLines.length * 11, detailLines.length * 9.5, 14) + 7;

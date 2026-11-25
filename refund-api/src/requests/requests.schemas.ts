@@ -150,6 +150,9 @@ export const RefundLineResponseSchema = z.object({
   km: z.number().int().nullable(),
   // A mileage line's trip is there and back (informative: `km` is the whole distance). Always false for other types.
   roundTrip: z.boolean(),
+  // A mileage trip's start and end; null for any other type and for a mileage line recorded before they existed.
+  fromAddress: z.string().nullable(),
+  toAddress: z.string().nullable(),
   approvedTotalCents: z.number().int().nullable(),
   rejection: LineRejectionSchema.nullable(),
   attachments: z.array(AttachmentResponseSchema),

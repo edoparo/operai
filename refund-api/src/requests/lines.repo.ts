@@ -55,6 +55,9 @@ interface LineWriteData {
   readonly km: number | null;
   /** travel_km only; always false for any other type (a PUT that changes the type clears it). */
   readonly roundTrip: boolean;
+  /** travel_km only; null for any other type. */
+  readonly fromAddress: string | null;
+  readonly toAddress: string | null;
   // The live rate just resolved (travel_km only) — `null` for every
   // non-travel_km line. Attached to the response afterward
   // (lines.routes.ts) so mapLine's draft branch never needs a SECOND rate
@@ -85,6 +88,8 @@ function resolveLineWriteData(body: LineBody): Effect.Effect<LineWriteData, Data
       requestedAmountCents: body.requestedAmountCents as number,
       km: body.km ?? null,
       roundTrip: false,
+      fromAddress: null,
+      toAddress: null,
       liveRate: null,
     });
   }
@@ -102,6 +107,8 @@ function resolveLineWriteData(body: LineBody): Effect.Effect<LineWriteData, Data
       requestedAmountCents: rate ? computeMileageAmountCents(km, rate.ratePerKmMicros) : 0,
       km,
       roundTrip: body.roundTrip === true,
+      fromAddress: body.fromAddress ?? null,
+      toAddress: body.toAddress ?? null,
       liveRate: rate
         ? { ratePerKmMicros: rate.ratePerKmMicros, validFrom: rate.validFrom }
         : null,

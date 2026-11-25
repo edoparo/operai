@@ -871,7 +871,7 @@ describe("what is built from copies, or is not accounting at all, does not depen
 
 describe("the employee's own request is the same, and shows no accounting, while Accounting is down (AC-7.1, AC-7.2, AC-3.10 of 20261118)", () => {
   /** The exact key set of a line in `GET /requests/{id}`: a new key is a deliberate change of this list. */
-  const LINE_KEYS = ["approvedTotalCents", "attachments", "currency", "date", "entity", "id", "km", "mileage", "motivo", "receiptNumber", "rejection", "requestedAmountCents", "roundTrip", "type"];
+  const LINE_KEYS = ["approvedTotalCents", "attachments", "currency", "date", "entity", "fromAddress", "id", "km", "mileage", "motivo", "receiptNumber", "rejection", "requestedAmountCents", "roundTrip", "toAddress", "type"];
   const EMPLOYEE: ResolveResponse = {
     sub: "",
     epoch: 1,

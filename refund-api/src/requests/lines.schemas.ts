@@ -25,6 +25,13 @@ const IsoDateOnlySchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be an ISO 8601 date (YYYY-MM-DD)");
 
+/** One address of a mileage trip: trimmed, 1 to 300 characters. */
+export const TripAddressSchema = z
+  .string()
+  .trim()
+  .min(1, "the address must not be empty")
+  .max(300, "the address is at most 300 characters");
+
 export const LineBodySchema = z
   .object({
     date: IsoDateOnlySchema,
@@ -40,6 +47,9 @@ export const LineBodySchema = z
     km: z.number().int("km must be an integer").optional(),
     // A mileage line's trip is there and back. Informative only: `km` is always the whole distance, never doubled.
     roundTrip: z.boolean().optional(),
+    // A mileage trip's start and end: the text of the chosen address suggestion (or typed when Google is unavailable).
+    fromAddress: TripAddressSchema.optional(),
+    toAddress: TripAddressSchema.optional(),
   })
   .superRefine((val, ctx) => {
     if (val.type === "travel_km") {
@@ -66,6 +76,15 @@ export const LineBodySchema = z
           path: ["km"],
           message: "km must not be provided unless type is travel_km",
         });
+      }
+      for (const key of ["fromAddress", "toAddress"] as const) {
+        if (val[key] !== undefined) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: `${key} applies only to travel_km`,
+          });
+        }
       }
       if (val.roundTrip === true) {
         ctx.addIssue({

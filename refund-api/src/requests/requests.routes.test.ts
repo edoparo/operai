@@ -998,6 +998,7 @@ describe("GET /requests/:id — receiptNumber, and nothing else of the accountin
     "currency",
     "date",
     "entity",
+    "fromAddress",
     "id",
     "km",
     "mileage",
@@ -1006,6 +1007,7 @@ describe("GET /requests/:id — receiptNumber, and nothing else of the accountin
     "rejection",
     "requestedAmountCents",
     "roundTrip",
+    "toAddress",
     "type",
   ];
 

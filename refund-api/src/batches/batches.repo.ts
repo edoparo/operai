@@ -74,6 +74,8 @@ const candidateSelect = {
       requestedAmountCents: true,
       km: true,
       roundTrip: true,
+      fromAddress: true,
+      toAddress: true,
       approvedTotalCents: true,
       // specs/20261118-refund-accounting-export (T15): the request's receipt numbers on the batch page and in the PDF.
       receiptNumber: true,

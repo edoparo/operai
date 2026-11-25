@@ -177,6 +177,8 @@ describe("renderRequestExportPdf", () => {
           requestedAmountCents: 1050,
           km: 15,
           roundTrip: false,
+          fromAddress: null,
+          toAddress: null,
           approvedTotalCents: 1050,
           rejection: null,
           attachments: [],
@@ -311,6 +313,12 @@ describe("renderRequestExportPdf — one number locale", () => {
     const roundTrip = { ...mileageLine, roundTrip: true } as RequestExportInput["lines"][number];
     expect(await textOf(baseInput({ lines: [roundTrip] }))).toContain("15 km round trip ×");
     expect(await textOf(baseInput({ lines: [mileageLine] }))).not.toContain("round trip");
+  });
+
+  it("prints a mileage trip's route when it was recorded, and nothing for a line without one", async () => {
+    const routed = { ...mileageLine, fromAddress: "Via Cantonale 1, Lugano", toAddress: "Piazza Duomo, Milano" } as RequestExportInput["lines"][number];
+    expect(await textOf(baseInput({ lines: [routed] }))).toContain("From Via Cantonale 1, Lugano to Piazza Duomo, Milano");
+    expect(await textOf(baseInput({ lines: [mileageLine] }))).not.toContain("From ");
   });
 
   it("puts the currency after the amount, as the UI does", async () => {
