@@ -355,6 +355,7 @@ const en = {
         currencyLabel: 'Currency',
         currencyPlaceholder: 'Select a currency…',
         kmLabel: 'Distance (km)',
+        roundTripLabel: 'Round trip (the km are the whole trip)',
         kmHelp: 'Must be greater than 0',
         kmFieldAdded: 'Mileage field added — km is required for travel by car',
         kmFieldRemoved: 'Mileage field removed — not applicable for this expense type',
@@ -394,6 +395,7 @@ const en = {
         /** A line's distance, and the distance with the per-km rate it was priced at. */
         kmValue: (km: number) => `${km} km`,
         kmWithRate: (km: number, rate: string) => `${km} km × ${rate}`,
+        roundTrip: 'Round trip',
         requestedLabel: 'Requested',
         approvedLabel: 'Approved',
         /**
@@ -1447,6 +1449,7 @@ const it: Strings = {
         currencyLabel: 'Valuta',
         currencyPlaceholder: 'Selezionare una valuta…',
         kmLabel: 'Distanza (km)',
+        roundTripLabel: 'Andata e ritorno (i km sono l’intero viaggio)',
         kmHelp: 'Deve essere maggiore di 0',
         kmFieldAdded: 'Campo chilometri aggiunto: i km sono obbligatori per i viaggi in auto',
         kmFieldRemoved: 'Campo chilometri rimosso: non previsto per questo tipo di spesa',
@@ -1470,6 +1473,7 @@ const it: Strings = {
         sectionHeading: (count: number) => `Spese (${count})`,
         kmValue: (km: number) => `${km} km`,
         kmWithRate: (km: number, rate: string) => `${km} km × ${rate}`,
+        roundTrip: 'Andata e ritorno',
         requestedLabel: 'Richiesto',
         approvedLabel: 'Approvato',
         approvedDeltaNote: (requested: string, delta: string) => `richiesto ${requested} · ${delta}`,

@@ -297,6 +297,7 @@ model RefundLine {
   // boundary, not by a CHECK constraint, so the same table shape serves every
   // expense type without a partial/conditional column.
   km                   Int?
+  roundTrip            Boolean     @default(false) // a mileage line's trip is there and back (informative: km are the whole trip); false for any other type
   approvedTotalCents   Int?
 
   // ─── Line rejection (specs/20260716-refund-service amendment, 2026-11-10) ───────────────────

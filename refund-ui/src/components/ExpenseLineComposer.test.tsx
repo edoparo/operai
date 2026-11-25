@@ -477,6 +477,28 @@ describe('ExpenseLineComposer — picking a suggestion fills the trip’s stable
     await advance()
   }
 
+  it('a mileage line can be marked as a round trip: the flag is sent, the km stay as typed', async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined)
+    render(<ExpenseLineComposer onAdd={onAdd} />)
+    fillMileageDraft()
+    const box = screen.getByRole('checkbox', { name: 'Round trip (the km are the whole trip)' }) as HTMLInputElement
+    expect(box.checked).toBe(false)
+    fireEvent.click(box)
+    fireEvent.click(screen.getByTestId('composer-add-button'))
+    await advance()
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ km: 11, roundTrip: true }))
+  })
+
+  it('the round-trip box exists only for a mileage line, and leaving the type clears it', async () => {
+    render(<ExpenseLineComposer onAdd={vi.fn()} />)
+    fillMileageDraft()
+    fireEvent.click(screen.getByTestId('composer-round-trip'))
+    fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'stationery' } })
+    expect(screen.queryByTestId('composer-round-trip')).toBeNull()
+    fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'travel_km' } })
+    expect((screen.getByTestId('composer-round-trip') as HTMLInputElement).checked).toBe(false)
+  })
+
   it('overwrites motivo, km and entity — even when all three were already typed (AC-3.1, AC-3.4)', async () => {
     render(<ExpenseLineComposer onAdd={vi.fn()} />)
     fillMileageDraft()

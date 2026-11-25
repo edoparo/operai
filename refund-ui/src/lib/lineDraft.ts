@@ -46,6 +46,8 @@ export type LineDraftValue = {
   currency: Currency | ''
   /** Only meaningful when `type` requires km (`requiresKm`) — ignored otherwise. */
   km: string
+  /** Only meaningful for `travel_km`: the trip is there and back (informative, `km` is the whole distance). */
+  roundTrip: boolean
 }
 
 /** A fresh draft for `ExpenseLineComposer` — no default type/entity/currency (AC-1.2: "no default … an explicit, deliberate choice"). */
@@ -57,6 +59,7 @@ export const emptyLineDraft = (): LineDraftValue => ({
   entity: '',
   currency: '',
   km: '',
+  roundTrip: false,
 })
 
 /** Converts a persisted `RefundLine` into an editable draft for `ExpenseLineRow`. */
@@ -68,6 +71,7 @@ export const lineToDraft = (line: RefundLine): LineDraftValue => ({
   entity: line.entity,
   currency: line.currency,
   km: line.km !== null ? String(line.km) : '',
+  roundTrip: line.roundTrip === true,
 })
 
 /**
@@ -132,7 +136,8 @@ export const isLineDraftBlank = (draft: LineDraftValue): boolean =>
   draft.amount === '' &&
   draft.entity === '' &&
   draft.currency === '' &&
-  draft.km === ''
+  draft.km === '' &&
+  !draft.roundTrip
 
 /**
  * Converts a complete draft into the wire payload `POST/PUT
@@ -156,6 +161,8 @@ export const lineDraftToPayload = (draft: LineDraftValue): LinePayload => {
   }
   if (requiresKm(type)) {
     payload.km = Number(draft.km)
+    // Sent only when ticked: the server reads a missing flag as one-way, so a PUT that unticks it clears it.
+    if (draft.roundTrip) payload.roundTrip = true
   } else {
     payload.requestedAmountCents = amountToCents(draft.amount) ?? 0
     payload.currency = draft.currency as Currency

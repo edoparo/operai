@@ -18,8 +18,8 @@
 
 import type { XlsxStyle } from "./xlsx";
 
-/** Written to the export log with every download; bump it with every change of anything in this file. 1 was the CSV, 2 the bracketed Description. */
-export const FORMAT_VERSION = 3;
+/** Written to the export log with every download; bump it with every change of anything in this file. 1 was the CSV, 2 the bracketed Description, 3 the Description without brackets. */
+export const FORMAT_VERSION = 4;
 
 /** The media type of the response. */
 export const CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -138,6 +138,8 @@ export function sanitizeText(value: string): string {
 export interface DescriptionParts {
   /** The line's reason (`motivo`), free text. */
   readonly reason: string;
+  /** A mileage line there and back: `A/R` right after the reason (version 4). */
+  readonly roundTrip?: boolean;
   readonly receiptNumber: string;
   /** The line's own currency and its approved total in it, as `10.40`. Only read for a currency other than CHF. */
   readonly currency: string;
@@ -155,13 +157,14 @@ export interface DescriptionParts {
  *   `<reason> - <receipt number> - <employee>`                                   for a CHF line
  *   `<reason> - <receipt number> - <CUR> <approved total> = CHF <CHF> - <employee>`   for any other currency
  *
- * for example `Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno`. Each part goes through
+ * for example `Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno`. Version 4: a mileage line there and back
+ * carries `A/R` after the reason (`Lugano-Milano - A/R - MC26/002 - Matteo Codogno`). Each part goes through
  * {@link sanitizeText}, so it is always one line, whatever the reason or the name holds; an empty part is left out.
  */
 export function describeLine(parts: DescriptionParts): string {
   const foreign = parts.currency === CURRENCY ? "" : `${parts.currency} ${parts.approvedAmount} = ${CURRENCY} ${parts.chfAmount}`;
   // Each part is made one line first, so an empty reason leaves no dangling separator.
-  return [parts.reason, parts.receiptNumber, foreign, parts.employee]
+  return [parts.reason, parts.roundTrip === true ? ROUND_TRIP : "", parts.receiptNumber, foreign, parts.employee]
     .map(sanitizeText)
     .filter((part) => part !== "")
     .join(SEPARATOR);
@@ -169,6 +172,9 @@ export function describeLine(parts: DescriptionParts): string {
 
 /** Between the parts of the Description: the accountant asked for no square brackets (2026-11-25). */
 export const SEPARATOR = " - ";
+
+/** Andata e ritorno: how the accountant's register marks a trip there and back. */
+export const ROUND_TRIP = "A/R";
 
 // ─── Order (AC-6.16, AC-6.8) ─────────────────────────────────────────────────
 

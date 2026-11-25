@@ -41,6 +41,8 @@ export interface LineRow {
   readonly currency: string;
   readonly requestedAmountCents: number;
   readonly km: number | null;
+  /** Optional: a select that does not read it reads as one-way (false). */
+  readonly roundTrip?: boolean;
   readonly approvedTotalCents: number | null;
   // specs/20260716-refund-service amendment (2026-11-10) — line rejection. Optional because the
   // lighter list/queue/batch selects never read it; `undefined` reads as
@@ -224,6 +226,7 @@ export function mapLine(line: LineRow, requestStatus: string): RefundLineRespons
     currency: line.currency as CurrencyValue,
     requestedAmountCents: line.requestedAmountCents,
     km: line.km,
+    roundTrip: line.roundTrip === true,
     approvedTotalCents: line.approvedTotalCents,
     rejection:
       line.rejectionReason != null

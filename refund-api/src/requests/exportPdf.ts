@@ -426,7 +426,7 @@ export async function renderRequestExportPdf(
       const detailTop = `${expenseTypeLabel(line.type)} · ${entityLabel(line.entity)}`;
       const applied = line.mileage?.appliedRate ?? null;
       const detailRate = applied
-        ? `${line.km ?? "—"} km × ${formatRatePerKm(applied.ratePerKm, applied.currency)} · valid from ${formatDate(applied.validFrom)}`
+        ? `${line.km ?? "—"} km${line.roundTrip ? " round trip" : ""} × ${formatRatePerKm(applied.ratePerKm, applied.currency)} · valid from ${formatDate(applied.validFrom)}`
         : null;
       const descriptionLines = wrapText(line.motivo || "—", fonts.value, TYPE.value, COL.description - 8);
       // specs/20260716-refund-service amendment (2026-11-10): a line refused on its own carries

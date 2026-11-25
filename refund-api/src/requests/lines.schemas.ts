@@ -38,6 +38,8 @@ export const LineBodySchema = z
       .nonnegative("requestedAmountCents must be >= 0")
       .optional(),
     km: z.number().int("km must be an integer").optional(),
+    // A mileage line's trip is there and back. Informative only: `km` is always the whole distance, never doubled.
+    roundTrip: z.boolean().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.type === "travel_km") {
@@ -63,6 +65,13 @@ export const LineBodySchema = z
           code: z.ZodIssueCode.custom,
           path: ["km"],
           message: "km must not be provided unless type is travel_km",
+        });
+      }
+      if (val.roundTrip === true) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["roundTrip"],
+          message: "roundTrip applies only to travel_km",
         });
       }
       // Every non-travel_km type keeps 007's original required fields.

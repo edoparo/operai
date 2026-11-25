@@ -10,7 +10,7 @@
 
 import { chfCents, vatCents } from "./amounts";
 import { employeeCell, type AccountingExportLine } from "./export";
-import { CURRENCY, dateSerial, formatCents, isCanonicalAccountNumber, sanitizeText } from "./exportFormat";
+import { CURRENCY, dateSerial, formatCents, isCanonicalAccountNumber, ROUND_TRIP, sanitizeText } from "./exportFormat";
 import {
   approverCell,
   COLUMN_WIDTHS,
@@ -87,7 +87,7 @@ function rowOf(line: RegisterExtractLine, period: string): XlsxCell[] {
     text(sanitizeText(employeeCell(line))),
     number(periodCellOf(period)),
     text(sanitizeText(line.receiptNumber)),
-    text(expenseTypeLabelIt(line.type)),
+    text(line.roundTrip === true ? `${expenseTypeLabelIt(line.type)} ${ROUND_TRIP}` : expenseTypeLabelIt(line.type)),
     text(null), // From: Operai keeps no route
     text(null), // To
     text(sanitizeText(line.motivo)),

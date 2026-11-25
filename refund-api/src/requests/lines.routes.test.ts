@@ -208,6 +208,56 @@ describe("POST /requests/:id/lines", () => {
     expect(body.detail).toContain("motivo");
   });
 
+  it("a mileage line may be a round trip: stored and returned, the km kept as typed (never doubled)", async () => {
+    const request = await makeRequest();
+    const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
+    const post = (body: Record<string, unknown>) =>
+      linesRouter.request(`/requests/${request.id}/lines`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(body) });
+
+    const res = await post(validLineBody({ type: "travel_km", km: 240, roundTrip: true }));
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string; km: number; roundTrip: boolean };
+    expect([body.km, body.roundTrip]).toEqual([240, true]);
+    const row = await db.refundLine.findUniqueOrThrow({ where: { id: body.id } });
+    expect([row.km, row.roundTrip]).toEqual([240, true]);
+
+    const oneWay = (await (await post(validLineBody({ type: "travel_km", km: 120 }))).json()) as { roundTrip: boolean };
+    expect(oneWay.roundTrip).toBe(false);
+    const other = (await (await post(validLineBody())).json()) as { roundTrip: boolean };
+    expect(other.roundTrip).toBe(false);
+  });
+
+  it("roundTrip on any type but travel_km → 422", async () => {
+    const request = await makeRequest();
+    const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
+    const res = await linesRouter.request(`/requests/${request.id}/lines`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(validLineBody({ roundTrip: true })),
+    });
+    expect(res.status).toBe(422);
+    expect(await db.refundLine.count({ where: { requestId: request.id } })).toBe(0);
+  });
+
+  it("a PUT that turns a round trip into another type clears the flag", async () => {
+    const request = await makeRequest();
+    const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
+    const created = (await (
+      await linesRouter.request(`/requests/${request.id}/lines`, {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(validLineBody({ type: "travel_km", km: 240, roundTrip: true })),
+      })
+    ).json()) as { id: string };
+    const res = await linesRouter.request(`/requests/${request.id}/lines/${created.id}`, {
+      method: "PUT",
+      headers: authHeaders(token),
+      body: JSON.stringify(validLineBody()),
+    });
+    expect(res.status).toBe(200);
+    expect((await db.refundLine.findUniqueOrThrow({ where: { id: created.id } })).roundTrip).toBe(false);
+  });
+
   it("(AC-1.2) km required and >0 when type is travel_km — missing km → 422", async () => {
     const request = await makeRequest();
     const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });

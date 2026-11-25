@@ -176,6 +176,7 @@ describe("renderRequestExportPdf", () => {
           currency: "CHF",
           requestedAmountCents: 1050,
           km: 15,
+          roundTrip: false,
           approvedTotalCents: 1050,
           rejection: null,
           attachments: [],
@@ -238,6 +239,7 @@ const mileageLine = {
   currency: "CHF",
   requestedAmountCents: 1050,
   km: 15,
+  roundTrip: false,
   approvedTotalCents: 1050,
   rejection: null,
   attachments: [],
@@ -303,6 +305,12 @@ describe("renderRequestExportPdf — one number locale", () => {
     // The wire forms must not survive into the page.
     expect(text).not.toContain("0.70");
     expect(text).not.toContain("2021-01-31");
+  });
+
+  it("says round trip beside the km of a mileage line marked as there and back, and nothing for a one-way one", async () => {
+    const roundTrip = { ...mileageLine, roundTrip: true } as RequestExportInput["lines"][number];
+    expect(await textOf(baseInput({ lines: [roundTrip] }))).toContain("15 km round trip ×");
+    expect(await textOf(baseInput({ lines: [mileageLine] }))).not.toContain("round trip");
   });
 
   it("puts the currency after the amount, as the UI does", async () => {

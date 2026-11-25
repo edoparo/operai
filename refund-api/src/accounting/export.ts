@@ -54,6 +54,8 @@ export interface AccountingExportLine {
   readonly date: string;
   /** The line's reason (`motivo`), free text typed by the employee. */
   readonly motivo: string;
+  /** A mileage line's trip is there and back: `A/R` follows the reason in the Description. Absent reads as one-way. */
+  readonly roundTrip?: boolean;
   readonly currency: string;
   /** `approvedTotalCents` in the line's own currency. */
   readonly approvedCents: number;
@@ -92,6 +94,7 @@ function rowOf(line: AccountingExportLine): XlsxCell[] {
 
   const description = describeLine({
     reason: line.motivo,
+    roundTrip: line.roundTrip === true,
     receiptNumber: line.receiptNumber,
     currency: line.currency,
     approvedAmount: formatCents(line.approvedCents),

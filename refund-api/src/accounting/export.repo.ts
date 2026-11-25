@@ -72,6 +72,7 @@ const exportLineSelect = {
   currency: true,
   motivo: true,
   km: true,
+  roundTrip: true,
   appliedRateMicros: true,
   requestedAmountCents: true,
   approvedTotalCents: true,
@@ -317,6 +318,7 @@ export function evaluateExport(source: ExportSource, rates: ExportRates, options
         receiptSeq: line.receiptSeq,
         date,
         motivo: line.motivo,
+        roundTrip: line.roundTrip,
         currency: line.currency,
         // The same figure the accounting view shows (`amountCents`); an approved line always has its approved total.
         approvedCents: line.approvedTotalCents ?? line.requestedAmountCents,

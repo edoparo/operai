@@ -148,6 +148,8 @@ export const RefundLineResponseSchema = z.object({
   currency: CurrencySchema,
   requestedAmountCents: z.number().int(),
   km: z.number().int().nullable(),
+  // A mileage line's trip is there and back (informative: `km` is the whole distance). Always false for other types.
+  roundTrip: z.boolean(),
   approvedTotalCents: z.number().int().nullable(),
   rejection: LineRejectionSchema.nullable(),
   attachments: z.array(AttachmentResponseSchema),

@@ -65,6 +65,7 @@ export function listOwnRequests(
               currency: true,
               requestedAmountCents: true,
               km: true,
+              roundTrip: true,
               approvedTotalCents: true,
             },
           },

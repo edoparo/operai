@@ -100,6 +100,7 @@ const { notifyTransport } = await import("../lib/notifyPost");
 const { sha256Hex } = await import("./export.repo");
 const { ExportBlockedSchema, ExportSummarySchema } = await import("./export.schemas");
 const { CONTENT_TYPE, FORMAT_VERSION, HEADERS } = await import("./exportFormat");
+const { REGISTER_FORMAT_VERSION } = await import("./registerExtractFormat");
 
 // The compilation email and the paid push go to notify-api: answered here, never sent.
 const realTokens = notifyTransport.tokens;
@@ -1376,7 +1377,7 @@ describe("GET /batches/:id/accounting-export/register-file", () => {
 
     const log = await exportLog();
     expect(log.map((row) => [row.kind, row.formatVersion, row.rowCount, row.contentSha256])).toEqual([
-      ["register", 2, 2, sha256Hex(out.bytes)],
+      ["register", REGISTER_FORMAT_VERSION, 2, sha256Hex(out.bytes)],
     ]);
   });
 

@@ -114,7 +114,7 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
     const wasKm = draft.type !== '' && requiresKm(draft.type)
     const willBeKm = nextType !== '' && requiresKm(nextType)
 
-    setDraft((prev) => ({ ...prev, type: nextType, km: willBeKm ? prev.km : '' }))
+    setDraft((prev) => ({ ...prev, type: nextType, km: willBeKm ? prev.km : '', roundTrip: willBeKm && prev.roundTrip }))
 
     if (willBeKm && !wasKm) {
       setKmStatus(t.kmFieldAdded)
@@ -348,6 +348,20 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
               />
             )}
           </Field>
+        )}
+
+        {/* Informative: the km typed are the whole trip, never doubled. */}
+        {showKm && (
+          <label className="flex items-center gap-2 self-end pb-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.roundTrip}
+              disabled={submitting}
+              onChange={(e) => setDraft((prev) => ({ ...prev, roundTrip: e.target.checked }))}
+              data-testid="composer-round-trip"
+            />
+            {t.roundTripLabel}
+          </label>
         )}
       </div>
 

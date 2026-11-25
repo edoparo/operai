@@ -29,7 +29,7 @@ import {
 
 describe("the constants (AC-6.2)", () => {
   it("states its version, media type, sheet, header, credit account and currency", () => {
-    expect(FORMAT_VERSION).toBe(3);
+    expect(FORMAT_VERSION).toBe(4);
     expect(CONTENT_TYPE).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     expect(SHEET_NAME).toBe("Sheet 1");
     expect([...HEADERS]).toEqual(["Date", "Description", "Debit", "Credit", "Amount", "Currency", "Tax", "Note"]);
@@ -209,6 +209,8 @@ describe("the Description (AC-6.13, SO-9)", () => {
   });
 
   it("another currency adds `[<CUR> <approved> = CHF <CHF>]` before the name: AC-6.3's line", () => {
+    expect(describeLine({ ...base, reason: "Lugano-Milano", roundTrip: true })).toBe("Lugano-Milano - A/R - MC26/001 - Matteo Codogno");
+    expect(describeLine({ ...base, reason: "", roundTrip: true })).toBe("A/R - MC26/001 - Matteo Codogno");
     expect(describeLine({ ...base, currency: "EUR", chfAmount: "9.62" })).toBe("Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno");
     expect(describeLine({ ...base, currency: "USD", approvedAmount: "0.00", chfAmount: "0.00" })).toBe("Cancelleria - MC26/001 - USD 0.00 = CHF 0.00 - Matteo Codogno");
   });

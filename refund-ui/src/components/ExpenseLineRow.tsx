@@ -179,7 +179,8 @@ const draftsEqual = (a: LineDraftValue, b: LineDraftValue): boolean =>
   a.amount === b.amount &&
   a.entity === b.entity &&
   a.currency === b.currency &&
-  a.km === b.km
+  a.km === b.km &&
+  a.roundTrip === b.roundTrip
 
 const typeLabel = (type: ExpenseType): string => expenseTypeLabel(type)
 
@@ -384,7 +385,7 @@ export default function ExpenseLineRow({
     const nextType = value as ExpenseType
     const wasKm = requiresKm(draft.type as ExpenseType)
     const willBeKm = requiresKm(nextType)
-    setDraft((prev) => ({ ...prev, type: nextType, km: willBeKm ? prev.km : '' }))
+    setDraft((prev) => ({ ...prev, type: nextType, km: willBeKm ? prev.km : '', roundTrip: willBeKm && prev.roundTrip }))
     if (willBeKm && !wasKm) setKmStatus(composerStrings.kmFieldAdded)
     else if (!willBeKm && wasKm) setKmStatus(composerStrings.kmFieldRemoved)
   }
@@ -522,6 +523,11 @@ export default function ExpenseLineRow({
               {mileage?.appliedRate
                 ? t.kmWithRate(line.km, formatRatePerKm(mileage.appliedRate.ratePerKm, mileage.appliedRate.currency))
                 : t.kmValue(line.km)}
+            </span>
+          )}
+          {line.km !== null && line.roundTrip === true && (
+            <span className="text-soft" data-testid={`row-${line.id}-round-trip-label`}>
+              {t.roundTrip}
             </span>
           )}
         </div>
@@ -925,6 +931,18 @@ export default function ExpenseLineRow({
               />
             )}
           </Field>
+        )}
+
+        {showKm && (
+          <label className="flex items-center gap-2 self-end pb-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.roundTrip}
+              onChange={(e) => setDraft((prev) => ({ ...prev, roundTrip: e.target.checked }))}
+              data-testid={`row-${line.id}-round-trip`}
+            />
+            {composerStrings.roundTripLabel}
+          </label>
         )}
       </div>
 

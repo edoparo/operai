@@ -170,6 +170,41 @@ describe('lineToDraft / lineDraftToPayload round-trip', () => {
   })
 })
 
+describe('round trip (mileage lines only, informative)', () => {
+  const km: LineDraftValue = {
+    date: '2026-07-01',
+    type: 'travel_km',
+    motivo: 'Lugano-Milano',
+    amount: '',
+    entity: 'welld_ch',
+    currency: '',
+    km: '240',
+    roundTrip: true,
+  }
+
+  it('a mileage payload carries the flag and the km as typed, never doubled', () => {
+    expect(lineDraftToPayload(km)).toMatchObject({ km: 240, roundTrip: true })
+    const oneWay = lineDraftToPayload({ ...km, roundTrip: false })
+    expect(oneWay.km).toBe(240)
+    expect('roundTrip' in oneWay).toBe(false)
+  })
+
+  it('any other type sends no flag', () => {
+    const payload = lineDraftToPayload({ ...km, type: 'stationery', km: '', amount: '10.00', currency: 'CHF' })
+    expect('roundTrip' in payload).toBe(false)
+  })
+
+  it('a persisted line reads its flag into the draft; a missing one is one-way', () => {
+    const line = { id: 'l', date: '2026-07-01', type: 'travel_km', motivo: 'x', entity: 'welld_ch', currency: 'CHF', requestedAmountCents: 0, km: 240, approvedTotalCents: null } as const
+    expect(lineToDraft({ ...line, roundTrip: true } as never).roundTrip).toBe(true)
+    expect(lineToDraft(line as never).roundTrip).toBe(false)
+  })
+
+  it('a ticked box alone makes the draft non-blank', () => {
+    expect(isLineDraftBlank({ ...emptyLineDraft(), roundTrip: true })).toBe(false)
+  })
+})
+
 describe('isLineDraftComplete', () => {
   const base: LineDraftValue = {
     date: '2026-07-01',
@@ -179,6 +214,7 @@ describe('isLineDraftComplete', () => {
     entity: 'welld_it',
     currency: 'EUR',
     km: '',
+    roundTrip: false,
   }
 
   it('is false for an empty draft', () => {

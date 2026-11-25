@@ -652,6 +652,21 @@ describe('ExpenseLineRow — edit mode, expanded, travel_km (specs/20260720-mile
       }),
     )
   })
+
+  it('ticking Round trip commits the flag with the km unchanged', async () => {
+    const onCommit = vi.fn().mockResolvedValue(undefined)
+    render(<ExpenseLineRow line={kmLine} mode="edit" onCommit={onCommit} onDelete={vi.fn()} onDownloadAttachment={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('row-km-1-edit'))
+    const box = screen.getByTestId('row-km-1-round-trip')
+    fireEvent.click(box)
+    fireEvent.blur(box, { relatedTarget: document.body })
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(expect.objectContaining({ km: 50, roundTrip: true })))
+  })
+
+  it('a round-trip line says so beside its km when read', () => {
+    render(<ExpenseLineRow line={{ ...kmLine, roundTrip: true }} mode="readOnly" onDownloadAttachment={vi.fn()} />)
+    expect(screen.getByTestId('row-km-1-round-trip-label').textContent).toBe('Round trip')
+  })
 })
 
 describe('ExpenseLineRow — summaryCore, travel_km (specs/20260720-mileage-rate)', () => {

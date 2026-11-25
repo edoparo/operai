@@ -93,6 +93,7 @@ export function listReviewQueueRequests(): Effect.Effect<
               currency: true,
               requestedAmountCents: true,
               km: true,
+              roundTrip: true,
               approvedTotalCents: true,
             },
           },

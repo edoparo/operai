@@ -1005,6 +1005,7 @@ describe("GET /requests/:id — receiptNumber, and nothing else of the accountin
     "receiptNumber",
     "rejection",
     "requestedAmountCents",
+    "roundTrip",
     "type",
   ];
 

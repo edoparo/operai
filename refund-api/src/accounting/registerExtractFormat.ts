@@ -29,7 +29,7 @@ import { compareCodePoints, sanitizeText } from "./exportFormat";
 import type { XlsxStyle } from "./xlsx";
 
 /** Written to the export log (kind `register`) with every download of the extract; bump it with every change in this file. */
-export const REGISTER_FORMAT_VERSION = 2; // 2: Period is the competence month, not the expense month
+export const REGISTER_FORMAT_VERSION = 3; // 2: Period is the competence month; 3: `A/R` after a round trip's description
 
 export const HEADERS = [
   "Worker",

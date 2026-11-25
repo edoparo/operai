@@ -88,6 +88,14 @@ describe("register extract: layout", () => {
     expect(row!.slice(13, 15)).toEqual([null, null]);
   });
 
+  it("a round trip says A/R after its description, a one-way trip does not", () => {
+    const [, there] = rowsOf([line({ type: "travel_km", km: 240, mileageRateMicros: 700_000, roundTrip: true })]);
+    const [, oneWay] = rowsOf([line({ type: "travel_km", km: 120, mileageRateMicros: 700_000, roundTrip: false })]);
+    expect(there![3]).toBe("Spese di viaggio (km) A/R");
+    expect(there![8]).toEqual({ n: "240" }); // the km are the whole trip, never doubled
+    expect(oneWay![3]).toBe("Spese di viaggio (km)");
+  });
+
   it("a mileage line with no rate kept on it: the km, and J left empty", () => {
     const [, row] = rowsOf([line({ type: "travel_km", km: 40, mileageRateMicros: null })]);
     expect(row!.slice(8, 10)).toEqual([{ n: "40" }, null]);
