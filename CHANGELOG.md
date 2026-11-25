@@ -1,5 +1,9 @@
 # Operai — suite changelog
 
+## operai 0.14.1 — 2026-11-25
+
+- @operai/refund-ui → 0.7.1 (patch)
+
 ## operai 0.14.0 — 2026-11-25
 
 - @operai/admin-ui → 0.3.1 (patch)
