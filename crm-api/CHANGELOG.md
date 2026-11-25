@@ -1,5 +1,15 @@
 # @operai/crm-api
 
+## 0.9.0
+
+### Minor Changes
+
+- 0eedc6b: A deal can carry its own code for its offers' file names ("Code in file names", up to 10 letters or digits); left empty, the initials of the deal's title are used as before.
+- 6f6e2ac: A company can be a funding body (the issuer of public tenders, never invoiced): marked in the companies list and page, filterable by type, and never made a customer by winning its tender.
+- 2004677: In the "Progetto a corpo" and "Progetto a corpo + servizi" offer templates the cost line has its own field ("Voce di costo"), independent of the object of the supply; stored templates still holding the shipped text are updated on first use, edited ones are left as they are.
+- cd1a930: A deal can be a public tender ("bando di gara"): its company is the issuing body, it may carry a submission deadline, it is marked "Tender" on the pipeline, the company's deals and the deal page, and the pipeline filters by type.
+- a17c260: A won public tender is taken from the to-start queue as a project without a purchase order: the funding body is its company, its project manager is chosen at the take, and the project shows it comes from a tender.
+
 ## 0.8.0
 
 ### Minor Changes

@@ -1,5 +1,16 @@
 # Operai — suite changelog
 
+## operai 0.13.0 — 2026-11-25
+
+- @operai/crm-api → 0.9.0 (minor)
+- @operai/crm-ui → 0.10.0 (minor)
+- @operai/projects-api → 0.5.0 (minor)
+- @operai/projects-ui → 0.7.0 (minor)
+- @operai/refund-api → 0.7.0 (minor)
+- @operai/refund-ui → 0.6.0 (minor)
+- @operai/shell → 0.7.0 (minor)
+- @operai/ui → 0.9.0 (minor)
+
 ## operai 0.12.0 — 2026-11-24
 
 - @operai/refund-api → 0.6.0 (minor)

@@ -1,5 +1,17 @@
 # @operai/crm-ui
 
+## 0.10.0
+
+### Minor Changes
+
+- 0eedc6b: A deal can carry its own code for its offers' file names ("Code in file names", up to 10 letters or digits); left empty, the initials of the deal's title are used as before.
+- 6f6e2ac: A company can be a funding body (the issuer of public tenders, never invoiced): marked in the companies list and page, filterable by type, and never made a customer by winning its tender.
+- cd1a930: A deal can be a public tender ("bando di gara"): its company is the issuing body, it may carry a submission deadline, it is marked "Tender" on the pipeline, the company's deals and the deal page, and the pipeline filters by type.
+
+### Patch Changes
+
+- 601c2e6: The offer wizard's cost step has an "Add option line" button: it adds a line the client can tick, counted in no total, without choosing the kind by hand.
+
 ## 0.9.0
 
 ### Minor Changes

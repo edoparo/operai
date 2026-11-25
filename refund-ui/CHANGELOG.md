@@ -1,5 +1,12 @@
 # @operai/refund-ui
 
+## 0.6.0
+
+### Minor Changes
+
+- d858910: After the accountant's first look at the two files. Journal (format 3): the Description has no square brackets, its parts are joined by `-` (`Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno`). Register extract (format 2): Period is the competence month being booked, the same on every row, not the month of each expense; by default the month before the batch's cutoff (Europe/Zurich), and the card offers a "Competence month" choice (`?period=YYYY-MM`). The sheet is named after that month's year.
+- 5bf3faa: A mileage expense can be marked as a round trip ("Andata e ritorno"). The flag is informative: the km typed are the whole trip and the amount is unchanged. It shows beside the km on the request and in review, in the request PDF ("15 km round trip × …"), in the accounting journal's Description (`Lugano-Milano - A/R - MC26/002 - …`, format 4) and in the register extract's Description (`Spese di viaggio (km) A/R`, format 3). Migration `20261125120000_mileage_round_trip` adds `refund_line.roundTrip` (false for existing lines; only a travel_km line may be a round trip).
+
 ## 0.5.0
 
 ### Minor Changes

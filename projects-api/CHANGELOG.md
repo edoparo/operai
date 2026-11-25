@@ -1,5 +1,11 @@
 # @operai/projects-api
 
+## 0.5.0
+
+### Minor Changes
+
+- a17c260: A won public tender is taken from the to-start queue as a project without a purchase order: the funding body is its company, its project manager is chosen at the take, and the project shows it comes from a tender.
+
 ## 0.4.0
 
 ### Minor Changes

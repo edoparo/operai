@@ -1,5 +1,11 @@
 # @operai/ui
 
+## 0.9.0
+
+### Minor Changes
+
+- f5273af: The sidebar lists the tools in alphabetical order and each person can pin the tools they want at the top (remembered in the browser); the library gains a `pin` icon.
+
 ## 0.8.0
 
 ### Minor Changes
