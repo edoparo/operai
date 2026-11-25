@@ -876,13 +876,34 @@ describe('AccountingExportCard: the register extract', () => {
     fireEvent.click(register())
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1))
-    expect(exportApi.downloadRegisterFile).toHaveBeenCalledWith('batch-1')
+    // The batch is cut on 19 July: the extract is June's unless the accountant picks another month.
+    expect(exportApi.downloadRegisterFile).toHaveBeenCalledWith('batch-1', '2026-06')
     expect(exportApi.downloadAccountingFile).not.toHaveBeenCalled()
     expect(vi.mocked(URL.createObjectURL).mock.calls[0][0]).toBe(blob)
     expect(downloadName).toBe('refund-register-2026-07-19-batch-1.xlsx')
     expect((await screen.findByTestId('accounting-export-downloaded')).textContent).toBe(
       'Register extract downloaded: 12 rows',
     )
+  })
+
+  it('the competence month is the month before the cutoff by default, and the accountant may pick another', async () => {
+    vi.mocked(exportApi.downloadRegisterFile).mockResolvedValue(new Blob(['x']))
+    await renderCard()
+    const select = screen.getByTestId('accounting-export-period-select') as HTMLSelectElement
+    expect(screen.getByLabelText('Competence month')).toBe(select)
+    expect(select.value).toBe('2026-06')
+    expect(Array.from(select.options).map((option) => option.value)).toEqual([
+      '2026-07',
+      '2026-06',
+      '2026-05',
+      '2026-04',
+      '2026-03',
+      '2026-02',
+    ])
+    fireEvent.change(select, { target: { value: '2026-05' } })
+    fireEvent.click(register())
+    await waitFor(() => expect(exportApi.downloadRegisterFile).toHaveBeenCalledWith('batch-1', '2026-05'))
+    await expectNoAxeViolations()
   })
 
   it('one file at a time: while the register extract is prepared, neither button starts another download', async () => {

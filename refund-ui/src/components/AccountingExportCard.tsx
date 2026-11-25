@@ -30,11 +30,13 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Banner, Button, Card, SkeletonRows, VisuallyHidden } from '@operai/ui'
+import { Banner, Button, Card, Field, SkeletonRows, VisuallyHidden } from '@operai/ui'
 import { strings } from '../strings'
 import {
   accountingExportFileName,
   blockedSummary,
+  competenceMonthOptions,
+  defaultCompetenceMonth,
   downloadAccountingFile,
   downloadRegisterFile,
   getAccountingExport,
@@ -82,6 +84,8 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
   const { replace } = resource
   /** Which file is being prepared: the journal or the register extract (one at a time). */
   const [downloading, setDownloading] = useState<'journal' | 'register' | null>(null)
+  /** The register extract's Period: the month being booked, not the month of each expense (the accountant's rule). */
+  const [period, setPeriod] = useState(() => defaultCompetenceMonth(cutoff))
   const [rechecking, setRechecking] = useState(false)
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
@@ -161,7 +165,7 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
     setTurnedBlocked(false)
     let objectUrl: string | null = null
     try {
-      const blob = kind === 'register' ? await downloadRegisterFile(batchId) : await downloadAccountingFile(batchId)
+      const blob = kind === 'register' ? await downloadRegisterFile(batchId, period) : await downloadAccountingFile(batchId)
       objectUrl = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = objectUrl
@@ -356,6 +360,26 @@ export default function AccountingExportCard({ batchId, cutoff, onBatchDiscarded
           )}
 
           <SuccessBanner message={downloaded} onDismiss={() => setDownloaded(null)} testId="accounting-export-downloaded" />
+
+          <div className="flex justify-end">
+            <Field label={t.periodLabel} hint={t.periodHint} testId="accounting-export-period">
+              {(control) => (
+                <select
+                  {...control}
+                  value={period}
+                  disabled={downloading !== null}
+                  onChange={(event) => setPeriod(event.target.value)}
+                  data-testid="accounting-export-period-select"
+                >
+                  {competenceMonthOptions(cutoff).map((month) => (
+                    <option key={month} value={month}>
+                      {monthLabel(month)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
             {downloadError && (

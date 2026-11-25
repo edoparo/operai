@@ -18,8 +18,8 @@
 
 import type { XlsxStyle } from "./xlsx";
 
-/** Written to the export log with every download; bump it with every change of anything in this file. 1 was the CSV. */
-export const FORMAT_VERSION = 2;
+/** Written to the export log with every download; bump it with every change of anything in this file. 1 was the CSV, 2 the bracketed Description. */
+export const FORMAT_VERSION = 3;
 
 /** The media type of the response. */
 export const CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -149,19 +149,26 @@ export interface DescriptionParts {
 }
 
 /**
- * The Description cell (AC-6.13), PROVISIONAL until the accountant answers (SO-9; a change is a `FORMAT_VERSION` bump and a
- * golden diff):
+ * The Description cell (AC-6.13; a change is a `FORMAT_VERSION` bump and a golden diff). Version 3 (2026-11-25): the
+ * accountant asked for no square brackets, so the parts are joined by ` - `:
  *
- *   `<reason> [<receipt number>] <employee>`                                   for a CHF line
- *   `<reason> [<receipt number>] [<CUR> <approved total> = CHF <CHF>] <employee>`   for any other currency
+ *   `<reason> - <receipt number> - <employee>`                                   for a CHF line
+ *   `<reason> - <receipt number> - <CUR> <approved total> = CHF <CHF> - <employee>`   for any other currency
  *
- * for example `Cancelleria [MC26/001] [EUR 10.40 = CHF 9.62] Matteo Codogno`. The whole string goes through
- * {@link sanitizeText}, so it is always one line, whatever the reason or the name holds.
+ * for example `Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno`. Each part goes through
+ * {@link sanitizeText}, so it is always one line, whatever the reason or the name holds; an empty part is left out.
  */
 export function describeLine(parts: DescriptionParts): string {
-  const foreign = parts.currency === CURRENCY ? "" : ` [${parts.currency} ${parts.approvedAmount} = ${CURRENCY} ${parts.chfAmount}]`;
-  return sanitizeText(`${parts.reason} [${parts.receiptNumber}]${foreign} ${parts.employee}`);
+  const foreign = parts.currency === CURRENCY ? "" : `${parts.currency} ${parts.approvedAmount} = ${CURRENCY} ${parts.chfAmount}`;
+  // Each part is made one line first, so an empty reason leaves no dangling separator.
+  return [parts.reason, parts.receiptNumber, foreign, parts.employee]
+    .map(sanitizeText)
+    .filter((part) => part !== "")
+    .join(SEPARATOR);
 }
+
+/** Between the parts of the Description: the accountant asked for no square brackets (2026-11-25). */
+export const SEPARATOR = " - ";
 
 // ─── Order (AC-6.16, AC-6.8) ─────────────────────────────────────────────────
 

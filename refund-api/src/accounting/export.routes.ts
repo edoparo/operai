@@ -56,7 +56,7 @@ import {
   ExportSummarySchema,
 } from "./export.schemas";
 import { CONTENT_TYPE, exportFilename } from "./exportFormat";
-import { registerFilename } from "./registerExtractFormat";
+import { PERIOD_RE, registerFilename } from "./registerExtractFormat";
 
 const problem = <S extends number>(status: S, title: string, path: string, detail: string, code?: string) => ({
   type: `https://httpstatuses.com/${status}`,
@@ -152,10 +152,17 @@ const registerFileRoute = createRoute({
     "The same lines, blockers, rate copies and export log as `/accounting-export/file`, laid out like the accountant's " +
     "register: one sheet named after the batch's year, the header `Worker | Period | No. | Description | From | To | Reason | " +
     "Date | Km / Monthly avg rate | Multiplier / Foreign Amount | Total | Account | Description | IVA | IVA2 | Approved by` " +
-    "and one row per approved, not rejected WellD CH line, by period, worker and receipt number. No cell is a formula. " +
+    "and one row per approved, not rejected WellD CH line, by worker and receipt number. Period is the competence month " +
+    "(`period=YYYY-MM`, by default the month before the batch's cutoff, Europe/Zurich), the same on every row; the sheet is " +
+    "named after its year. No cell is a formula. " +
     "Logged with the kind `register` before the file is sent.",
   security: [{ Bearer: [] }],
-  request: { params: ExportBatchParamSchema },
+  request: {
+    params: ExportBatchParamSchema,
+    query: z.object({
+      period: z.string().regex(PERIOD_RE, "period must be YYYY-MM").optional().openapi({ example: "2026-10" }),
+    }),
+  },
   responses: {
     200: {
       content: { [CONTENT_TYPE]: { schema: z.string().openapi({ format: "binary" }) } },
@@ -171,6 +178,7 @@ const registerFileRoute = createRoute({
       },
       description: "`batch_discarded`, or `accounting_export_blocked` with the summary as its body",
     },
+    422: problemResponse("`invalid_export_request`: `period` is not YYYY-MM"),
     500: problemResponse("The export could not be recorded, so no file was produced"),
   },
 });
@@ -253,13 +261,13 @@ export function createExportRouter(deps: ExportRouterDeps = {}) {
   });
 
   /** Both files: the same refusals, the same transaction and log; only the layout and the filename differ. */
-  const serveFile = async (c: Context<{ Variables: AuthzVariables }>, id: string, kind: ExportFileKind) => {
+  const serveFile = async (c: Context<{ Variables: AuthzVariables }>, id: string, kind: ExportFileKind, period?: string) => {
     const denied = refusal(c.get("authz"), c.req.path);
     if (denied) return c.json(denied, 403);
 
     let result: Awaited<ReturnType<typeof exportBatchFile>>;
     try {
-      result = await exportBatchFile(id, { userId: c.get("userId"), email: c.get("email") }, accounting(), kind);
+      result = await exportBatchFile(id, { userId: c.get("userId"), email: c.get("email") }, accounting(), kind, period);
     } catch (error) {
       // The transaction failed (the log row, a rate copy, the commit): nothing was copied, logged or sent. Only the error
       // NAME is logged: no body, no line data, no database message.
@@ -302,7 +310,7 @@ export function createExportRouter(deps: ExportRouterDeps = {}) {
   };
 
   router.openapi(fileRoute, async (c) => serveFile(c, c.req.valid("param").id, "journal"));
-  router.openapi(registerFileRoute, async (c) => serveFile(c, c.req.valid("param").id, "register"));
+  router.openapi(registerFileRoute, async (c) => serveFile(c, c.req.valid("param").id, "register", c.req.valid("query").period));
 
   return router;
 }

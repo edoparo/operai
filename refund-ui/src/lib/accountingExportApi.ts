@@ -112,13 +112,39 @@ export const downloadAccountingFile = async (batchId: string): Promise<Blob> => 
  * `GET /batches/:id/accounting-export/register-file`: the same lines as rows of the accountant's register (its sixteen columns),
  * as an Excel file. The same refusals as the journal: 409 `accounting_export_blocked` with the summary, 403, `batch_discarded`.
  */
-export const downloadRegisterFile = async (batchId: string): Promise<Blob> => {
+export const downloadRegisterFile = async (batchId: string, period: string): Promise<Blob> => {
   const response = await apiFetch(
-    `${refundApiBase()}/batches/${encodeURIComponent(batchId)}/accounting-export/register-file`,
+    `${refundApiBase()}/batches/${encodeURIComponent(batchId)}/accounting-export/register-file?period=${encodeURIComponent(period)}`,
   )
   if (!response.ok) return throwFromResponse(response)
   return response.blob()
 }
+
+/** `YYYY-MM` of an instant, in Europe/Zurich (where the batches are cut). */
+const zurichMonth = (instant: string): { year: number; month: number } => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich', year: 'numeric', month: '2-digit' }).formatToParts(
+    new Date(instant),
+  )
+  return {
+    year: Number(parts.find((part) => part.type === 'year')?.value),
+    month: Number(parts.find((part) => part.type === 'month')?.value),
+  }
+}
+
+const shiftMonth = ({ year, month }: { year: number; month: number }, by: number): string => {
+  const index = year * 12 + (month - 1) + by
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`
+}
+
+/**
+ * The competence month the register extract proposes: the month before the batch's cutoff (a batch cut on 14 November is
+ * October's), the server's default too. The accountant may pick another.
+ */
+export const defaultCompetenceMonth = (cutoff: string): string => shiftMonth(zurichMonth(cutoff), -1)
+
+/** The months offered for the Period column: the cutoff's month and the five before it, newest first. */
+export const competenceMonthOptions = (cutoff: string): string[] =>
+  [0, -1, -2, -3, -4, -5].map((by) => shiftMonth(zurichMonth(cutoff), by))
 
 /** `refund-register-<cutoff YYYY-MM-DD>-<batchId>.xlsx`, as the server names it. */
 export const registerFileName = (cutoff: string, batchId: string): string =>

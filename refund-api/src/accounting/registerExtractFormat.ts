@@ -12,7 +12,9 @@
  *   Worker | Period | No. | Description | From | To | Reason | Date | Km / Monthly avg rate | Multiplier / Foreign Amount |
  *   Total | Account | Description | IVA | IVA2 | Approved by
  *
- * - Period is the month (1 to 12) of the expense date, as the register's `MONTH(Date)`.
+ * - Period is the month (1 to 12) the batch is booked in, the same on every row: the competence month the accountant is
+ *   handling, not the month of the expense (the expense date is in column H). By default the month before the batch's
+ *   cutoff (Europe/Zurich): a batch cut on 14 November is October's. The caller may name another (`YYYY-MM`).
  * - Km / Monthly avg rate and Multiplier / Foreign Amount hold the km and the CHF rate per km for a mileage line; the monthly
  *   rate (CHF per unit) and the amount in its currency for a foreign-currency line; nothing for a CHF line.
  * - Total is CHF. IVA is the VAT code, IVA2 the VAT contained in the CHF total (the register's `K - K / (1 + rate)`).
@@ -27,7 +29,7 @@ import { compareCodePoints, sanitizeText } from "./exportFormat";
 import type { XlsxStyle } from "./xlsx";
 
 /** Written to the export log (kind `register`) with every download of the extract; bump it with every change in this file. */
-export const REGISTER_FORMAT_VERSION = 1;
+export const REGISTER_FORMAT_VERSION = 2; // 2: Period is the competence month, not the expense month
 
 export const HEADERS = [
   "Worker",
@@ -78,20 +80,34 @@ export const STYLES: readonly XlsxStyle[] = [
 /** Indexes into {@link STYLES}. */
 export const STYLE = { default: 0, header: 1, text: 2, number: 3, date: 4, chf: 5, amount: 6 } as const;
 
-/** The sheet is named after the batch's year, as the register's yearly sheets are. */
-export const sheetNameOf = (cutoff: Date): string => String(cutoff.getUTCFullYear());
+/** A competence month: `YYYY-MM`. */
+export const PERIOD_RE = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+/** The sheet is named after the competence month's year, as the register's yearly sheets are. */
+export const sheetNameOf = (period: string): string => parsePeriod(period).year;
+
+function parsePeriod(period: string): { year: string; month: string } {
+  const match = PERIOD_RE.exec(period);
+  if (!match) throw new RangeError(`a period is YYYY-MM, got ${period}`);
+  return { year: match[1]!, month: String(Number(match[2])) };
+}
+
+/** The Period cell: `2026-10` -> `10`. */
+export const periodCellOf = (period: string): string => parsePeriod(period).month;
+
+/** The default competence month of a batch: the month before its cutoff, in Europe/Zurich (cut 2026-11-14 -> `2026-10`). */
+export function defaultPeriodOf(cutoff: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit" }).formatToParts(cutoff);
+  const year = Number(parts.find((part) => part.type === "year")!.value);
+  const month = Number(parts.find((part) => part.type === "month")!.value);
+  const [y, m] = month === 1 ? [year - 1, 12] : [year, month - 1];
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
 
 /** `refund-register-<cutoff YYYY-MM-DD>-<batchId>.xlsx`: no personal data in it. */
 export function registerFilename(cutoff: Date, batchId: string): string {
   const safeId = batchId.replace(/[^A-Za-z0-9_-]/g, "_");
   return `refund-register-${cutoff.toISOString().slice(0, 10)}-${safeId}.xlsx`;
-}
-
-/** `2026-10-07` -> `10`. */
-export function periodOf(isoDate: string): string {
-  const month = Number(isoDate.slice(5, 7));
-  if (!Number.isInteger(month) || month < 1 || month > 12) throw new RangeError(`date must be YYYY-MM-DD, got ${isoDate}`);
-  return String(month);
 }
 
 /** `924600` -> `0.9246`, `700000` -> `0.7`, `1000000` -> `1`: an exact decimal from integer micros, no float. */
@@ -124,12 +140,11 @@ export interface RegisterOrderKey {
 }
 
 /**
- * The register's order: by Period, then the worker (code point order), then the receipt number (year, sequence), then the
- * date and the line id, so the parts of a split receipt sit together and the same lines always give the same rows.
+ * The register's order: the worker (code point order), then the receipt number (year, sequence), then the date and the
+ * line id, so the parts of a split receipt sit together and the same lines always give the same rows.
  */
 export function compareRegisterRows(a: RegisterOrderKey, b: RegisterOrderKey): number {
   return (
-    compareCodePoints(a.date.slice(0, 7), b.date.slice(0, 7)) ||
     compareCodePoints(a.employee, b.employee) ||
     compareCodePoints(a.ownerUserId, b.ownerUserId) ||
     a.receiptYear - b.receiptYear ||

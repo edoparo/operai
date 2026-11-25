@@ -29,7 +29,7 @@ import {
 
 describe("the constants (AC-6.2)", () => {
   it("states its version, media type, sheet, header, credit account and currency", () => {
-    expect(FORMAT_VERSION).toBe(2);
+    expect(FORMAT_VERSION).toBe(3);
     expect(CONTENT_TYPE).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     expect(SHEET_NAME).toBe("Sheet 1");
     expect([...HEADERS]).toEqual(["Date", "Description", "Debit", "Credit", "Amount", "Currency", "Tax", "Note"]);
@@ -202,36 +202,36 @@ describe("the sanitiser (AC-6.13, AC-6.15, SO-9)", () => {
 describe("the Description (AC-6.13, SO-9)", () => {
   const base = { reason: "Cancelleria", receiptNumber: "MC26/001", currency: "CHF", approvedAmount: "10.40", chfAmount: "10.40", employee: "Matteo Codogno" };
 
-  it("CHF: `<reason> [<receipt number>] <employee>`, with no currency and no second amount", () => {
-    expect(describeLine(base)).toBe("Cancelleria [MC26/001] Matteo Codogno");
-    expect(describeLine({ ...base, receiptNumber: "LCX26/040" })).toBe("Cancelleria [LCX26/040] Matteo Codogno");
-    expect(describeLine({ ...base, reason: "Treno Lugano-Zurigo", receiptNumber: "AR26/001", employee: "Anna Rossi" })).toBe("Treno Lugano-Zurigo [AR26/001] Anna Rossi");
+  it("CHF: `<reason> - <receipt number> - <employee>`, with no currency and no second amount", () => {
+    expect(describeLine(base)).toBe("Cancelleria - MC26/001 - Matteo Codogno");
+    expect(describeLine({ ...base, receiptNumber: "LCX26/040" })).toBe("Cancelleria - LCX26/040 - Matteo Codogno");
+    expect(describeLine({ ...base, reason: "Treno Lugano-Zurigo", receiptNumber: "AR26/001", employee: "Anna Rossi" })).toBe("Treno Lugano-Zurigo - AR26/001 - Anna Rossi");
   });
 
   it("another currency adds `[<CUR> <approved> = CHF <CHF>]` before the name: AC-6.3's line", () => {
-    expect(describeLine({ ...base, currency: "EUR", chfAmount: "9.62" })).toBe("Cancelleria [MC26/001] [EUR 10.40 = CHF 9.62] Matteo Codogno");
-    expect(describeLine({ ...base, currency: "USD", approvedAmount: "0.00", chfAmount: "0.00" })).toBe("Cancelleria [MC26/001] [USD 0.00 = CHF 0.00] Matteo Codogno");
+    expect(describeLine({ ...base, currency: "EUR", chfAmount: "9.62" })).toBe("Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno");
+    expect(describeLine({ ...base, currency: "USD", approvedAmount: "0.00", chfAmount: "0.00" })).toBe("Cancelleria - MC26/001 - USD 0.00 = CHF 0.00 - Matteo Codogno");
   });
 
   it("the email stands in for a missing name as given, and a line break anywhere is one space (AC-6.13)", () => {
-    expect(describeLine({ ...base, employee: "bruno.verdi@welld.ch" })).toBe("Cancelleria [MC26/001] bruno.verdi@welld.ch");
-    expect(describeLine({ ...base, reason: "uno\r\ndue\ntre", employee: "Anna\nRossi" })).toBe("uno due tre [MC26/001] Anna Rossi");
+    expect(describeLine({ ...base, employee: "bruno.verdi@welld.ch" })).toBe("Cancelleria - MC26/001 - bruno.verdi@welld.ch");
+    expect(describeLine({ ...base, reason: "uno\r\ndue\ntre", employee: "Anna\nRossi" })).toBe("uno due tre - MC26/001 - Anna Rossi");
   });
 
   it("a reason or name that starts with a trigger keeps it (no leading apostrophe: the cell's quotePrefix guards it)", () => {
-    expect(describeLine({ ...base, reason: "=SUM(A1)" })).toBe("=SUM(A1) [MC26/001] Matteo Codogno");
-    expect(describeLine({ ...base, reason: "-Rimborso" })).toBe("-Rimborso [MC26/001] Matteo Codogno");
-    expect(describeLine({ ...base, reason: "@x", employee: "+41 Name" })).toBe("@x [MC26/001] +41 Name");
+    expect(describeLine({ ...base, reason: "=SUM(A1)" })).toBe("=SUM(A1) - MC26/001 - Matteo Codogno");
+    expect(describeLine({ ...base, reason: "-Rimborso" })).toBe("-Rimborso - MC26/001 - Matteo Codogno");
+    expect(describeLine({ ...base, reason: "@x", employee: "+41 Name" })).toBe("@x - MC26/001 - +41 Name");
   });
 
   it("an empty or whitespace reason leaves a clean Description", () => {
-    expect(describeLine({ ...base, reason: "" })).toBe("[MC26/001] Matteo Codogno");
-    expect(describeLine({ ...base, reason: " \n " })).toBe("[MC26/001] Matteo Codogno");
+    expect(describeLine({ ...base, reason: "" })).toBe("MC26/001 - Matteo Codogno");
+    expect(describeLine({ ...base, reason: " \n " })).toBe("MC26/001 - Matteo Codogno");
   });
 
   it("a reason of the longest size stays whole: nothing is cut", () => {
     const reason = "x".repeat(2000);
-    expect(describeLine({ ...base, reason })).toBe(`${reason} [MC26/001] Matteo Codogno`);
+    expect(describeLine({ ...base, reason })).toBe(`${reason} - MC26/001 - Matteo Codogno`);
   });
 });
 

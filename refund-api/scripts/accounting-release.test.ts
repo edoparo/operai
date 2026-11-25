@@ -799,14 +799,14 @@ describe("the name the release filled reaches the export (eval round 4, 20261118
     authNames.names.set("u1", "Marco Cattaneo");
     await run();
     const [description] = await descriptionsOfExport(r.id);
-    expect(description).toBe("m [MC26/001] Marco Cattaneo");
+    expect(description).toBe("m - MC26/001 - Marco Cattaneo");
     expect(description).not.toContain("zz.unrelated@welld.ch");
   });
 
   it("control: a request auth does not know (404) is exported with the email, as before", async () => {
     const r = await request("u2", [{ id: "l2", date: "2026-03-02" }], { name: null, email: "anna.rossi@welld.ch" });
     await run();
-    expect((await descriptionsOfExport(r.id))[0]).toBe("m [AR26/001] anna.rossi@welld.ch");
+    expect((await descriptionsOfExport(r.id))[0]).toBe("m - AR26/001 - anna.rossi@welld.ch");
   });
 
   it("auth's answer is normalised before it is stored: bidi override and zero-width characters removed, capped at 200 code points", async () => {

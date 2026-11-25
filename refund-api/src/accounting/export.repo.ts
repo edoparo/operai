@@ -57,7 +57,7 @@ import type { ExportBlockers, ExportSummary } from "./export.schemas";
 import { compareCodePoints, FORMAT_VERSION } from "./exportFormat";
 import { copyPendingRates, type PendingRateCopy } from "./rateCopy.repo";
 import { buildRegisterExtract, type RegisterExtractLine } from "./registerExtract";
-import { REGISTER_FORMAT_VERSION } from "./registerExtractFormat";
+import { defaultPeriodOf, REGISTER_FORMAT_VERSION } from "./registerExtractFormat";
 import { UNVERIFIED_SNAPSHOT } from "./referenceSnapshot";
 
 type Client = Prisma.TransactionClient;
@@ -461,6 +461,8 @@ export async function exportBatchFile(
   actor: ExportActor,
   accounting: AccountingPort = accountingPort(),
   kind: ExportFileKind = "journal",
+  /** The register extract's competence month (`YYYY-MM`); by default the month before the batch's cutoff. */
+  period?: string,
 ): Promise<ExportOutcome> {
   const first = await prepareExport(batchId, accounting);
   if (first.kind !== "ready") return first;
@@ -476,7 +478,10 @@ export async function exportBatchFile(
       const again = evaluateExport(source, first.rates, { copiesOnly: true });
       if (!again.summary.exportable) throw new ExportRefused({ kind: "blocked", summary: again.summary });
 
-      const file = kind === "register" ? buildRegisterExtract(again.lines, source.batch.cutoff) : buildAccountingFile(again.lines);
+      const file =
+        kind === "register"
+          ? buildRegisterExtract(again.lines, period ?? defaultPeriodOf(source.batch.cutoff))
+          : buildAccountingFile(again.lines);
       const sha256 = sha256Hex(file.bytes);
       await recordExport(
         {

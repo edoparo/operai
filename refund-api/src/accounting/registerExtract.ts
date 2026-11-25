@@ -18,7 +18,7 @@ import {
   formatMicros,
   HEADERS,
   NUM_FMTS,
-  periodOf,
+  periodCellOf,
   sheetNameOf,
   STYLE,
   STYLES,
@@ -55,7 +55,7 @@ const text = (value: string | null): XlsxCell =>
 const number = (value: string): XlsxCell => ({ kind: "number", value, style: STYLE.number });
 const empty: XlsxCell = { kind: "empty", style: STYLE.default };
 
-function rowOf(line: RegisterExtractLine): XlsxCell[] {
+function rowOf(line: RegisterExtractLine, period: string): XlsxCell[] {
   const isChf = line.currency === CURRENCY;
   if (!isChf && line.rateMicros === null) {
     throw new RangeError(`line ${line.lineId} in ${line.currency} has no exchange rate: the export must be blocked before this`);
@@ -85,7 +85,7 @@ function rowOf(line: RegisterExtractLine): XlsxCell[] {
 
   return [
     text(sanitizeText(employeeCell(line))),
-    number(periodOf(line.date)),
+    number(periodCellOf(period)),
     text(sanitizeText(line.receiptNumber)),
     text(expenseTypeLabelIt(line.type)),
     text(null), // From: Operai keeps no route
@@ -103,14 +103,18 @@ function rowOf(line: RegisterExtractLine): XlsxCell[] {
   ];
 }
 
-/** The register extract of the given lines: a header, then one row per line in the register's order; the header alone for none. */
-export function buildRegisterExtract(lines: readonly RegisterExtractLine[], cutoff: Date): RegisterFile {
+/**
+ * The register extract of the given lines for the competence month `period` (`YYYY-MM`): a header, then one row per line in
+ * the register's order; the header alone for none.
+ */
+export function buildRegisterExtract(lines: readonly RegisterExtractLine[], period: string): RegisterFile {
+  const sheetName = sheetNameOf(period); // refuses a period that is not YYYY-MM
   const header: XlsxCell[] = HEADERS.map((value) => ({ kind: "text", value, style: STYLE.header }));
   const rows = [...lines]
     .sort((a, b) => compareRegisterRows({ ...a, employee: employeeCell(a) }, { ...b, employee: employeeCell(b) }))
-    .map(rowOf);
+    .map((line) => rowOf(line, period));
   const bytes = writeXlsx({
-    sheetName: sheetNameOf(cutoff),
+    sheetName,
     numFmts: NUM_FMTS,
     styles: STYLES,
     columnWidths: COLUMN_WIDTHS,

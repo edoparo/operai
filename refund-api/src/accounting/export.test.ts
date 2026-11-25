@@ -129,7 +129,7 @@ describe("the golden workbook (AC-6.2)", () => {
   });
 
   it("orders the golden lines by Date, the latest first, then employee, then receipt (AC-6.16)", () => {
-    expect(dataRows(readWorkbook(golden)).map((row) => (row[1] as string).match(/\[([A-Z]{2}\d{2}\/\d{3})\]/)![1])).toEqual([
+    expect(dataRows(readWorkbook(golden)).map((row) => (row[1] as string).split(" - ").find((part) => /^[A-Z]{2}\d{2}\/\d{3}$/.test(part))!)).toEqual([
       "MC27/001",
       "BV26/001",
       "MC26/005",
@@ -147,10 +147,10 @@ describe("the golden workbook (AC-6.2)", () => {
 
 describe("the figures named by the spec (AC-6.3, AC-6.12, AC-6.13, AC-6.17)", () => {
   const rows = dataRows(readWorkbook(golden));
-  const byReceipt = (receipt: string) => rows.find((row) => (row[1] as string).includes(`[${receipt}]`))!;
+  const byReceipt = (receipt: string) => rows.find((row) => (row[1] as string).split(" - ").includes(receipt))!;
 
   it("AC-6.3: 10.40 EUR dated 2026-03-02 at 0.9246 is an Amount of 9.62, in CHF, with the original in the Description", () => {
-    expect(byReceipt("MC26/001")).toEqual([{ n: "46083" }, "Cancelleria [MC26/001] [EUR 10.40 = CHF 9.62] Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "9.62" }, "CHF", null, null]);
+    expect(byReceipt("MC26/001")).toEqual([{ n: "46083" }, "Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "9.62" }, "CHF", null, null]);
   });
 
   it("AC-6.12: a line approved at 0 is present, with an Amount of 0.00 (not 0, not empty)", () => {
@@ -158,11 +158,11 @@ describe("the figures named by the spec (AC-6.3, AC-6.12, AC-6.13, AC-6.17)", ()
   });
 
   it("AC-6.13: a CHF line has no currency and no second amount; the email stands in for a missing name", () => {
-    expect(byReceipt("AR26/001")![1]).toBe("Treno Lugano-Zurigo [AR26/001] Anna Rossi");
-    expect(byReceipt("BV26/001")![1]).toBe("-Rimborso parcheggio [BV26/001] bruno.verdi@welld.ch");
+    expect(byReceipt("AR26/001")![1]).toBe("Treno Lugano-Zurigo - AR26/001 - Anna Rossi");
+    expect(byReceipt("BV26/001")![1]).toBe("-Rimborso parcheggio - BV26/001 - bruno.verdi@welld.ch");
     expect(descriptions([line({ ownerName: "" }), line({ ownerName: "   ", lineId: "b" })])).toEqual([
-      "Cancelleria [MC26/001] matteo.codogno@welld.ch",
-      "Cancelleria [MC26/001] matteo.codogno@welld.ch",
+      "Cancelleria - MC26/001 - matteo.codogno@welld.ch",
+      "Cancelleria - MC26/001 - matteo.codogno@welld.ch",
     ]);
     expect(employeeCell(line({ ownerName: null }))).toBe("matteo.codogno@welld.ch");
   });
@@ -260,7 +260,7 @@ describe("the order of the rows (AC-6.16, SO-11)", () => {
       line({ lineId: "e", ownerUserId: "u-e", ownerName: "Zoe", receiptNumber: "NEW/001", date: "2026-03-03" }),
     ];
     // The latest date first; on the same date: uppercase before lowercase, the BMP character before the astral one.
-    expect(descriptions(lines).map((d) => d.match(/\[(.*?)\]/)![1])).toEqual(["NEW/001", "ZZ26/001", "AA26/001", "T26/001", "E26/001"]);
+    expect(descriptions(lines).map((d) => d.split(" - ")[1])).toEqual(["NEW/001", "ZZ26/001", "AA26/001", "T26/001", "E26/001"]);
   });
 
   it("breaks a tie on the employee by ownerUserId, then year, then sequence (9 before 10), then line id", () => {
@@ -271,7 +271,7 @@ describe("the order of the rows (AC-6.16, SO-11)", () => {
       line({ lineId: "w", ownerUserId: "u-1", receiptYear: 2026, receiptSeq: 9, receiptNumber: "MC26/009" }),
       line({ lineId: "v", ownerUserId: "u-1", receiptYear: 2026, receiptSeq: 9, receiptNumber: "MC26/009-b" }),
     ];
-    expect(descriptions(lines).map((d) => d.match(/\[(.*?)\]/)![1])).toEqual(["MC26/009-b", "MC26/009", "MC26/010", "MC27/001", "MC26/001#u2"]);
+    expect(descriptions(lines).map((d) => d.split(" - ")[1])).toEqual(["MC26/009-b", "MC26/009", "MC26/010", "MC27/001", "MC26/001#u2"]);
     expect([...lines].sort(compareExportLines).map((l) => l.lineId)).toEqual(["v", "w", "x", "y", "z"]);
   });
 
@@ -281,7 +281,7 @@ describe("the order of the rows (AC-6.16, SO-11)", () => {
       line({ lineId: "m", ownerUserId: "u-2", ownerName: null, ownerEmail: "alpha@welld.ch", receiptNumber: "M26/001" }),
     ];
     // "Matteo Codogno" sorts before "alpha@welld.ch" (uppercase before lowercase).
-    expect(descriptions(lines).map((d) => d.match(/\[(.*?)\]/)![1])).toEqual(["N26/001", "M26/001"]);
+    expect(descriptions(lines).map((d) => d.split(" - ")[1])).toEqual(["N26/001", "M26/001"]);
   });
 });
 
@@ -290,33 +290,33 @@ describe("text from a person: exactly as written, in one cell, never a formula (
 
   it("a reason or a name that starts with = + - or @ is in its cell as text, exactly as written, with no leading apostrophe", () => {
     for (const motivo of ["=SUM(A1)", "+41 79 000 00 00", "-Rimborso", "@SUM(1)", '=HYPERLINK("http://example.test")', "=1+1"]) {
-      expect(description({ motivo })).toBe(`${motivo} [MC26/001] Matteo Codogno`);
+      expect(description({ motivo })).toBe(`${motivo} - MC26/001 - Matteo Codogno`);
     }
-    expect(description({ ownerName: "=cmd|' /C calc'!A0" })).toBe("Cancelleria [MC26/001] =cmd|' /C calc'!A0");
-    expect(description({ ownerName: null, ownerEmail: "-x@welld.ch" })).toBe("Cancelleria [MC26/001] -x@welld.ch");
+    expect(description({ ownerName: "=cmd|' /C calc'!A0" })).toBe("Cancelleria - MC26/001 - =cmd|' /C calc'!A0");
+    expect(description({ ownerName: null, ownerEmail: "-x@welld.ch" })).toBe("Cancelleria - MC26/001 - -x@welld.ch");
     const cell = read([line({ motivo: "=SUM(A1)" })]).rows[1]![1]!;
     expect([cell.type, cell.style.numFmtId, cell.style.quotePrefix]).toEqual(["string", 49, true]);
   });
 
   it("markup characters and quotes are in the cell as typed, and the XML stays well formed", () => {
     const motivo = `a & b < c > d "e" 'f' </t></si>]]><f>1</f> &amp; &#60;`;
-    expect(description({ motivo })).toBe(`${motivo} [MC26/001] Matteo Codogno`);
+    expect(description({ motivo })).toBe(`${motivo} - MC26/001 - Matteo Codogno`);
     const book = read([line({ motivo }), line({ lineId: "n", ownerName: `<b>"Anna" & 'co'</b>` })]); // parses strictly
     expect(book.rows).toHaveLength(3);
     expect(book.rows.every((row) => row.length === 8)).toBe(true);
   });
 
   it("a line break or any control character is one space: a Description is one line (AC-6.13)", () => {
-    expect(description({ motivo: "uno\ndue\r\ntre\rquattro" })).toBe("uno due tre quattro [MC26/001] Matteo Codogno");
-    expect(description({ motivo: "a\tb\u0000c\u001bd\u007fe\u0085f\u009fg h i" })).toBe("a b c d e f g h i [MC26/001] Matteo Codogno");
-    expect(description({ ownerName: "Anna\nRossi" })).toBe("Cancelleria [MC26/001] Anna Rossi");
-    expect(description({ motivo: "\n\n  a  \n  b  \n\n" })).toBe("a b [MC26/001] Matteo Codogno");
+    expect(description({ motivo: "uno\ndue\r\ntre\rquattro" })).toBe("uno due tre quattro - MC26/001 - Matteo Codogno");
+    expect(description({ motivo: "a\tb\u0000c\u001bd\u007fe\u0085f\u009fg h i" })).toBe("a b c d e f g h i - MC26/001 - Matteo Codogno");
+    expect(description({ ownerName: "Anna\nRossi" })).toBe("Cancelleria - MC26/001 - Anna Rossi");
+    expect(description({ motivo: "\n\n  a  \n  b  \n\n" })).toBe("a b - MC26/001 - Matteo Codogno");
   });
 
   it("what XML 1.0 cannot carry becomes U+FFFD, and a valid astral character is kept", () => {
-    expect(description({ motivo: "a\ud800b" })).toBe("a�b [MC26/001] Matteo Codogno");
-    expect(description({ motivo: "a￾￿b" })).toBe("a��b [MC26/001] Matteo Codogno");
-    expect(description({ motivo: "Caffè \u{1F600} 中文" })).toBe("Caffè \u{1F600} 中文 [MC26/001] Matteo Codogno");
+    expect(description({ motivo: "a\ud800b" })).toBe("a�b - MC26/001 - Matteo Codogno");
+    expect(description({ motivo: "a￾￿b" })).toBe("a��b - MC26/001 - Matteo Codogno");
+    expect(description({ motivo: "Caffè \u{1F600} 中文" })).toBe("Caffè \u{1F600} 中文 - MC26/001 - Matteo Codogno");
   });
 
   it("a hostile text adds, merges or splits no row or column: 8 cells in each row, one row per line", () => {
@@ -330,7 +330,7 @@ describe("text from a person: exactly as written, in one cell, never a formula (
 
   it("a reason of 2000 characters is whole in its cell (the longest the API accepts)", () => {
     const motivo = "x".repeat(2000);
-    expect(description({ motivo })).toBe(`${motivo} [MC26/001] Matteo Codogno`);
+    expect(description({ motivo })).toBe(`${motivo} - MC26/001 - Matteo Codogno`);
   });
 
   it("the Debit text cell is sanitised like any text and cannot carry markup either", () => {
@@ -463,7 +463,7 @@ describe("evaluateExport: the rows come from the copies (AC-5.3, AC-5.4, AC-5.5)
     const withoutVat = evaluateExport(sourceOf(sourceRow({ id: "same", vatCodeCopy: null, vatRateBasisPoints: null })), { kind: "none" }).lines;
     const cellsOf = (lines: typeof withVat) => cellValues(readWorkbook(buildAccountingFile(lines.map((l) => ({ ...l, receiptNumber: "X26/001" }))).bytes).rows[1]!);
     expect(cellsOf(withoutVat)).toEqual(cellsOf(withVat));
-    expect(cellsOf(withoutVat)).toEqual([{ n: "46083" }, "Cancelleria [X26/001] Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "10.40" }, "CHF", null, null]);
+    expect(cellsOf(withoutVat)).toEqual([{ n: "46083" }, "Cancelleria - X26/001 - Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "10.40" }, "CHF", null, null]);
   });
 
   it("a line with no receipt number is an unnumbered blocker", () => {

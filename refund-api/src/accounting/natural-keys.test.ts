@@ -420,7 +420,7 @@ describe("what was booked does not move when Accounting enters its data again (A
     // The copied rate, not the corrected one (AC-5.5): 10.40 EUR at 0.9246 is 9.62 CHF (at 0.9300 it would be 9.67).
     const rows = readWorkbook(fileAfter.bytes).rows.map(cellValues);
     expect(rows.slice(1).map((row) => row[4])).toEqual([{ n: "9.62" }, { n: "10.40" }]); // the EUR line (2026-03-03), then the CHF one
-    expect(rows.some((row) => String(row[1]).includes("[EUR 10.40 = CHF 9.62]"))).toBe(true);
+    expect(rows.some((row) => String(row[1]).includes(" - EUR 10.40 = CHF 9.62 - "))).toBe(true);
     expect(rows.some((row) => String(row[1]).includes("9.67"))).toBe(false);
 
     // AC-4.7: the history reads the same whatever happened in Accounting.

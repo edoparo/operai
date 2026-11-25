@@ -406,7 +406,7 @@ describe("Accounting that does not answer cannot hold the export (AC-6.8, D3), t
     const csv = await call(okRouter, `/batches/${okBatch}/accounting-export/file`);
     expect(csv.status).toBe(200);
     const rows = readWorkbook(new Uint8Array(await csv.arrayBuffer())).rows.map(cellValues);
-    expect(rows[1]![1]).toContain("[EUR 20.80 = CHF 19.23]");
+    expect(rows[1]![1]).toContain(" - EUR 20.80 = CHF 19.23 - ");
     expect(rows[1]![4]).toEqual({ n: "19.23" });
   });
 

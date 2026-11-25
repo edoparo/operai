@@ -518,6 +518,8 @@ WellD CH expense, so that I can import it into the accounting system instead of 
   space and the ends are trimmed, so a Description is always a single line without double
   spaces. The order and separators of the elements are final: accounting accepted the pattern and
   imported the workbook into Accrio on 2026-11-20 (20261119 T80).
+  **Amended 2026-11-25 at the accountant's request (no square brackets; `FORMAT_VERSION` 3):** the parts are joined by
+  ` - `, `<reason> - <receipt number> - <name>` and `<reason> - <receipt number> - EUR 10.40 = CHF 9.62 - <name>`.
 - AC-6.14 *(adjusted 2026-11-19: confirmed by the sample file, no longer provisional; Note added)*:
   Given an export, then the Tax column and the Note column are present, in the positions of
   AC-6.2, and empty on every row, so that the file lines up with what the accounting system

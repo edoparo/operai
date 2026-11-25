@@ -32,7 +32,7 @@
  *   20261119:
  *   AC-5.3   the file does not move when Accounting deactivates, renames or re-rates after the copy
  *   AC-5.4   all copies held: 0 fake calls, also while Accounting is unreachable; two exports are identical
- *   AC-5.5   copied at 0.9246, Accounting now at 0.9300: `[EUR 10.40 = CHF 9.62]`, an Amount of 9.62
+ *   AC-5.5   copied at 0.9246, Accounting now at 0.9300: `EUR 10.40 = CHF 9.62`, an Amount of 9.62
  *   AC-5.6   a pending rate is copied inside the export (audited with the exporter); a refused export copies nothing;
  *            concurrent exports copy once
  *   AC-6.6   a pending line and Accounting unreachable: `accountingUnavailable`, no missing rate, no log row
@@ -429,8 +429,8 @@ describe("the file (AC-6.1, AC-6.2, AC-6.3, AC-6.4, AC-6.12, AC-4.6)", () => {
     expect(rows).toHaveLength(1 + 2);
     const date = { n: serialOf("2026-03-02") };
     // The same date and employee: by receipt sequence. Debit is the line's account, Credit 5832, Amount the CHF amount.
-    expect(rows[1]).toEqual([date, "Cancelleria [MC26/001] Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "20.80" }, "CHF", null, null]);
-    expect(rows[2]).toEqual([date, "Visita cliente [MC26/002] Matteo Codogno", { n: "5905" }, { n: "5832" }, { n: "84.00" }, "CHF", null, null]);
+    expect(rows[1]).toEqual([date, "Cancelleria - MC26/001 - Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "20.80" }, "CHF", null, null]);
+    expect(rows[2]).toEqual([date, "Visita cliente - MC26/002 - Matteo Codogno", { n: "5905" }, { n: "5832" }, { n: "84.00" }, "CHF", null, null]);
     expect(lineIds).toHaveLength(4);
   });
 
@@ -448,7 +448,7 @@ describe("the file (AC-6.1, AC-6.2, AC-6.3, AC-6.4, AC-6.12, AC-4.6)", () => {
     const out = await fileOf(batchId);
     expect(out.status).toBe(200);
     const row = dataRows(out)[0]!;
-    expect(row).toEqual([{ n: serialOf("2026-03-02") }, "Cancelleria [MC26/001] [EUR 10.40 = CHF 9.62] Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "9.62" }, "CHF", null, null]);
+    expect(row).toEqual([{ n: serialOf("2026-03-02") }, "Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "9.62" }, "CHF", null, null]);
     // The copy is held: Accounting was not asked at all.
     expect(fake.reads.total).toBe(0);
   });
@@ -466,9 +466,9 @@ describe("the file (AC-6.1, AC-6.2, AC-6.3, AC-6.4, AC-6.12, AC-4.6)", () => {
     const rows = dataRows(await fileOf(batchId));
     // Latest date first; each Amount is the line's own copy of the rate of the month of its date.
     expect(rows.map((r) => [(r[0] as { n: string }).n, descriptionOf(r), amountOf(r)])).toEqual([
-      [serialOf("2026-03-31"), "Cancelleria [MC26/003] [USD 10.00 = CHF 7.81] Matteo Codogno", "7.81"],
-      [serialOf("2026-03-01"), "Cancelleria [MC26/002] [EUR 10.00 = CHF 9.25] Matteo Codogno", "9.25"],
-      [serialOf("2026-02-28"), "Cancelleria [MC26/001] [EUR 10.00 = CHF 9.00] Matteo Codogno", "9.00"],
+      [serialOf("2026-03-31"), "Cancelleria - MC26/003 - USD 10.00 = CHF 7.81 - Matteo Codogno", "7.81"],
+      [serialOf("2026-03-01"), "Cancelleria - MC26/002 - EUR 10.00 = CHF 9.25 - Matteo Codogno", "9.25"],
+      [serialOf("2026-02-28"), "Cancelleria - MC26/001 - EUR 10.00 = CHF 9.00 - Matteo Codogno", "9.00"],
     ]);
   });
 
@@ -500,15 +500,15 @@ describe("the file (AC-6.1, AC-6.2, AC-6.3, AC-6.4, AC-6.12, AC-4.6)", () => {
     ]);
     const rows = dataRows(await fileOf(batchId));
     expect(rows.map(descriptionOf)).toEqual([
-      "Cancelleria [AR26/001] Anna Rossi",
-      "Cancelleria [MC26/001] Marco Cattaneo",
-      "Cancelleria [MC26/001] Matteo Codogno",
+      "Cancelleria - AR26/001 - Anna Rossi",
+      "Cancelleria - MC26/001 - Marco Cattaneo",
+      "Cancelleria - MC26/001 - Matteo Codogno",
     ]);
   });
 
   it("an account with no name falls back to its email in the Description", async () => {
     const { batchId } = await createBatch([{ owner: { ...MATTEO, name: null }, lines: [{}] }]);
-    expect(descriptionOf(dataRows(await fileOf(batchId))[0]!)).toBe("Cancelleria [MC26/001] matteo.codogno@welld.ch");
+    expect(descriptionOf(dataRows(await fileOf(batchId))[0]!)).toBe("Cancelleria - MC26/001 - matteo.codogno@welld.ch");
   });
 
   it("answers with the download headers: type, attachment filename without personal data, row and left-out counts", async () => {
@@ -739,7 +739,7 @@ describe("blockers (AC-6.5, AC-7.2, G10, G11)", () => {
     expect((await summaryOf(batchId)).body).toMatchObject({ exportable: true, rowCount: 1 });
     const out = await fileOf(batchId);
     expect(out.status).toBe(200);
-    expect(dataRows(out)).toEqual([[{ n: serialOf("2026-03-02") }, "Cancelleria [MC26/001] Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "20.80" }, "CHF", null, null]]);
+    expect(dataRows(out)).toEqual([[{ n: serialOf("2026-03-02") }, "Cancelleria - MC26/001 - Matteo Codogno", { n: "6101" }, { n: "5832" }, { n: "20.80" }, "CHF", null, null]]);
   });
 
   it("(AC-5.3) a stored account or VAT code that was deactivated since, or renamed, or gone, is kept: the line still exports as copied", async () => {
@@ -820,7 +820,7 @@ describe("the file is built from copies; Accounting is asked only for a pending 
     const out = await fileOf(batchId);
     expect(out.status).toBe(200);
     const row = dataRows(out)[0]!;
-    expect([descriptionOf(row), amountOf(row)]).toEqual(["Cancelleria [MC26/001] [EUR 10.40 = CHF 9.62] Matteo Codogno", "9.62"]);
+    expect([descriptionOf(row), amountOf(row)]).toEqual(["Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno", "9.62"]);
     expect(descriptionOf(row)).not.toMatch(/9\.67|0\.93/); // 10.40 at Accounting's 0.9300 would be 9.67
   });
 
@@ -831,8 +831,8 @@ describe("the file is built from copies; Accounting is asked only for a pending 
     const rows = dataRows(await fileOf(batchId));
     // Latest date first.
     expect(rows.map((r) => [descriptionOf(r), amountOf(r)])).toEqual([
-      ["Cancelleria [MC26/002] [EUR 10.40 = CHF 9.88] Matteo Codogno", "9.88"],
-      ["Cancelleria [MC26/001] [EUR 10.40 = CHF 9.62] Matteo Codogno", "9.62"],
+      ["Cancelleria - MC26/002 - EUR 10.40 = CHF 9.88 - Matteo Codogno", "9.88"],
+      ["Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno", "9.62"],
     ]);
   });
 });
@@ -860,7 +860,7 @@ describe("a pending rate is copied by the first export that succeeds (AC-5.6, D1
     const before = Date.now();
     const out = await fileOf(batchId, exportRouter, "acct-7");
     expect(out.status).toBe(200);
-    expect(descriptionOf(dataRows(out)[0]!)).toBe("Cancelleria [MC26/001] [EUR 10.40 = CHF 9.62] Matteo Codogno");
+    expect(descriptionOf(dataRows(out)[0]!)).toBe("Cancelleria - MC26/001 - EUR 10.40 = CHF 9.62 - Matteo Codogno");
 
     const line = await lineRow(lineIds[0]!);
     expect(line.fxRateMicros).toBe(924_600);
@@ -973,7 +973,7 @@ describe("a pending rate is copied by the first export that succeeds (AC-5.6, D1
     });
     const out = await fileOf(batchId);
     expect(out.status).toBe(200);
-    expect(descriptionOf(dataRows(out)[0]!)).toBe("Cancelleria [MC26/001] [EUR 10.40 = CHF 9.46] Matteo Codogno");
+    expect(descriptionOf(dataRows(out)[0]!)).toBe("Cancelleria - MC26/001 - EUR 10.40 = CHF 9.46 - Matteo Codogno");
     expect((await lineRow(lineIds[0]!)).fxRateMicros).toBe(910_000);
     expect(await copiedAudit()).toHaveLength(0);
   });
@@ -1068,7 +1068,7 @@ describe("Accounting cannot be read while a line waits for its rate (AC-6.6, AC-
     fake.failWith(null).setRate("EUR", "2026-03", 924_600);
     const out = await fileOf(batchId);
     expect(out.status).toBe(200);
-    expect(descriptionOf(dataRows(out)[0]!)).toContain("[EUR 10.40 = CHF 9.62]");
+    expect(descriptionOf(dataRows(out)[0]!)).toContain(" - EUR 10.40 = CHF 9.62 - ");
     expect(await exportLog()).toHaveLength(1);
   });
 
@@ -1157,7 +1157,7 @@ describe("the same batch twice (AC-6.8)", () => {
     expect(c.status).toBe(200);
     expect(Buffer.from(c.bytes).equals(Buffer.from(a.bytes))).toBe(true);
     expect((await exportLog()).map((row) => row.contentSha256)).toEqual([sha256Hex(a.bytes), sha256Hex(a.bytes), sha256Hex(a.bytes)]);
-    expect(dataRows(c).map(descriptionOf)).toContain("Cancelleria [MC26/002] [EUR 10.40 = CHF 9.62] Matteo Codogno");
+    expect(dataRows(c).map(descriptionOf)).toContain("Cancelleria - MC26/002 - EUR 10.40 = CHF 9.62 - Matteo Codogno");
   });
 
   it("a change of a line's classification changes the file", async () => {
@@ -1267,7 +1267,7 @@ describe("the golden file, through the route and the database (AC-7.2, AC-6.2)",
     expect(sameBytes(out.bytes, golden)).toBe(true);
     expect(fake.calls).toHaveLength(0);
     // The log holds the hash of exactly these bytes and the format version of the workbook.
-    expect((await exportLog()).map((row) => [row.contentSha256, row.formatVersion, row.rowCount])).toEqual([[sha256Hex(golden), 2, input.lines.length]]);
+    expect((await exportLog()).map((row) => [row.contentSha256, row.formatVersion, row.rowCount])).toEqual([[sha256Hex(golden), FORMAT_VERSION, input.lines.length]]);
   });
 });
 
@@ -1343,8 +1343,8 @@ describe("the export log (AC-6.10)", () => {
 // ─── The register extract (the accountant's register layout) ─────────────────
 
 describe("GET /batches/:id/accounting-export/register-file", () => {
-  const registerOf = async (batchId: string, sub?: string) => {
-    const res = await call(exportRouter, `/batches/${batchId}/accounting-export/register-file`, {}, sub);
+  const registerOf = async (batchId: string, sub?: string, query = "") => {
+    const res = await call(exportRouter, `/batches/${batchId}/accounting-export/register-file${query}`, {}, sub);
     const bytes = new Uint8Array(await res.arrayBuffer());
     return { res, status: res.status, bytes, text: new TextDecoder().decode(bytes) };
   };
@@ -1368,16 +1368,30 @@ describe("GET /batches/:id/accounting-export/register-file", () => {
     expect(book.sheetNames).toEqual(["2026"]);
     const rows = book.rows.map(cellValues);
     expect(rows[0]![0]).toBe("Worker");
-    // Period 3 for both; Anna before Matteo.
+    // The batch is cut on 31 March (Zurich): its competence month is February, on every row. Anna before Matteo.
     expect(rows.slice(1).map((row) => [row[0], row[1], row[3], row[8], row[9], row[10], row[15]])).toEqual([
-      ["Anna Rossi", { n: "3" }, "Spese di viaggio (km)", { n: "40" }, null, { n: "28.00" }, "acct-1@welld.ch"],
-      ["Matteo Codogno", { n: "3" }, "Spese materiale ufficio", null, null, { n: "20.80" }, "Luca B."],
+      ["Anna Rossi", { n: "2" }, "Spese di viaggio (km)", { n: "40" }, null, { n: "28.00" }, "acct-1@welld.ch"],
+      ["Matteo Codogno", { n: "2" }, "Spese materiale ufficio", null, null, { n: "20.80" }, "Luca B."],
     ]);
 
     const log = await exportLog();
     expect(log.map((row) => [row.kind, row.formatVersion, row.rowCount, row.contentSha256])).toEqual([
-      ["register", 1, 2, sha256Hex(out.bytes)],
+      ["register", 2, 2, sha256Hex(out.bytes)],
     ]);
+  });
+
+  it("takes the competence month the accountant names, and refuses one that is not YYYY-MM", async () => {
+    const { batchId } = await createBatch([{ lines: [{ date: "2026-01-15" }, { date: "2026-03-02" }] }]);
+    const out = await registerOf(batchId, undefined, "?period=2026-03");
+    expect(out.status).toBe(200);
+    const book = readWorkbook(out.bytes);
+    expect(book.sheetNames).toEqual(["2026"]);
+    expect(book.rows.slice(1).map((row) => cellValues(row)[1])).toEqual([{ n: "3" }, { n: "3" }]);
+
+    const bad = await registerOf(batchId, undefined, "?period=2026-3");
+    expect(bad.status).toBe(422);
+    expect(JSON.parse(bad.text)).toMatchObject({ code: "invalid_export_request" });
+    expect(await exportLog()).toHaveLength(1);
   });
 
   it("the journal download is still logged as a journal", async () => {

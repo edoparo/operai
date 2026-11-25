@@ -897,6 +897,8 @@ const en = {
         descriptionRegister:
           'The register extract has the same rows in the columns of the accounting register (worker, period, number, … approved by), ready to paste.',
         downloadRegister: 'Download register extract',
+        periodLabel: 'Competence month',
+        periodHint: 'The register extract’s Period column: the month being booked.',
         registerDownloaded: (n: number) => `Register extract downloaded: ${n} rows`,
         downloading: 'Preparing file…',
         downloadLabel: (batchId: string) => `Download the accounting export of batch ${batchId}`,
@@ -1856,6 +1858,8 @@ const it: Strings = {
         descriptionRegister:
           'L’estratto per il registro ha le stesse righe nelle colonne del registro contabile (dipendente, periodo, numero, … approvato da), pronte da incollare.',
         downloadRegister: 'Scarica estratto per il registro',
+        periodLabel: 'Mese di competenza',
+        periodHint: 'La colonna Period dell’estratto per il registro: il mese che si sta registrando.',
         registerDownloaded: (n: number) => `Estratto per il registro scaricato: ${n} righe`,
         downloading: 'Preparazione del file…',
         downloadLabel: (batchId: string) => `Scarica l’esportazione contabile del lotto ${batchId}`,

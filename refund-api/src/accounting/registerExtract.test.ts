@@ -7,15 +7,18 @@ import { describe, expect, it } from "bun:test";
 import { buildRegisterExtract, type RegisterExtractLine } from "./registerExtract";
 import {
   approverCell,
+  defaultPeriodOf,
   formatMicros,
   HEADERS,
-  periodOf,
+  periodCellOf,
   registerFilename,
   sheetNameOf,
 } from "./registerExtractFormat";
 import { cellValues, readWorkbook } from "../test-support/xlsxReader";
 
-const CUTOFF = new Date("2026-10-31T22:59:59.000Z");
+const CUTOFF = new Date("2026-11-14T10:00:00.000Z");
+/** The competence month: October, while the expenses below are of September and October. */
+const PERIOD = "2026-10";
 
 const line = (over: Partial<RegisterExtractLine> = {}): RegisterExtractLine => ({
   lineId: "l1",
@@ -42,11 +45,11 @@ const line = (over: Partial<RegisterExtractLine> = {}): RegisterExtractLine => (
   ...over,
 });
 
-const rowsOf = (lines: RegisterExtractLine[]) => readWorkbook(buildRegisterExtract(lines, CUTOFF).bytes).rows.map(cellValues);
+const rowsOf = (lines: RegisterExtractLine[]) => readWorkbook(buildRegisterExtract(lines, PERIOD).bytes).rows.map(cellValues);
 
 describe("register extract: layout", () => {
   it("one sheet named after the batch's year, the register's sixteen headers in its order", () => {
-    const book = readWorkbook(buildRegisterExtract([], CUTOFF).bytes);
+    const book = readWorkbook(buildRegisterExtract([], PERIOD).bytes);
     expect(book.sheetNames).toEqual(["2026"]);
     expect(book.rows.map(cellValues)).toEqual([[...HEADERS]]);
     expect(HEADERS).toHaveLength(16);
@@ -101,14 +104,14 @@ describe("register extract: layout", () => {
   });
 
   it("no cell is a formula, and a reason that looks like one stays text", () => {
-    const bytes = buildRegisterExtract([line({ motivo: "=HYPERLINK(\"x\")" })], CUTOFF).bytes;
+    const bytes = buildRegisterExtract([line({ motivo: "=HYPERLINK(\"x\")" })], PERIOD).bytes;
     const book = readWorkbook(bytes);
     expect(Object.values(book.parts).some((xml) => xml.includes("<f>") || xml.includes("<f "))).toBe(false);
     expect(book.rows[1]![6]).toMatchObject({ type: "string", value: "=HYPERLINK(\"x\")", style: { quotePrefix: true } });
   });
 
   it("the header is a frozen, bold, grey band and the dates and totals carry the register's formats", () => {
-    const book = readWorkbook(buildRegisterExtract([line()], CUTOFF).bytes);
+    const book = readWorkbook(buildRegisterExtract([line()], PERIOD).bytes);
     expect(book.parts["xl/worksheets/sheet1.xml"]).toContain('<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>');
     expect(book.parts["xl/styles.xml"]).toContain('<fgColor rgb="FFC0C0C0"/>');
     expect(book.rows[0]![0]!.style.bold).toBe(true);
@@ -125,18 +128,28 @@ describe("register extract: order and determinism", () => {
     line({ lineId: "d", date: "2026-09-30", ownerName: "Bruno Verdi", ownerUserId: "u-b", receiptNumber: "BVE26/000", receiptSeq: 0 }),
   ];
 
-  it("by period, then worker, then receipt number", () => {
-    expect(rowsOf(lines).slice(1).map((row) => row[2])).toEqual(["BVE26/000", "ARO26/005", "ARO26/006", "BVE26/001"]);
+  it("by worker, then receipt number; every row carries the competence month, whatever the expense month", () => {
+    const rows = rowsOf(lines).slice(1);
+    expect(rows.map((row) => row[2])).toEqual(["ARO26/005", "ARO26/006", "BVE26/000", "BVE26/001"]);
+    expect(rows.map((row) => row[1])).toEqual([{ n: "10" }, { n: "10" }, { n: "10" }, { n: "10" }]);
+    expect(rows.map((row) => row[7])).toEqual([{ n: "46298" }, { n: "46315" }, { n: "46295" }, { n: "46297" }]);
+  });
+
+  it("another competence month names the sheet and fills Period", () => {
+    const book = readWorkbook(buildRegisterExtract(lines, "2027-01").bytes);
+    expect(book.sheetNames).toEqual(["2027"]);
+    expect(book.rows.slice(1).map((row) => cellValues(row)[1])).toEqual([{ n: "1" }, { n: "1" }, { n: "1" }, { n: "1" }]);
+    expect(() => buildRegisterExtract(lines, "2026-13")).toThrow(RangeError);
   });
 
   it("the same lines in any order give the same bytes", () => {
-    const a = buildRegisterExtract(lines, CUTOFF).bytes;
-    const b = buildRegisterExtract([...lines].reverse(), CUTOFF).bytes;
+    const a = buildRegisterExtract(lines, PERIOD).bytes;
+    const b = buildRegisterExtract([...lines].reverse(), PERIOD).bytes;
     expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true);
   });
 
   it("a foreign line without a rate is refused: the export is blocked before a file is asked for", () => {
-    expect(() => buildRegisterExtract([line({ currency: "EUR", rateMicros: null })], CUTOFF)).toThrow(RangeError);
+    expect(() => buildRegisterExtract([line({ currency: "EUR", rateMicros: null })], PERIOD)).toThrow(RangeError);
   });
 });
 
@@ -152,12 +165,20 @@ describe("register extract: cells", () => {
   it("exact decimals from micros, and the period of a date", () => {
     expect([formatMicros(924_600), formatMicros(700_000), formatMicros(1_000_000), formatMicros(0)]).toEqual(["0.9246", "0.7", "1", "0"]);
     expect(() => formatMicros(-1)).toThrow(RangeError);
-    expect([periodOf("2026-01-31"), periodOf("2026-12-01")]).toEqual(["1", "12"]);
-    expect(() => periodOf("2026-13-01")).toThrow(RangeError);
+    expect([periodCellOf("2026-01"), periodCellOf("2026-12")]).toEqual(["1", "12"]);
+    expect(() => periodCellOf("2026-1")).toThrow(RangeError);
   });
 
   it("sheet name and filename carry no personal data", () => {
-    expect(sheetNameOf(CUTOFF)).toBe("2026");
-    expect(registerFilename(CUTOFF, "b/1")).toBe("refund-register-2026-10-31-b_1.xlsx");
+    expect(sheetNameOf(PERIOD)).toBe("2026");
+    expect(registerFilename(CUTOFF, "b/1")).toBe("refund-register-2026-11-14-b_1.xlsx");
+  });
+
+  it("the default competence month is the month before the cutoff, in Zurich time", () => {
+    expect(defaultPeriodOf(CUTOFF)).toBe("2026-10");
+    expect(defaultPeriodOf(new Date("2027-01-03T08:00:00Z"))).toBe("2026-12");
+    // 23:30 UTC on 31 October is already 1 November in Zurich (UTC+1): the batch is October's.
+    expect(defaultPeriodOf(new Date("2026-10-31T23:30:00Z"))).toBe("2026-10");
+    expect(defaultPeriodOf(new Date("2026-10-31T22:30:00Z"))).toBe("2026-09");
   });
 });
