@@ -1,6 +1,7 @@
 ---
 spec: 20260709
 generated: 2026-07-09
+synced: 2026-11-25
 ---
 
 # Tasks: Operai suite shell (Module Federation)
@@ -89,3 +90,9 @@ they converge at the e2e gate (T16). Deploy/security/regression/close follow.
 - [x] T20: Close the feature — all gates green (QE PASS + fresh `eval-report.md` + owasp), then `/wellforge:done` flips spec status → done — refs: — (process) — deps: T16, T17, T18, T19
   - touch: `specs/20260709-suite-shell/` status
   - done when: `/wellforge:done` verifies the production done-gate and sets `status: done`
+
+## Amendment 2026-11-25 — sidebar order and pins (AC-3.5)
+
+- [x] T21: Sidebar main list in alphabetical order with pinned tools first (`hooks/sidebarPinned.ts`, localStorage `operai_sidebar_pinned`, unknown ids ignored), a pin button per row (sibling of the link, `aria-pressed`, Tab from its row), `pin` icon in `@operai/ui`, strings en/it — refs: AC-3.5 — deps: none
+  - touch: `shell/src/components/Sidebar.tsx`, `shell/src/hooks/sidebarPinned.ts`, `shell/src/strings.ts`, `shell/src/components/Sidebar.test.tsx`, `shell/src/router.accounting.test.tsx`, `operai-ui/src/components/Icon.tsx`
+  - done when: `cd shell && pnpm lint && pnpm build && pnpm test` pass (the refund-ui build integration test needs refund-ui installed locally); operai-ui tests pass

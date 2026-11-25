@@ -58,6 +58,7 @@ import { Icon } from '@operai/ui'
 import { SETTINGS_TOOL_IDS, TOOLS, type SuiteTool, type ToolId } from '../lib/tools'
 import { useSidebarCollapsed } from '../hooks/sidebarCollapsed'
 import { readSettingsOpen, writeSettingsOpen } from '../hooks/sidebarSettingsOpen'
+import { orderTools, readPinnedTools, writePinnedTools } from '../hooks/sidebarPinned'
 import { usePermissions } from '../lib/session'
 import { strings } from '../strings'
 
@@ -115,7 +116,21 @@ export default function Sidebar() {
   // of the scrollable workflow-tool list — it's an admin-only affordance, not a
   // day-to-day tool. The roving-tabindex arrow-key group covers only the main
   // tools; Admin is a standalone tab stop like the collapse toggle beneath it.
-  const mainTools = visibleTools.filter((tool) => tool.id !== 'admin' && !SETTINGS_TOOL_IDS.includes(tool.id))
+  // 2026-11-25: the main list is in alphabetical order (of the label in the person's language), with the tools the
+  // person pinned first; pins are remembered in this browser (hooks/sidebarPinned.ts). Admin and Settings never move.
+  const [pinned, setPinned] = useState<ToolId[]>(readPinnedTools)
+  const mainTools = orderTools(
+    visibleTools.filter((tool) => tool.id !== 'admin' && !SETTINGS_TOOL_IDS.includes(tool.id)),
+    pinned,
+  )
+  const pinnedCount = mainTools.filter((tool) => pinned.includes(tool.id)).length
+  const togglePin = (id: ToolId) => {
+    setPinned((current) => {
+      const next = current.includes(id) ? current.filter((other) => other !== id) : [...current, id]
+      writePinnedTools(next)
+      return next
+    })
+  }
   const adminTool = visibleTools.find((tool) => tool.id === 'admin')
   const settingsTools = visibleTools.filter((tool) => SETTINGS_TOOL_IDS.includes(tool.id))
   const settingsActive = settingsTools.some((tool) => matchRoute({ to: tool.to, fuzzy: true }) !== false)
@@ -199,26 +214,54 @@ export default function Sidebar() {
     // (`shrink-0`) holds the Admin entry (admin-only) above the collapse toggle.
     <div className="flex h-full flex-col">
       <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-3">
-        {mainTools.map((tool, index) => (
-          <li key={tool.id}>
-            <Link
-              to={tool.to}
-              ref={(node) => {
-                itemRefs.current[index] = node
-              }}
-              tabIndex={index === safeRovingIndex ? 0 : -1}
-              onFocus={() => setRovingIndex(index)}
-              onKeyDown={(event) => handleKeyDown(event, index)}
-              // Hover tooltip surfaces the label the collapsed rail hides.
-              title={collapsed ? tool.label : undefined}
-              className={itemClass(collapsed)}
-              activeProps={ACTIVE_PROPS}
+        {mainTools.map((tool, index) => {
+          const isPinned = pinned.includes(tool.id)
+          // The first unpinned tool after the pinned ones is set apart by a rule.
+          const firstAfterPinned = pinnedCount > 0 && index === pinnedCount
+          return (
+            <li
+              key={tool.id}
+              className={`group relative${firstAfterPinned ? ' mt-1 border-t border-rule pt-2' : ''}`}
+              data-testid={`sidebar-tool-${tool.id}`}
+              data-pinned={isPinned || undefined}
             >
-              {TOOL_ICONS[tool.id]}
-              <span className={collapsed ? 'sr-only' : ''}>{tool.label}</span>
-            </Link>
-          </li>
-        ))}
+              <Link
+                to={tool.to}
+                ref={(node) => {
+                  itemRefs.current[index] = node
+                }}
+                tabIndex={index === safeRovingIndex ? 0 : -1}
+                onFocus={() => setRovingIndex(index)}
+                onKeyDown={(event) => handleKeyDown(event, index)}
+                // Hover tooltip surfaces the label the collapsed rail hides.
+                title={collapsed ? tool.label : undefined}
+                className={`${itemClass(collapsed)}${collapsed ? '' : ' pr-9'}`}
+                activeProps={ACTIVE_PROPS}
+              >
+                {TOOL_ICONS[tool.id]}
+                <span className={collapsed ? 'sr-only' : ''}>{tool.label}</span>
+              </Link>
+              {!collapsed && (
+                // A sibling of the link, never inside it (a button cannot sit in a link). Shown on hover and focus, and
+                // always while pinned; reachable with Tab from its row's link (the row that holds the roving tab stop).
+                <button
+                  type="button"
+                  aria-pressed={isPinned}
+                  aria-label={isPinned ? strings.sidebar.unpin(tool.label) : strings.sidebar.pin(tool.label)}
+                  title={isPinned ? strings.sidebar.unpin(tool.label) : strings.sidebar.pin(tool.label)}
+                  tabIndex={index === safeRovingIndex ? 0 : -1}
+                  onClick={() => togglePin(tool.id)}
+                  className={`absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-1 transition-opacity hover:bg-ink-mid hover:text-text ${FOCUS_RING} ${
+                    isPinned ? 'text-acc opacity-100' : 'text-soft opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                  }`}
+                  data-testid={`sidebar-pin-${tool.id}`}
+                >
+                  <Icon name="pin" size={16} />
+                </button>
+              )}
+            </li>
+          )
+        })}
       </ul>
 
       {settingsTools.length > 0 && (

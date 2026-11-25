@@ -156,7 +156,7 @@ describe('/accounting/$ — the access-gated tool route (AC-8.1)', () => {
     expect(screen.queryByTestId('accounting-app')).toBeNull()
   })
 
-  it('shows the Accounting sidebar link to a caller whose apps include it, after Projects', async () => {
+  it('shows the Accounting sidebar link to a caller whose apps include it, before Projects (alphabetical, 2026-11-25)', async () => {
     grantApps(['estimai', 'projects', 'accounting'])
     await renderShellAt('/estimai')
     await screen.findByTestId('estimai-app')
@@ -164,7 +164,7 @@ describe('/accounting/$ — the access-gated tool route (AC-8.1)', () => {
     const link = screen.getByRole('link', { name: 'Accounting' })
     expect(link.getAttribute('href')).toBe('/accounting')
     const projects = screen.getByRole('link', { name: 'Projects' })
-    expect(projects.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(link.compareDocumentPosition(projects) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('does not show the Accounting sidebar link to a caller without it', async () => {

@@ -76,6 +76,12 @@ move between them from one place.
 - AC-3.4: Given a returning signed-in user, when they open the suite at its bare root,
   then they are taken to the tool they most recently used; on a first visit with no prior
   tool, they land on EstimAI as the default.
+- AC-3.5 *(added 2026-11-25, owner)*: The tools in the upper part of the sidebar are listed
+  in alphabetical order of their name in the person's language. Each has a pin button (shown
+  on hover and focus, and always while pinned; absent in the collapsed rail); pinned tools come
+  first, also in alphabetical order, set apart from the others by a rule, and unpinning puts a
+  tool back in its place. Pins are remembered in this browser, like the rail's collapse; Admin
+  and the Settings group stay at the bottom and cannot be pinned.
 
 ### US-4: EstimAI runs inside the shell with no regression
 As an EstimAI user, I want EstimAI to behave exactly as before now that it runs inside

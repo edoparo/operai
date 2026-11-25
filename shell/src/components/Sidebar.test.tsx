@@ -428,14 +428,14 @@ describe('Sidebar Settings group (rarely used tools pinned above Admin)', () => 
 // specs/20261119-accounting (AC-8.1, design UX-14, G1): Accounting is an ordinary gated tool, last in the main list, shown
 // only with `apps ∋ accounting` (which `/authz/me` derives from `accounting:read` or `accounting:manage`).
 describe('Sidebar — Accounting (AC-8.1)', () => {
-  it('shows Accounting to a caller whose apps include it, after Projects, linking to /accounting', async () => {
+  it('shows Accounting to a caller whose apps include it, in alphabetical order (2026-11-25), linking to /accounting', async () => {
     usePermissions.mockReturnValue(permissionsWith(['estimai', 'projects', 'accounting']))
     await renderSidebarAt('/estimai')
 
     const link = screen.getByRole('link', { name: 'Accounting' })
     expect(link.getAttribute('href')).toBe('/accounting')
     const names = screen.getAllByRole('link').map((item) => item.textContent)
-    expect(names).toEqual(['EstimAI', 'Projects', 'Accounting'])
+    expect(names).toEqual(['Accounting', 'EstimAI', 'Projects'])
     // An icon is drawn (every tool has one; the label span carries the accessible name).
     expect(link.querySelector('svg')).not.toBeNull()
     expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
@@ -448,7 +448,7 @@ describe('Sidebar — Accounting (AC-8.1)', () => {
     expect(screen.queryByRole('link', { name: 'Accounting' })).toBeNull()
   })
 
-  it('keeps it in the main list (the arrow-key group), not in the Settings group, after Projects and before Admin', async () => {
+  it('keeps it in the main list (the arrow-key group), not in the Settings group, first alphabetically and before Admin', async () => {
     const user = userEvent.setup()
     usePermissions.mockReturnValue(permissionsWith(['estimai', 'projects', 'accounting', 'admin', 'letterheads']))
     await renderSidebarAt('/estimai')
@@ -457,13 +457,13 @@ describe('Sidebar — Accounting (AC-8.1)', () => {
     const toolList = screen.getByRole('link', { name: 'EstimAI' }).closest('ul')!
     expect(toolList.contains(accounting)).toBe(true)
     const projects = screen.getByRole('link', { name: 'Projects' })
-    expect(projects.compareDocumentPosition(accounting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(accounting.compareDocumentPosition(projects) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(
       accounting.compareDocumentPosition(screen.getByRole('link', { name: 'Admin' })) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
 
     screen.getByRole('link', { name: 'EstimAI' }).focus()
-    await user.keyboard('{End}')
+    await user.keyboard('{Home}')
     expect(document.activeElement).toBe(accounting)
   })
 
@@ -472,5 +472,63 @@ describe('Sidebar — Accounting (AC-8.1)', () => {
     await renderSidebarAt('/accounting/vat-codes?entity=welld_it')
 
     expect((await screen.findByRole('link', { name: 'Accounting' })).getAttribute('aria-current')).toBe('page')
+  })
+})
+
+describe('alphabetical order and pinned tools (2026-11-25)', () => {
+  const mainNames = () =>
+    [...screen.getByRole('link', { name: 'EstimAI' }).closest('ul')!.querySelectorAll('a')].map((link) => link.textContent)
+
+  it('lists the main tools alphabetically, whatever their order in the registry; Admin stays at the bottom', async () => {
+    usePermissions.mockReturnValue(permissionsWith(['refund', 'estimai', 'crm', 'projects', 'admin']))
+    await renderSidebarAt('/estimai')
+    expect(mainNames()).toEqual(['CRM', 'EstimAI', 'Projects', 'Refund'])
+    expect(screen.getByRole('link', { name: 'Admin' }).closest('ul')).toBeNull()
+  })
+
+  it('pins a tool to the top, remembers it in this browser, and unpins it back into its place', async () => {
+    const user = userEvent.setup()
+    usePermissions.mockReturnValue(permissionsWith(['refund', 'estimai', 'projects']))
+    await renderSidebarAt('/estimai')
+
+    const pin = screen.getByRole('button', { name: 'Pin Refund to the top' })
+    expect(pin.getAttribute('aria-pressed')).toBe('false')
+    await user.click(pin)
+    expect(mainNames()).toEqual(['Refund', 'EstimAI', 'Projects'])
+    expect(screen.getByRole('button', { name: 'Unpin Refund' }).getAttribute('aria-pressed')).toBe('true')
+    expect(JSON.parse(localStorage.getItem('operai_sidebar_pinned')!)).toEqual(['refund'])
+    // The first unpinned tool is set apart from the pinned ones.
+    expect(screen.getByTestId('sidebar-tool-estimai').className).toContain('border-t')
+
+    await user.click(screen.getByRole('button', { name: 'Pin Projects to the top' }))
+    expect(mainNames()).toEqual(['Projects', 'Refund', 'EstimAI'])
+
+    await user.click(screen.getByRole('button', { name: 'Unpin Refund' }))
+    expect(mainNames()).toEqual(['Projects', 'EstimAI', 'Refund'])
+  })
+
+  it('reads the pins back, ignoring unknown ids and tools the person cannot open', async () => {
+    localStorage.setItem('operai_sidebar_pinned', JSON.stringify(['projects', 'nonsense', 'crm']))
+    usePermissions.mockReturnValue(permissionsWith(['refund', 'estimai', 'projects']))
+    await renderSidebarAt('/estimai')
+    expect(mainNames()).toEqual(['Projects', 'EstimAI', 'Refund'])
+    expect(screen.queryByRole('button', { name: /CRM/ })).toBeNull()
+  })
+
+  it('a corrupt stored value pins nothing', async () => {
+    localStorage.setItem('operai_sidebar_pinned', '{nope')
+    usePermissions.mockReturnValue(permissionsWith(['refund', 'estimai']))
+    await renderSidebarAt('/estimai')
+    expect(mainNames()).toEqual(['EstimAI', 'Refund'])
+  })
+
+  it('the pin button is a sibling of the link, never inside it, and Tab reaches it from its row', async () => {
+    const user = userEvent.setup()
+    usePermissions.mockReturnValue(permissionsWith(['refund', 'estimai']))
+    await renderSidebarAt('/estimai')
+    expect(document.querySelectorAll('a button')).toHaveLength(0)
+    screen.getByRole('link', { name: 'EstimAI' }).focus()
+    await user.tab()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Pin EstimAI to the top' }))
   })
 })

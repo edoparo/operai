@@ -78,6 +78,9 @@ const en = {
     collapseShort: 'Collapse',
     /** The pinned group of rarely used tools above Admin (Letterheads). */
     settings: 'Settings',
+    /** The pin button of a tool row (2026-11-25): pinned tools come first. */
+    pin: (tool: string) => `Pin ${tool} to the top`,
+    unpin: (tool: string) => `Unpin ${tool}`,
   },
   theme: {
     system: 'System theme (auto)',
@@ -263,6 +266,8 @@ const it: typeof en = {
     collapse: 'Comprimi barra laterale',
     collapseShort: 'Comprimi',
     settings: 'Impostazioni',
+    pin: (tool: string) => `Fissa ${tool} in cima`,
+    unpin: (tool: string) => `Togli ${tool} dalla cima`,
   },
   theme: {
     system: 'Tema di sistema (automatico)',
