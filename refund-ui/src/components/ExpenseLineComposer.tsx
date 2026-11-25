@@ -70,7 +70,7 @@
 
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, DateInput, Field, MoneyInput } from '@operai/ui'
+import { AddressAutocomplete, Button, DateInput, Field, MoneyInput } from '@operai/ui'
 import { strings } from '../strings'
 import { EXPENSE_TYPES, expenseTypeLabel, requiresKm } from '../lib/expenseTypes'
 import type { ExpenseType } from '../lib/expenseTypes'
@@ -82,6 +82,7 @@ import type { LineDraftValue } from '../lib/lineDraft'
 import { emptyLineDraft, isLineDraftBlank, lineDraftToPayload } from '../lib/lineDraft'
 import { useLineDraftValidation } from '../lib/useLineDraftValidation'
 import MileageAmountField from './MileageAmountField'
+import { createTripSuggester } from '../lib/places'
 import { SplitReceiptHint } from './ExpenseLineComposerHint'
 import { COMPOSER_SPLIT_HINT_ID, withSplitHint } from './ExpenseLineComposerHintIds'
 import MotivoSuggestField from './MotivoSuggestField'
@@ -114,7 +115,12 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
     const wasKm = draft.type !== '' && requiresKm(draft.type)
     const willBeKm = nextType !== '' && requiresKm(nextType)
 
-    setDraft((prev) => ({ ...prev, type: nextType, km: willBeKm ? prev.km : '', roundTrip: willBeKm && prev.roundTrip }))
+    setDraft((prev) => ({ ...prev, type: nextType,
+      km: willBeKm ? prev.km : '',
+      roundTrip: willBeKm && prev.roundTrip,
+      fromAddress: willBeKm ? prev.fromAddress : '',
+      toAddress: willBeKm ? prev.toAddress : '',
+    }))
 
     if (willBeKm && !wasKm) {
       setKmStatus(t.kmFieldAdded)
@@ -326,6 +332,54 @@ export default function ExpenseLineComposer({ onAdd }: ExpenseLineComposerProps)
                   </option>
                 ))}
               </select>
+            )}
+          </Field>
+        )}
+
+        {showKm && (
+          <Field label={t.fromLabel} hint={t.addressHint} error={validation.errorFor('fromAddress')} required>
+            {(control) => (
+              <AddressAutocomplete
+                id={control.id}
+                value={draft.fromAddress}
+                onValueChange={(value) => setDraft((prev) => ({ ...prev, fromAddress: value }))}
+                onPick={(suggestion) =>
+                  setDraft((prev) => ({ ...prev, fromAddress: suggestion.text || suggestion.mainText }))
+                }
+                texts={t.addressSuggest}
+                places="any"
+                createSuggester={createTripSuggester}
+                disabled={submitting}
+                ariaInvalid={control['aria-invalid']}
+                ariaDescribedBy={control['aria-describedby']}
+                ariaRequired={control['aria-required']}
+                onBlur={validation.touch('fromAddress')}
+                testId={"composer-from"}
+              />
+            )}
+          </Field>
+        )}
+
+        {showKm && (
+          <Field label={t.toLabel} hint={t.addressHint} error={validation.errorFor('toAddress')} required>
+            {(control) => (
+              <AddressAutocomplete
+                id={control.id}
+                value={draft.toAddress}
+                onValueChange={(value) => setDraft((prev) => ({ ...prev, toAddress: value }))}
+                onPick={(suggestion) =>
+                  setDraft((prev) => ({ ...prev, toAddress: suggestion.text || suggestion.mainText }))
+                }
+                texts={t.addressSuggest}
+                places="any"
+                createSuggester={createTripSuggester}
+                disabled={submitting}
+                ariaInvalid={control['aria-invalid']}
+                ariaDescribedBy={control['aria-describedby']}
+                ariaRequired={control['aria-required']}
+                onBlur={validation.touch('toAddress')}
+                testId={"composer-to"}
+              />
             )}
           </Field>
         )}

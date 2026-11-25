@@ -68,6 +68,8 @@ const validLineBody = (overrides: Record<string, unknown> = {}) => ({
   entity: "welld_it",
   currency: "EUR",
   requestedAmountCents: 1500,
+  // A mileage trip states where it starts and ends (required since 2026-11-25); a test may override or drop them.
+  ...(overrides.type === "travel_km" ? { fromAddress: "Lugano", toAddress: "Milano" } : {}),
   ...overrides,
 });
 
@@ -274,6 +276,24 @@ describe("POST /requests/:id/lines", () => {
     expect((await db.refundLine.findUniqueOrThrow({ where: { id: created.id } })).roundTrip).toBe(false);
   });
 
+  it("From and To are required for a mileage line: missing either → 422", async () => {
+    const request = await makeRequest();
+    const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
+    for (const drop of ["fromAddress", "toAddress"]) {
+      const body: Record<string, unknown> = validLineBody({ type: "travel_km", km: 42 });
+      delete body[drop];
+      const res = await linesRouter.request(`/requests/${request.id}/lines`, { method: "POST", headers: authHeaders(token), body: JSON.stringify(body) });
+      expect(res.status).toBe(422);
+    }
+    const blank = await linesRouter.request(`/requests/${request.id}/lines`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(validLineBody({ type: "travel_km", km: 42, fromAddress: "   " })),
+    });
+    expect(blank.status).toBe(422);
+    expect(await db.refundLine.count({ where: { requestId: request.id } })).toBe(0);
+  });
+
   it("(AC-1.2) km required and >0 when type is travel_km — missing km → 422", async () => {
     const request = await makeRequest();
     const token = await harness.signToken({ sub: OWNER_SUB, email: OWNER_EMAIL });
@@ -402,6 +422,8 @@ describe("POST /requests/:id/lines — travel_km write derivation (specs/2026072
         motivo: "Client visit",
         entity: "welld_ch",
         km: 240,
+        fromAddress: "Lugano",
+        toAddress: "Milano",
       }),
     });
     expect(res.status).toBe(201);
@@ -437,6 +459,8 @@ describe("POST /requests/:id/lines — travel_km write derivation (specs/2026072
         motivo: "Client visit",
         entity: "welld_ch",
         km: 100,
+        fromAddress: "Lugano",
+        toAddress: "Milano",
         currency: "USD", // attacker/legacy-client attempt — must be ignored
         requestedAmountCents: 999999, // attacker/legacy-client attempt — must be ignored
       }),
@@ -460,6 +484,8 @@ describe("POST /requests/:id/lines — travel_km write derivation (specs/2026072
         motivo: "No rate yet",
         entity: "welld_it",
         km: 50,
+        fromAddress: "Lugano",
+        toAddress: "Milano",
       }),
     });
     expect(res.status).toBe(201);

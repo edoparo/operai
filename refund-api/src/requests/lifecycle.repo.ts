@@ -133,6 +133,8 @@ export function submitRequest(
               requestedAmountCents: true,
               type: true,
               km: true,
+              fromAddress: true,
+              toAddress: true,
               entity: true,
               date: true,
             },

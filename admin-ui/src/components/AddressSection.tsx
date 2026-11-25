@@ -39,13 +39,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, Combobox, Field, Icon, formatDateTime, resolveLocale } from '@operai/ui'
+import { AddressAutocomplete, Button, Card, Combobox, Field, Icon, formatDateTime, resolveLocale } from '@operai/ui'
 import type { ComboboxOption } from '@operai/ui'
 import * as addressApi from '../lib/addressApi'
 import { ApiError } from '../lib/addressApi'
 import type { AddressHistoryEntry, AdminAddressView } from '../lib/addressApi'
 import { createAddressSuggester } from '../lib/googlePlaces'
-import type { AddressComponents, AddressSuggester, PlaceSuggestion } from '../lib/googlePlaces'
+import type { AddressComponents, PlaceDetails } from '../lib/googlePlaces'
 import { coordinatesForSave } from '../lib/addressCoordinates'
 import type { LatLng } from '../lib/addressCoordinates'
 import { ISO_3166_1_ALPHA2_CODES, countryDisplayName } from '../lib/countries'
@@ -149,9 +149,6 @@ export default function AddressSection({ userId }: AddressSectionProps) {
   const [coords, setCoords] = useState<LatLng | null>(null)
   const [countryFilterText, setCountryFilterText] = useState('')
 
-  const [streetSuggestions, setStreetSuggestions] = useState<PlaceSuggestion[]>([])
-  const [streetPopupOpen, setStreetPopupOpen] = useState(false)
-  const [streetCaption, setStreetCaption] = useState<'searching' | 'no-results' | null>(null)
   const [countryPopupOpen, setCountryPopupOpen] = useState(false)
 
   const [missingFields, setMissingFields] = useState<ReadonlySet<string>>(new Set())
@@ -169,39 +166,6 @@ export default function AddressSection({ userId }: AddressSectionProps) {
 
   const houseNumberInputRef = useRef<HTMLInputElement | null>(null)
 
-  // -------------------------------------------------------------------------
-  // The Google Places suggester (T7) — created once. Its callbacks only ever
-  // call stable setState functions, so no dependency array is needed and no
-  // stale-closure risk exists (React setState setters have a stable identity
-  // across renders).
-  // -------------------------------------------------------------------------
-  const [suggester] = useState<AddressSuggester>(() =>
-    createAddressSuggester({
-      language: locale,
-      onSearchStart: () => {
-        setStreetCaption('searching')
-      },
-      onResults: (suggestions) => {
-        setStreetSuggestions(suggestions)
-        setStreetPopupOpen(suggestions.length > 0)
-        setStreetCaption(suggestions.length === 0 ? 'no-results' : null) // AC-3.1 — a GENUINE, completed zero-result search
-      },
-      onDegraded: () => {
-        // AC-3.2 — deliberately nothing: no caption, no popup, no error, no
-        // spinner. The field is left exactly as an ordinary text input.
-        setStreetSuggestions([])
-        setStreetPopupOpen(false)
-        setStreetCaption(null)
-      },
-      onBelowThreshold: () => {
-        setStreetSuggestions([])
-        setStreetPopupOpen(false)
-        setStreetCaption(null)
-      },
-    }),
-  )
-
-  useEffect(() => () => suggester.dispose(), [suggester])
 
   // -------------------------------------------------------------------------
   // Fetch — GET /admin/users/:id/address (F1). Promise-chain-in-effect
@@ -281,23 +245,15 @@ export default function AddressSection({ userId }: AddressSectionProps) {
   // Street combobox wiring (AC-2.1, AC-2.2, AC-2.4, AC-2.5)
   // -------------------------------------------------------------------------
 
-  const handleStreetValueChange = useCallback(
-    (value: string) => {
-      setFields((prev) => ({ ...prev, street: value }))
-      suggester.search(value)
-    },
-    [suggester],
-  )
+  const handleStreetValueChange = useCallback((value: string) => {
+    setFields((prev) => ({ ...prev, street: value }))
+  }, [])
 
-  const streetOptions: ComboboxOption[] = useMemo(
-    () => streetSuggestions.map((s) => ({ id: s.id, label: s.mainText, secondaryLabel: s.secondaryText })),
-    [streetSuggestions],
-  )
-
-  const handleStreetSelect = useCallback(
-    (option: ComboboxOption) => {
+  /** The shared `AddressAutocomplete` (moved to the library) hands over the pick; the structured address needs its details. */
+  const handleStreetPick = useCallback(
+    (_suggestion: unknown, resolveDetails: () => Promise<PlaceDetails | null>) => {
       void (async () => {
-        const details = await suggester.selectSuggestion(option.id)
+        const details = await resolveDetails()
         if (!details) return // AC-3.2 — details fetch failed; leave the field exactly as typed, no error
         setFields((prev) => ({ ...prev, ...details.components }))
         setSnapshot({ ...details.components })
@@ -309,9 +265,6 @@ export default function AddressSection({ userId }: AddressSectionProps) {
         setCountryFilterText(
           details.components.countryCode ? countryDisplayName(details.components.countryCode, locale) : '',
         )
-        setStreetSuggestions([])
-        setStreetPopupOpen(false)
-        setStreetCaption(null)
         // R9 — a route-level prediction often carries no house number; move
         // focus there so the admin's next keystroke fills the one thing
         // still missing. Otherwise focus already stayed on Street (Combobox's
@@ -321,14 +274,20 @@ export default function AddressSection({ userId }: AddressSectionProps) {
         }
       })()
     },
-    [locale, suggester],
+    [locale],
   )
 
-  const streetLiveRegionText = useMemo(() => {
-    if (streetCaption === 'no-results') return s.suggest.noResultsAnnounce
-    if (streetSuggestions.length > 0) return s.suggest.resultCount(streetSuggestions.length)
-    return ''
-  }, [streetCaption, streetSuggestions.length])
+  const streetTexts = useMemo(
+    () => ({
+      searching: s.suggest.searching,
+      noResults: s.suggest.noResults,
+      resultCount: s.suggest.resultCount,
+      noResultsAnnounce: s.suggest.noResultsAnnounce,
+      // Google's required attribution when predictions render without a map (Places API terms); never translated.
+      attribution: s.googleAttribution,
+    }),
+    [],
+  )
 
   // -------------------------------------------------------------------------
   // Country combobox wiring — sync, local, never Google-backed (design.md
@@ -498,43 +457,21 @@ export default function AddressSection({ userId }: AddressSectionProps) {
           <Field label={s.field.street} required error={fieldError('street')}>
             {(control) => (
               <>
-                <Combobox
+                <AddressAutocomplete
                   id={control.id}
                   value={fields.street}
                   onValueChange={handleStreetValueChange}
-                  options={streetOptions}
-                  onSelect={handleStreetSelect}
-                  isOpen={streetPopupOpen}
-                  onOpenChange={setStreetPopupOpen}
+                  onPick={handleStreetPick}
+                  texts={streetTexts}
+                  language={locale}
+                  createSuggester={createAddressSuggester}
                   disabled={pendingClear}
                   ariaInvalid={control['aria-invalid']}
                   ariaDescribedBy={control['aria-describedby']}
                   ariaRequired={control['aria-required']}
-                  liveRegionText={streetLiveRegionText}
                   testId="address-street-combobox"
-                  footer={
-                    streetPopupOpen && streetOptions.length > 0 ? (
-                      <li aria-hidden="true" className="combobox-footer">
-                        {/* Google's required attribution when predictions render without a map (Places API terms). Text
-                            placeholder for the branded "Powered by Google" light/dark asset, which must be sourced from
-                            Google's Maps Platform branding kit (design.md "Google attribution" / plan.md gap #1, routed
-                            to devops/infra follow-up). The trademark text is never translated: both catalogs carry
-                            it verbatim (strings/address.ts). */}
-                        {s.googleAttribution}
-                      </li>
-                    ) : undefined
-                  }
+                  captionTestIdPrefix="address-street"
                 />
-                {streetCaption === 'searching' && (
-                  <p className="field-hint" data-testid="address-street-searching">
-                    {s.suggest.searching}
-                  </p>
-                )}
-                {streetCaption === 'no-results' && (
-                  <p className="field-hint" data-testid="address-street-no-results">
-                    {s.suggest.noResults}
-                  </p>
-                )}
               </>
             )}
           </Field>

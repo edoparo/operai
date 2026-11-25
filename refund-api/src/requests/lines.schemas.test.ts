@@ -21,7 +21,7 @@ describe("LineBodySchema", () => {
   });
 
   it("accepts a complete travel_km line with km > 0", () => {
-    const result = LineBodySchema.safeParse({ ...base, type: "travel_km", km: 10 });
+    const result = LineBodySchema.safeParse({ ...base, type: "travel_km", km: 10, fromAddress: "Lugano", toAddress: "Milano" });
     expect(result.success).toBe(true);
   });
 
@@ -100,8 +100,15 @@ describe("isLineComplete (T10 submit-time defense-in-depth)", () => {
 
   it("a complete travel_km line (km > 0) is complete", () => {
     expect(
-      isLineComplete({ motivo: "x", requestedAmountCents: 100, type: "travel_km", km: 5 }),
+      isLineComplete({ motivo: "x", requestedAmountCents: 100, type: "travel_km", km: 5, fromAddress: "Lugano", toAddress: "Milano" }),
     ).toBe(true);
+  });
+
+  it("a travel_km draft written before From and To existed is incomplete until both are set", () => {
+    const line = { motivo: "x", requestedAmountCents: 100, type: "travel_km", km: 5 };
+    expect(isLineComplete(line)).toBe(false);
+    expect(isLineComplete({ ...line, fromAddress: "Lugano", toAddress: " " })).toBe(false);
+    expect(isLineComplete({ ...line, fromAddress: "Lugano", toAddress: "Milano" })).toBe(true);
   });
 
   it("a travel_km line with km null is incomplete", () => {

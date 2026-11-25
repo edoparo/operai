@@ -70,6 +70,9 @@ async function addExpenseLine(
   await page.getByTestId('composer-entity').selectOption(line.entity)
   if (line.km) {
     await page.getByTestId('composer-km').fill(line.km)
+    // A mileage trip states where it starts and ends (required since 2026-11-25); typed, no suggestion picked.
+    await page.getByTestId('composer-from').fill('Lugano')
+    await page.getByTestId('composer-to').fill('Milano')
   }
   // `composer-currency` has no default (an entity/currency pair is never cross-validated,
   // lineDraft.ts), so the line cannot be added until it is chosen (an Add without it shows a

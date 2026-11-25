@@ -622,7 +622,9 @@ suite, since every tool authenticates through `auth`). This is admin-ui's
    `VITE_GOOGLE_MAPS_API_KEY` in the **`admin-ui`** Vercel project's
    Environment Variables (Production **and** Preview), sourced from the
    1Password item above, then **redeploy** (build-time vars need a rebuild —
-   § Phase 2 step 3). It goes on no other Vercel project, and never on
+   § Phase 2 step 3). **Since 2026-11-25 it also goes on the `refund-ui` project** (the same key and 1Password
+   item: the From and To of a mileage trip use the library's `AddressAutocomplete`, and the referrer is the
+   shell's either way); on no other Vercel project, and never on
    Railway. Deliberately **not** a `shell/session` getter (ADR 20260804-google-places-browser-direct-referrer-restricted-key Option E)
    — that module is for suite-wide service origins the shell configures for
    every tool; a single remote's own third-party credential doesn't belong
@@ -1993,6 +1995,7 @@ treat its first use as a supervised run.
 | **estimai-ui** | `VITE_API_URL` | `<API_URL>` — **required**: estimai-ui builds `${VITE_API_URL}/estimates` from its *own* value (must match the shell's) |
 | | `VITE_AUTH_URL` / `SHELL_REMOTE_URL` | standalone-only / `https://operai.welld.io/remoteEntry.js` |
 | **refund-ui** | `VITE_REFUND_API_URL` | **NEW (T20).** `<REFUND_API_URL>` — **required**: `refund-ui/src/lib/refundApi.ts` builds every refund-api URL from its *own* value (must byte-for-byte match the shell's copy above — see that row's note) |
+| **refund-ui** | `VITE_GOOGLE_MAPS_API_KEY` | **NEW (2026-11-25).** The same public, referrer-restricted Google Maps key as admin-ui (1Password `AIScream / OperAI - Google Maps API Key`), build-time: the From and To suggestions of a mileage trip (`refund-ui/src/lib/places.ts`). Unset: the two fields are plain text inputs, still required. |
 | | `SHELL_REMOTE_URL` | `https://operai.welld.io/remoteEntry.js` |
 | **inventory-ui** | `SHELL_REMOTE_URL` | `https://operai.welld.io/remoteEntry.js` (no backend vars of its own: inventory-api via `getInventoryApiBaseUrl()`, the user directory via `getAuthBaseUrl()`, both from the shell) |
 | **admin-ui**, **notify-ui** | `SHELL_REMOTE_URL` | `https://operai.welld.io/remoteEntry.js` (no backend vars of their own — `notify-ui`'s calls to `notify-api` go through the shared `shell/session` module's `VITE_NOTIFY_API_URL`, same pattern `admin-ui` uses for the auth service's admin API) |

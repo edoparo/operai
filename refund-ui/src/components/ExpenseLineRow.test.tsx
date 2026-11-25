@@ -598,6 +598,8 @@ describe('ExpenseLineRow — edit mode, expanded, travel_km (specs/20260720-mile
     id: 'km-1',
     type: 'travel_km',
     km: 50,
+    fromAddress: 'Lugano',
+    toAddress: 'Milano',
     mileage: { km: 50, rateInEffect: true, appliedRate: null, computedAmountCents: null, snapshotted: false },
   }
 
@@ -649,6 +651,8 @@ describe('ExpenseLineRow — edit mode, expanded, travel_km (specs/20260720-mile
         motivo: kmLine.motivo,
         entity: kmLine.entity,
         km: 75,
+        fromAddress: 'Lugano',
+        toAddress: 'Milano',
       }),
     )
   })
@@ -661,6 +665,23 @@ describe('ExpenseLineRow — edit mode, expanded, travel_km (specs/20260720-mile
     fireEvent.click(box)
     fireEvent.blur(box, { relatedTarget: document.body })
     await waitFor(() => expect(onCommit).toHaveBeenCalledWith(expect.objectContaining({ km: 50, roundTrip: true })))
+  })
+
+  it('a mileage line shows its route when read, and the editor requires From and To', async () => {
+    render(<ExpenseLineRow line={kmLine} mode="readOnly" onDownloadAttachment={vi.fn()} />)
+    expect(screen.getByTestId('row-km-1-route').textContent).toBe('Lugano → Milano')
+    cleanup()
+    const onCommit = vi.fn().mockResolvedValue(undefined)
+    render(<ExpenseLineRow line={kmLine} mode="edit" onCommit={onCommit} onDelete={vi.fn()} onDownloadAttachment={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('row-km-1-edit'))
+    const from = screen.getByTestId('row-km-1-from') as HTMLInputElement
+    expect(from.value).toBe('Lugano')
+    expect(from.getAttribute('aria-required')).toBe('true')
+    fireEvent.change(from, { target: { value: 'Via Cantonale 1, Lugano' } })
+    fireEvent.blur(from, { relatedTarget: document.body })
+    await waitFor(() =>
+      expect(onCommit).toHaveBeenCalledWith(expect.objectContaining({ fromAddress: 'Via Cantonale 1, Lugano', toAddress: 'Milano' })),
+    )
   })
 
   it('a round-trip line says so beside its km when read', () => {

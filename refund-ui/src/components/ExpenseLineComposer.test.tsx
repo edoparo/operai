@@ -157,6 +157,8 @@ describe('ExpenseLineComposer — Add: disabled only while blank, then validates
     fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'travel_km' } })
     fireEvent.change(screen.getByTestId('composer-motivo'), { target: { value: 'Client visit' } })
     fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_it' } })
+    fireEvent.change(screen.getByTestId('composer-from'), { target: { value: 'Lugano' } })
+    fireEvent.change(screen.getByTestId('composer-to'), { target: { value: 'Milano' } })
 
     fireEvent.click(screen.getByTestId('composer-add-button'))
     expect(onAdd).not.toHaveBeenCalled()
@@ -289,6 +291,8 @@ describe('ExpenseLineComposer — submit behavior', () => {
     fireEvent.change(screen.getByTestId('composer-type'), { target: { value: 'travel_km' } })
     fireEvent.change(screen.getByTestId('composer-motivo'), { target: { value: 'Client visit' } })
     fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_it' } })
+    fireEvent.change(screen.getByTestId('composer-from'), { target: { value: 'Lugano' } })
+    fireEvent.change(screen.getByTestId('composer-to'), { target: { value: 'Milano' } })
     fireEvent.change(screen.getByTestId('composer-km'), { target: { value: '120' } })
 
     fireEvent.click(screen.getByTestId('composer-add-button'))
@@ -300,6 +304,8 @@ describe('ExpenseLineComposer — submit behavior', () => {
         motivo: 'Client visit',
         entity: 'welld_it',
         km: 120,
+        fromAddress: 'Lugano',
+        toAddress: 'Milano',
       })
     })
   })
@@ -358,6 +364,8 @@ const fillMileageDraft = () => {
   fireEvent.change(motivoField(), { target: { value: 'Trasferta a mano' } })
   fireEvent.change(screen.getByTestId('composer-entity'), { target: { value: 'welld_it' } })
   fireEvent.change(screen.getByTestId('composer-km'), { target: { value: '11' } })
+  fireEvent.change(screen.getByTestId('composer-from'), { target: { value: 'Lugano' } })
+  fireEvent.change(screen.getByTestId('composer-to'), { target: { value: 'Milano' } })
 }
 
 /** Runs the field's 150 ms corpus debounce (and, at 600 ms, the rate field's 400 ms one). */
@@ -585,6 +593,9 @@ describe('ExpenseLineComposer — picking a suggestion fills the trip’s stable
       motivo: LUGANO.motivo,
       entity: 'welld_ch',
       km: 62,
+      // A suggested trip fills motivo, km and entity; From and To stay as the person typed them.
+      fromAddress: 'Lugano',
+      toAddress: 'Milano',
     })
   })
 
@@ -676,6 +687,8 @@ describe('ExpenseLineComposer — the Enter trap: AC-5.3 and AC-5.4 as a pair', 
       motivo: 'lugano',
       entity: 'welld_it',
       km: 11,
+      fromAddress: 'Lugano',
+      toAddress: 'Milano',
     })
   })
 

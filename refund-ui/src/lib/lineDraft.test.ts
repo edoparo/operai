@@ -75,7 +75,7 @@ describe('lineDraftInvalidFields / isLineDraftBlank (INC-16)', () => {
   })
 
   it('checks km — and not amount/currency — for travel_km', () => {
-    const draft: LineDraftValue = { ...emptyLineDraft(), type: 'travel_km', motivo: 'Trip', entity: 'welld_it', km: '0' }
+    const draft: LineDraftValue = { ...emptyLineDraft(), type: 'travel_km', motivo: 'Trip', entity: 'welld_it', km: '0', fromAddress: 'Lugano', toAddress: 'Milano' }
     expect(lineDraftInvalidFields(draft)).toEqual(['km'])
     expect(lineDraftInvalidFields({ ...draft, km: '42' })).toEqual([])
   })
@@ -150,7 +150,7 @@ describe('lineToDraft / lineDraftToPayload round-trip', () => {
   })
 
   it('omits requestedAmountCents/currency from a travel_km payload — server-derived (specs/20260720-mileage-rate AC-1.1/1.6)', () => {
-    const kmLine: RefundLine = { ...baseLine, type: 'travel_km', km: 120, requestedAmountCents: 4550 }
+    const kmLine: RefundLine = { ...baseLine, type: 'travel_km', km: 120, requestedAmountCents: 4550, fromAddress: 'Lugano', toAddress: 'Milano' }
     const payload = lineDraftToPayload(lineToDraft(kmLine))
     expect(payload).toEqual({
       date: '2026-07-01',
@@ -158,6 +158,8 @@ describe('lineToDraft / lineDraftToPayload round-trip', () => {
       motivo: 'Pens',
       entity: 'welld_it',
       km: 120,
+      fromAddress: 'Lugano',
+      toAddress: 'Milano',
     })
     expect(payload.requestedAmountCents).toBeUndefined()
     expect(payload.currency).toBeUndefined()
@@ -167,6 +169,33 @@ describe('lineToDraft / lineDraftToPayload round-trip', () => {
     const payload = lineDraftToPayload(lineToDraft(baseLine))
     expect(payload.requestedAmountCents).toBe(1550)
     expect(payload.currency).toBe('EUR')
+  })
+})
+
+describe('a mileage trip’s From and To (required for travel_km only)', () => {
+  const km: LineDraftValue = {
+    date: '2026-07-01',
+    type: 'travel_km',
+    motivo: 'Mtg cliente',
+    amount: '',
+    entity: 'welld_ch',
+    currency: '',
+    km: '240',
+    roundTrip: false,
+    fromAddress: ' Via Cantonale 1, Lugano ',
+    toAddress: 'Piazza Duomo, Milano',
+  }
+
+  it('both are required for a mileage line, in render order before the km', () => {
+    expect(lineDraftInvalidFields({ ...km, fromAddress: ' ', toAddress: '', km: '' })).toEqual(['fromAddress', 'toAddress', 'km'])
+    expect(isLineDraftComplete(km)).toBe(true)
+  })
+
+  it('the payload carries them trimmed; any other type carries none', () => {
+    expect(lineDraftToPayload(km)).toMatchObject({ fromAddress: 'Via Cantonale 1, Lugano', toAddress: 'Piazza Duomo, Milano' })
+    const other = lineDraftToPayload({ ...km, type: 'stationery', km: '', amount: '10.00', currency: 'CHF' })
+    expect('fromAddress' in other || 'toAddress' in other).toBe(false)
+    expect(lineDraftInvalidFields({ ...km, type: 'stationery', km: '', amount: '10.00', currency: 'CHF', fromAddress: '', toAddress: '' })).toEqual([])
   })
 })
 
@@ -180,6 +209,8 @@ describe('round trip (mileage lines only, informative)', () => {
     currency: '',
     km: '240',
     roundTrip: true,
+    fromAddress: 'Via Cantonale 1, Lugano',
+    toAddress: 'Piazza Duomo, Milano',
   }
 
   it('a mileage payload carries the flag and the km as typed, never doubled', () => {
@@ -215,6 +246,8 @@ describe('isLineDraftComplete', () => {
     currency: 'EUR',
     km: '',
     roundTrip: false,
+    fromAddress: '',
+    toAddress: '',
   }
 
   it('is false for an empty draft', () => {
@@ -244,7 +277,7 @@ describe('isLineDraftComplete', () => {
   })
 
   it('for travel_km: requires km > 0, and does NOT require it for any other type', () => {
-    const kmDraft = { ...base, type: 'travel_km' as const }
+    const kmDraft = { ...base, type: 'travel_km' as const, fromAddress: 'Lugano', toAddress: 'Milano' }
     expect(isLineDraftComplete({ ...kmDraft, km: '' })).toBe(false)
     expect(isLineDraftComplete({ ...kmDraft, km: '0' })).toBe(false)
     expect(isLineDraftComplete({ ...kmDraft, km: '-3' })).toBe(false)
@@ -254,7 +287,7 @@ describe('isLineDraftComplete', () => {
   })
 
   it('for travel_km: amount/currency are dropped from the check entirely (specs/20260720-mileage-rate AC-1.1)', () => {
-    const kmDraft = { ...base, type: 'travel_km' as const, km: '10', amount: '', currency: '' as const }
+    const kmDraft = { ...base, type: 'travel_km' as const, km: '10', amount: '', currency: '' as const, fromAddress: 'Lugano', toAddress: 'Milano' }
     expect(isLineDraftComplete(kmDraft)).toBe(true)
   })
 

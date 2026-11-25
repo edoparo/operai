@@ -112,6 +112,8 @@ async function seedPastMileageLines(session: SeededSession, lines: readonly Seed
       motivo: line.motivo,
       entity: line.entity,
       km: line.km,
+      fromAddress: 'Lugano',
+      toAddress: 'Milano',
     })
   }
   return created.id
@@ -316,6 +318,9 @@ test.describe('specs/20260811-motivo-autocomplete T15: motivo autocomplete throu
     // ─── AC-3.7 — NOTHING has been saved. The pick fills; the employee adds. ──
     await expect(page.locator('[data-testid^="expense-line-row-"]')).toHaveCount(0)
 
+    // A pick leaves From and To to the person (required since 2026-11-25).
+    await page.getByTestId('composer-from').fill('Lugano')
+    await page.getByTestId('composer-to').fill('Milano')
     await page.getByTestId('composer-add-button').click()
     const rows = page.locator('[data-testid^="expense-line-row-"]')
     await expect(rows).toHaveCount(1, { timeout: 15_000 })

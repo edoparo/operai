@@ -95,6 +95,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FocusEvent, ReactNode } from 'react'
 import {
+  AddressAutocomplete,
   Button,
   ConfirmDialog,
   DateInput,
@@ -127,6 +128,7 @@ import { useLineDraftValidation } from '../lib/useLineDraftValidation'
 import AttachmentList from './AttachmentList'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 import MileageAmountField from './MileageAmountField'
+import { createTripSuggester } from '../lib/places'
 import { SplitReceiptHint } from './ExpenseLineComposerHint'
 import { rowSplitHintId, withSplitHint } from './ExpenseLineComposerHintIds'
 import ReceiptNumber from './ReceiptNumber'
@@ -180,7 +182,9 @@ const draftsEqual = (a: LineDraftValue, b: LineDraftValue): boolean =>
   a.entity === b.entity &&
   a.currency === b.currency &&
   a.km === b.km &&
-  a.roundTrip === b.roundTrip
+  a.roundTrip === b.roundTrip &&
+  a.fromAddress === b.fromAddress &&
+  a.toAddress === b.toAddress
 
 const typeLabel = (type: ExpenseType): string => expenseTypeLabel(type)
 
@@ -385,7 +389,12 @@ export default function ExpenseLineRow({
     const nextType = value as ExpenseType
     const wasKm = requiresKm(draft.type as ExpenseType)
     const willBeKm = requiresKm(nextType)
-    setDraft((prev) => ({ ...prev, type: nextType, km: willBeKm ? prev.km : '', roundTrip: willBeKm && prev.roundTrip }))
+    setDraft((prev) => ({ ...prev, type: nextType,
+      km: willBeKm ? prev.km : '',
+      roundTrip: willBeKm && prev.roundTrip,
+      fromAddress: willBeKm ? prev.fromAddress : '',
+      toAddress: willBeKm ? prev.toAddress : '',
+    }))
     if (willBeKm && !wasKm) setKmStatus(composerStrings.kmFieldAdded)
     else if (!willBeKm && wasKm) setKmStatus(composerStrings.kmFieldRemoved)
   }
@@ -523,6 +532,11 @@ export default function ExpenseLineRow({
               {mileage?.appliedRate
                 ? t.kmWithRate(line.km, formatRatePerKm(mileage.appliedRate.ratePerKm, mileage.appliedRate.currency))
                 : t.kmValue(line.km)}
+            </span>
+          )}
+          {line.km !== null && line.fromAddress && line.toAddress && (
+            <span className="text-soft" data-testid={`row-${line.id}-route`}>
+              {t.route(line.fromAddress, line.toAddress)}
             </span>
           )}
           {line.km !== null && line.roundTrip === true && (
@@ -905,6 +919,52 @@ export default function ExpenseLineRow({
                   </option>
                 ))}
               </select>
+            )}
+          </Field>
+        )}
+
+        {showKm && (
+          <Field label={composerStrings.fromLabel} hint={composerStrings.addressHint} error={validation.errorFor('fromAddress')} required>
+            {(control) => (
+              <AddressAutocomplete
+                id={control.id}
+                value={draft.fromAddress}
+                onValueChange={(value) => setDraft((prev) => ({ ...prev, fromAddress: value }))}
+                onPick={(suggestion) =>
+                  setDraft((prev) => ({ ...prev, fromAddress: suggestion.text || suggestion.mainText }))
+                }
+                texts={composerStrings.addressSuggest}
+                places="any"
+                createSuggester={createTripSuggester}
+                ariaInvalid={control['aria-invalid']}
+                ariaDescribedBy={control['aria-describedby']}
+                ariaRequired={control['aria-required']}
+                onBlur={validation.touch('fromAddress')}
+                testId={`row-${line.id}-from`}
+              />
+            )}
+          </Field>
+        )}
+
+        {showKm && (
+          <Field label={composerStrings.toLabel} hint={composerStrings.addressHint} error={validation.errorFor('toAddress')} required>
+            {(control) => (
+              <AddressAutocomplete
+                id={control.id}
+                value={draft.toAddress}
+                onValueChange={(value) => setDraft((prev) => ({ ...prev, toAddress: value }))}
+                onPick={(suggestion) =>
+                  setDraft((prev) => ({ ...prev, toAddress: suggestion.text || suggestion.mainText }))
+                }
+                texts={composerStrings.addressSuggest}
+                places="any"
+                createSuggester={createTripSuggester}
+                ariaInvalid={control['aria-invalid']}
+                ariaDescribedBy={control['aria-describedby']}
+                ariaRequired={control['aria-required']}
+                onBlur={validation.touch('toAddress')}
+                testId={`row-${line.id}-to`}
+              />
             )}
           </Field>
         )}

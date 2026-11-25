@@ -78,6 +78,9 @@ export type RefundLine = {
   km: number | null
   /** A mileage line's trip is there and back (informative: `km` is the whole distance). Missing reads as one-way. */
   roundTrip?: boolean
+  /** A mileage trip's start and end; null (or missing) for any other type and for a line recorded before they existed. */
+  fromAddress?: string | null
+  toAddress?: string | null
   approvedTotalCents: number | null
   /** Optional on the TYPE for the same reason as `mileage` below: a missing key reads as "not rejected". */
   rejection?: LineRejection | null
@@ -168,6 +171,9 @@ export type LinePayload = {
   km?: number
   /** travel_km only: the trip is there and back. Informative, the km are never doubled. */
   roundTrip?: boolean
+  /** travel_km only, required for it: the trip's start and end. */
+  fromAddress?: string
+  toAddress?: string
 }
 
 // ---------------------------------------------------------------------------

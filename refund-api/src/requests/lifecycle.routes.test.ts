@@ -469,6 +469,8 @@ async function addMileageLine(requestId: string, km = 240, entity: "welld_ch" | 
       currency: entity === "welld_ch" ? "CHF" : "EUR",
       requestedAmountCents: 0, // pre-write placeholder (mirrors lines.repo.ts's own default)
       km,
+      fromAddress: "Lugano",
+      toAddress: "Milano",
     },
   });
 }

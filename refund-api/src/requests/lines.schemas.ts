@@ -66,6 +66,16 @@ export const LineBodySchema = z
           message: "km must be > 0 when type is travel_km",
         });
       }
+      // Since 2026-11-25 a mileage trip states where it starts and ends.
+      for (const key of ["fromAddress", "toAddress"] as const) {
+        if (val[key] === undefined) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: `${key} is required when type is travel_km`,
+          });
+        }
+      }
       // currency/requestedAmountCents are deliberately NOT validated here —
       // server-derived, a client value (if sent) is simply ignored
       // (lines.repo.ts), never rejected and never trusted.
@@ -126,12 +136,22 @@ export function isLineComplete(line: {
   readonly requestedAmountCents: number;
   readonly type: string;
   readonly km: number | null;
+  readonly fromAddress?: string | null;
+  readonly toAddress?: string | null;
 }): boolean {
   if (line.motivo.trim().length === 0) return false;
   if (!Number.isInteger(line.requestedAmountCents)) return false;
   if (line.requestedAmountCents < 0) return false;
   if (line.type === "travel_km") {
-    return line.km !== null && Number.isInteger(line.km) && line.km > 0;
+    // A draft mileage line written before From and To existed must get them before it is submitted.
+    const hasAddress = (value: string | null | undefined) => typeof value === "string" && value.trim().length > 0;
+    return (
+      line.km !== null &&
+      Number.isInteger(line.km) &&
+      line.km > 0 &&
+      hasAddress(line.fromAddress) &&
+      hasAddress(line.toAddress)
+    );
   }
   return line.km === null;
 }

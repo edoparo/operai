@@ -48,6 +48,9 @@ export type LineDraftValue = {
   km: string
   /** Only meaningful for `travel_km`: the trip is there and back (informative, `km` is the whole distance). */
   roundTrip: boolean
+  /** Only meaningful for `travel_km`, and required for it: where the trip starts and ends. */
+  fromAddress: string
+  toAddress: string
 }
 
 /** A fresh draft for `ExpenseLineComposer` — no default type/entity/currency (AC-1.2: "no default … an explicit, deliberate choice"). */
@@ -60,6 +63,8 @@ export const emptyLineDraft = (): LineDraftValue => ({
   currency: '',
   km: '',
   roundTrip: false,
+  fromAddress: '',
+  toAddress: '',
 })
 
 /** Converts a persisted `RefundLine` into an editable draft for `ExpenseLineRow`. */
@@ -72,6 +77,8 @@ export const lineToDraft = (line: RefundLine): LineDraftValue => ({
   currency: line.currency,
   km: line.km !== null ? String(line.km) : '',
   roundTrip: line.roundTrip === true,
+  fromAddress: line.fromAddress ?? '',
+  toAddress: line.toAddress ?? '',
 })
 
 /**
@@ -104,7 +111,16 @@ export const centsToAmountInput = (cents: number): string => (cents / 100).toFix
 export const isLineDraftComplete = (draft: LineDraftValue): boolean => lineDraftInvalidFields(draft).length === 0
 
 /** A draft's editable fields, in the order the composer and the row render them. */
-export type LineDraftField = 'date' | 'type' | 'motivo' | 'amount' | 'entity' | 'currency' | 'km'
+export type LineDraftField =
+  | 'date'
+  | 'type'
+  | 'motivo'
+  | 'amount'
+  | 'entity'
+  | 'currency'
+  | 'fromAddress'
+  | 'toAddress'
+  | 'km'
 
 /**
  * The fields of `draft` that are missing or invalid for its *current* type, in
@@ -123,6 +139,8 @@ export const lineDraftInvalidFields = (draft: LineDraftValue): LineDraftField[] 
   if (!draft.entity) invalid.push('entity')
   if (!km && !draft.currency) invalid.push('currency')
   if (km) {
+    if (draft.fromAddress.trim() === '') invalid.push('fromAddress')
+    if (draft.toAddress.trim() === '') invalid.push('toAddress')
     const n = Number(draft.km)
     if (draft.km.trim() === '' || !Number.isFinite(n) || n <= 0) invalid.push('km')
   }
@@ -137,7 +155,9 @@ export const isLineDraftBlank = (draft: LineDraftValue): boolean =>
   draft.entity === '' &&
   draft.currency === '' &&
   draft.km === '' &&
-  !draft.roundTrip
+  !draft.roundTrip &&
+  draft.fromAddress === '' &&
+  draft.toAddress === ''
 
 /**
  * Converts a complete draft into the wire payload `POST/PUT
@@ -163,6 +183,8 @@ export const lineDraftToPayload = (draft: LineDraftValue): LinePayload => {
     payload.km = Number(draft.km)
     // Sent only when ticked: the server reads a missing flag as one-way, so a PUT that unticks it clears it.
     if (draft.roundTrip) payload.roundTrip = true
+    payload.fromAddress = draft.fromAddress.trim()
+    payload.toAddress = draft.toAddress.trim()
   } else {
     payload.requestedAmountCents = amountToCents(draft.amount) ?? 0
     payload.currency = draft.currency as Currency
