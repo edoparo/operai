@@ -1,10 +1,10 @@
 {
   "adopted": "2026-06-06",
-  "updated": "2026-11-14",
+  "updated": "2026-11-25",
   "plugin": {
-    "version": "2.63.0",
+    "version": "2.63.1",
     "set_by": "upgrade",
-    "at": "2026-11-14",
+    "at": "2026-11-25",
     "marketplace": "wellforge@wellforge"
   },
   "layers": [
