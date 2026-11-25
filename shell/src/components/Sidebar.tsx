@@ -85,8 +85,6 @@ const itemClass = (collapsed: boolean): string =>
 // from the library's icon set (INC-31).
 const TOOL_ICON_SIZE = 20
 
-
-
 const TOOL_ICONS: Record<ToolId, ReactNode> = {
   estimai: <Icon name="chart" size={TOOL_ICON_SIZE} className="shrink-0" />,
   refund: <Icon name="banknote" size={TOOL_ICON_SIZE} className="shrink-0" />,
@@ -221,44 +219,49 @@ export default function Sidebar() {
           return (
             <li
               key={tool.id}
-              className={`group relative${firstAfterPinned ? ' mt-1 border-t border-rule pt-2' : ''}`}
+              className={firstAfterPinned ? 'mt-1 border-t border-rule pt-2' : undefined}
               data-testid={`sidebar-tool-${tool.id}`}
               data-pinned={isPinned || undefined}
             >
-              <Link
-                to={tool.to}
-                ref={(node) => {
-                  itemRefs.current[index] = node
-                }}
-                tabIndex={index === safeRovingIndex ? 0 : -1}
-                onFocus={() => setRovingIndex(index)}
-                onKeyDown={(event) => handleKeyDown(event, index)}
-                // Hover tooltip surfaces the label the collapsed rail hides.
-                title={collapsed ? tool.label : undefined}
-                className={`${itemClass(collapsed)}${collapsed ? '' : ' pr-9'}`}
-                activeProps={ACTIVE_PROPS}
-              >
-                {TOOL_ICONS[tool.id]}
-                <span className={collapsed ? 'sr-only' : ''}>{tool.label}</span>
-              </Link>
-              {!collapsed && (
-                // A sibling of the link, never inside it (a button cannot sit in a link). Shown on hover and focus, and
-                // always while pinned; reachable with Tab from its row's link (the row that holds the roving tab stop).
-                <button
-                  type="button"
-                  aria-pressed={isPinned}
-                  aria-label={isPinned ? strings.sidebar.unpin(tool.label) : strings.sidebar.pin(tool.label)}
-                  title={isPinned ? strings.sidebar.unpin(tool.label) : strings.sidebar.pin(tool.label)}
+              {/* The pin is centred on the link, so the row's own frame holds both (the separator's padding stays outside it). */}
+              <div className="group relative">
+                <Link
+                  to={tool.to}
+                  ref={(node) => {
+                    itemRefs.current[index] = node
+                  }}
                   tabIndex={index === safeRovingIndex ? 0 : -1}
-                  onClick={() => togglePin(tool.id)}
-                  className={`absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-1 transition-opacity hover:bg-ink-mid hover:text-text ${FOCUS_RING} ${
-                    isPinned ? 'text-acc opacity-100' : 'text-soft opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
-                  }`}
-                  data-testid={`sidebar-pin-${tool.id}`}
+                  onFocus={() => setRovingIndex(index)}
+                  onKeyDown={(event) => handleKeyDown(event, index)}
+                  // Hover tooltip surfaces the label the collapsed rail hides.
+                  title={collapsed ? tool.label : undefined}
+                  className={`${itemClass(collapsed)}${collapsed ? '' : ' pr-9'}`}
+                  activeProps={ACTIVE_PROPS}
                 >
-                  <Icon name="pin" size={16} />
-                </button>
-              )}
+                  {TOOL_ICONS[tool.id]}
+                  <span className={collapsed ? 'sr-only' : ''}>{tool.label}</span>
+                </Link>
+                {!collapsed && (
+                  // A sibling of the link, never inside it (a button cannot sit in a link). Shown on hover and focus, and
+                  // always while pinned; reachable with Tab from its row's link (the row that holds the roving tab stop).
+                  <button
+                    type="button"
+                    aria-pressed={isPinned}
+                    aria-label={isPinned ? strings.sidebar.unpin(tool.label) : strings.sidebar.pin(tool.label)}
+                    title={isPinned ? strings.sidebar.unpin(tool.label) : strings.sidebar.pin(tool.label)}
+                    tabIndex={index === safeRovingIndex ? 0 : -1}
+                    onClick={() => togglePin(tool.id)}
+                    className={`absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center justify-center rounded p-1 transition-opacity hover:bg-ink-mid hover:text-text ${FOCUS_RING} ${
+                      isPinned
+                        ? 'text-acc opacity-100'
+                        : 'text-soft opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                    }`}
+                    data-testid={`sidebar-pin-${tool.id}`}
+                  >
+                    <Icon name="pin" size={16} />
+                  </button>
+                )}
+              </div>
             </li>
           )
         })}
