@@ -1,4 +1,4 @@
-import { Link, Outlet } from '@tanstack/react-router'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { TabNav, ToolLayout, tabLinkClassName } from '@operai/ui'
 import { ScopeContext } from '../hooks/useScope'
@@ -27,6 +27,9 @@ const loadScope = (signal: AbortSignal) => getScope({ signal })
 
 export default function ProjectsShell() {
   const scope = useResource(loadScope)
+  // A project's page belongs to the Projects tab. The router's prefix match never lights the root ("/"), so the
+  // tab says it is current itself while a project is open; elsewhere it matches the list exactly.
+  const onProject = useRouterState({ select: (state) => state.matches.some((match) => match.routeId === '/$id') })
 
   let content: ReactNode
   if (scope.status === 'loading') content = <Loading label={strings.nav.loading} />
@@ -44,7 +47,12 @@ export default function ProjectsShell() {
       testId="projects-shell"
       nav={
         <TabNav label={strings.nav.landmarkLabel}>
-          <Link to="/" className={tabLinkClassName} activeOptions={{ exact: true }}>
+          <Link
+            to="/"
+            className={tabLinkClassName}
+            activeOptions={{ exact: true }}
+            aria-current={onProject ? 'page' : undefined}
+          >
             {strings.nav.projects}
           </Link>
           {scope.status === 'ready' && scope.data!.take.length > 0 && (

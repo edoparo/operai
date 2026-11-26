@@ -33,13 +33,15 @@ function ScopeProbe() {
   )
 }
 
-const renderShell = async (handler: FakeHandler) => {
+const renderShell = async (handler: FakeHandler, path = '/') => {
   apiFetch.mockImplementation(fakeApi({ 'GET /scope': handler }))
-  window.history.pushState(null, '', '/')
+  window.history.pushState(null, '', path)
   const rootRoute = createRootRoute({ component: ProjectsShell })
   const routeTree = rootRoute.addChildren([
     createRoute({ getParentRoute: () => rootRoute, path: '/', component: ScopeProbe }),
     createRoute({ getParentRoute: () => rootRoute, path: '/queue', component: ScopeProbe }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: ScopeProbe }),
+    createRoute({ getParentRoute: () => rootRoute, path: '/$id', component: ScopeProbe }),
   ])
   render(<RouterProvider router={createRouter({ routeTree })} />)
   await screen.findByRole('heading', { level: 1, name: 'Projects' })
@@ -55,6 +57,19 @@ afterEach(() => {
 })
 
 describe('ProjectsShell', () => {
+  const projectsTab = () => screen.getByRole('link', { name: 'Projects' }).getAttribute('aria-current')
+
+  it('keeps the Projects tab selected on a project page, and only there besides the list', async () => {
+    await renderShell(() => ({ status: 200, body: scope() }), '/ck9x2')
+    await screen.findByText(/^manage/)
+    expect(projectsTab()).toBe('page')
+    cleanup()
+    await renderShell(() => ({ status: 200, body: scope() }), '/tasks')
+    await screen.findByText(/^manage/)
+    expect(projectsTab()).toBeNull()
+    expect(screen.getByRole('link', { name: 'My tasks' }).getAttribute('aria-current')).toBe('page')
+  })
+
   it('hands the scope to the page once GET /scope answers', async () => {
     await renderShell(() => ({ status: 200, body: scope({ manage: ['welld_ch'], bexio: false }) }))
     expect(
