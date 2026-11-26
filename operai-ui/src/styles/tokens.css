@@ -1211,6 +1211,123 @@ select:not([multiple]):not([size]) {
     gap: 8px;
   }
 
+  /* Board (@operai/ui/board): lanes side by side, cards moved between them by dragging. */
+  .board {
+    overflow-x: auto;
+  }
+
+  .board-lanes {
+    display: grid;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .board-lane {
+    display: flex;
+    min-height: 16rem;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: var(--ink-soft);
+    transition:
+      border-color 0.15s ease-out,
+      background-color 0.15s ease-out,
+      opacity 0.15s ease-out;
+  }
+
+  .board-lane[data-drop='accepts'] {
+    border-color: var(--dim);
+  }
+
+  .board-lane[data-drop='over'] {
+    border-color: var(--acc);
+    background: var(--acc-lo);
+  }
+
+  .board-lane[data-drop='refuses'] {
+    opacity: 0.5;
+  }
+
+  .board-lane-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 4px 0;
+    font-size: 0.75rem;
+    color: var(--soft);
+  }
+
+  .board-lane-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .board-lane-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .board-lane-count {
+    font-family: var(--font-mono);
+    color: var(--soft);
+  }
+
+  .board-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .board-empty {
+    padding: 0 4px;
+    font-size: 0.75rem;
+    color: var(--soft);
+  }
+
+  .board-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--ink-mid);
+    color: var(--text);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .board-card:hover {
+    border-color: var(--dim);
+  }
+
+  .board-card:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .board-card-draggable {
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .board-card[data-dragging] {
+    opacity: 0.4;
+  }
+
+  .board-card-overlay {
+    cursor: grabbing;
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+  }
+
   /* ── Form field — <Field> ────────────────────────────────────────────── */
   .field {
     display: flex;
@@ -1861,7 +1978,8 @@ select:not([multiple]):not([size]) {
   }
 
   .progress-fill,
-  .floating-panel-moving {
+  .floating-panel-moving,
+  .board-lane {
     transition: none;
   }
 

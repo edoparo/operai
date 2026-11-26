@@ -504,6 +504,23 @@ recorder). Only the shell renders one, in its floating slot (ADR 20261110-shell-
 - The content is a row of `sm` buttons and short text; at most one line of warning under it. No primary button.
 - Motion (the glide to the edge) stops under reduced motion.
 
+## Board — `Board` (`@operai/ui/board`)
+
+Cards in lanes, moved between lanes by dragging: the CRM pipeline (a lane per stage) and the tasks of a project or a
+person (Open, In progress, Done). Not for a list that is only read: that is `ListRows` or `DataTable`.
+
+- The board reports a drop (`onMove`) and moves nothing itself; the app writes, then re-renders the card in its new
+  lane, and shows the server's refusal as it would for a button.
+- Who may move what is the app's rule, given as `canDrag` (the card) and `canDrop` (the lane); a refused lane is dimmed
+  while dragging and cannot be dropped on. Every move must also be possible without dragging (a button in the card's
+  detail), so the board is never the only way.
+- A card is one tab stop and opens on click or Enter (`onOpen`), usually into a `Drawer` with the full record and its
+  actions; the card itself holds only what tells cards apart (title, owner, date, one state badge), never buttons.
+  A card that must be a link (open in a new tab) is drawn by the app through `staticCard`.
+- Keyboard: Space picks up, ←/→ jump a lane, Space drops, Escape cancels; every step is announced in the app's words
+  (`copy`). A narrow screen scrolls the board sideways, never the page.
+- It needs `@dnd-kit/core`, so it ships from its own entry (README § Board); tests in jsdom call `stubLayoutForBoard()`.
+
 ## Icons — `Icon` (INC-31)
 
 One inline-SVG set in `currentColor` on a 24px grid (Storybook: Foundations →

@@ -147,6 +147,23 @@ Tests in jsdom call `stubLayoutForRichText()` (from the same entry) once: ProseM
 does not have. Today's consumers: meetings-ui (personal meeting notes), crm-ui and projects-ui (task
 descriptions with images and attachments, ADR 20261113-task-description-files-in-activities-api-bucket).
 
+## Board (`@operai/ui/board`)
+
+`Board` (cards in lanes, moved by dragging; design-system.md § Board) needs `@dnd-kit/core`, so it ships from its own
+entry, like the rich text, and the main `@operai/ui` stays dependency-free. Its classes (`.board*`) are in
+`tokens.css`, so the shell must be live with them before a remote shows a board. An app that uses it:
+
+1. installs `@dnd-kit/core` at the version this library's devDependencies pin, exactly;
+2. compiles the entry ITSELF: in `vite.config.ts` an exact-match alias
+   `{ find: /^@operai\/ui\/board$/, replacement: '../operai-ui/src/board.ts' }` (the main entry stays shared), in
+   `vitest.config.ts` the same before the main alias;
+3. adds `@dnd-kit/core` to `resolve.dedupe` (vite and vitest), so the library's import resolves from the app;
+4. adds to tsconfig `paths`: `"@operai/ui/board": ["../operai-ui/src/board.ts"]` and
+   `"@dnd-kit/*": ["./node_modules/@dnd-kit/*"]`.
+
+Tests in jsdom call `stubLayoutForBoard()` (same entry) before a keyboard drag: jsdom lays nothing out. Today's
+consumers: crm-ui (the pipeline) and projects-ui (the tasks of a project, My tasks).
+
 ## Versioning
 
 `@operai/ui` is a Changesets package like the apps (`lerna.json`). Its version
