@@ -1,19 +1,20 @@
 /**
  * @vitest-environment jsdom
  *
- * ProjectTaskItem × Record hours (specs/20261116-record-hours-in-place AC-3.1, AC-3.2, AC-3.6, AC-4.5, design S2): a
- * task's row on the project's Tasks card offers hours-ui's widget, through the shell's `hours.recordHours`
- * extension, to the task's assignee and to its participants and to nobody else — as the LAST item of the row's
- * actions, done rows included — with the six plain strings of the task and its project. When the widget cannot be
- * had the row works as before and shows the link to My hours in its place. `shell/extensions` is a spy that records
- * what the row hands the widget (the real one is the shell's).
+ * TaskDrawer × Record hours (specs/20261116-record-hours-in-place AC-3.1, AC-3.2, AC-3.6, AC-4.5, design S2): a
+ * project task's drawer (opened from its card on the project's Tasks board) offers hours-ui's widget, through the
+ * shell's `hours.recordHours` extension, to the task's assignee and to its participants and to nobody else — as the
+ * LAST item of the drawer's actions, done tasks included — with the six plain strings of the task and its project
+ * (`placement: 'row'`, the task's placement). When the widget cannot be had the drawer works as before and shows the
+ * link to My hours in its place. `shell/extensions` is a spy that records what the drawer hands the widget (the real
+ * one is the shell's).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { projectTask } from '../test-support/fakeApi'
 import type { ProjectTask } from '../lib/activitiesApi'
-import ProjectTaskItem from './ProjectTaskItem'
+import TaskDrawer from './TaskDrawer'
 
 type Mode = 'ready' | 'fallsBack' | 'noExport'
 type Call = { name: string; props: Record<string, unknown>; hasLoading: boolean }
@@ -51,10 +52,22 @@ const person = (id: string) => ({ id, name: id, status: 'active' })
 
 const renderRow = (row: ProjectTask, me: string | null = 'u-ada') =>
   render(
-    <ProjectTaskItem task={row} currentUserId={me} error={undefined} onChanged={noop} onFailed={noop} onEdit={noop} />,
+    <TaskDrawer
+      task={row}
+      mode="project"
+      currentUserId={me}
+      testIdPrefix="project-task"
+      notice={null}
+      onDismissNotice={noop}
+      onClose={noop}
+      onWritten={noop}
+      onDeleted={noop}
+      onStale={noop}
+      onEdit={noop}
+    />,
   )
 
-/** The row's action group, which names itself after the task. */
+/** The drawer's action group, which names itself after the task. */
 const actions = () => screen.getByRole('group', { name: 'Actions for Write the offer' })
 
 /** Waits for the wrapper's dynamic import of `shell/extensions` to settle, so an absence is not just "not yet". */
@@ -71,7 +84,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('Record hours on a project task row — who is offered it (AC-3.1)', () => {
+describe('Record hours in a project task’s drawer — who is offered it (AC-3.1)', () => {
   it('offers it to the assignee as the LAST item of the row’s actions, after Mark done, Edit and Delete (design S2)', async () => {
     renderRow(task())
 
@@ -118,7 +131,12 @@ describe('Record hours on a project task row — who is offered it (AC-3.1)', ()
     expect(screen.queryByTestId('widget-record-hours')).toBeNull()
     expect(screen.queryByTestId('record-hours-fallback')).toBeNull()
     // The row's own buttons are all still there.
-    expect(Array.from(actions().children).map((item) => item.textContent)).toEqual(['Start', 'Mark done', 'Edit', 'Delete'])
+    expect(Array.from(actions().children).map((item) => item.textContent)).toEqual([
+      'Start',
+      'Mark done',
+      'Edit',
+      'Delete',
+    ])
     cleanup()
 
     renderRow(row, 'u-someone-else')
@@ -150,7 +168,7 @@ describe('Record hours on a project task row — who is offered it (AC-3.1)', ()
   })
 })
 
-describe('Record hours on a done project task row (AC-3.6)', () => {
+describe('Record hours in a done project task’s drawer (AC-3.6)', () => {
   const done = { completedAt: '2026-11-05T10:00:00.000Z', completedBy: person('u-ada') }
 
   it('offers it exactly as an open row does: same props, same place — last, after Mark not done', async () => {
@@ -182,7 +200,7 @@ describe('Record hours on a done project task row (AC-3.6)', () => {
   })
 })
 
-describe('Record hours on a project task row when the hours screens cannot be loaded (AC-4.5)', () => {
+describe('Record hours in a project task’s drawer when the hours screens cannot be loaded (AC-4.5)', () => {
   it('works as before and shows the link to My hours, centred, as the last action', async () => {
     seam.mode = 'fallsBack'
     renderRow(task())

@@ -27,7 +27,7 @@ vi.mock('shell/session', () => ({
 }))
 
 const MANAGER = scope({ manage: ['welld_ch'] })
-const page = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 25 })
+const page = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 100 })
 
 const renderProject = async (
   project: Project,
@@ -73,7 +73,7 @@ describe('the Tasks card on the project page', () => {
 
   it('asks the activities service for this project’s tasks, not projects-api', async () => {
     await renderProject(projectDetail())
-    await screen.findByText('No open tasks')
+    await screen.findByText(/^No open tasks/)
     const task = apiFetch.mock.calls.map(([input]) => new URL(String(input))).find((url) => url.pathname === '/tasks')!
     expect(task.origin).toBe('http://activities-api.test')
     expect(task.searchParams.get('projectId')).toBe('p1')
@@ -90,9 +90,12 @@ describe('the Tasks card on the project page', () => {
       },
       scope(),
     )
-    const row = await screen.findByTestId('project-task-t1')
-    expect(within(row).queryAllByRole('button')).toHaveLength(0)
+    const card = await screen.findByTestId('project-task-t1')
+    expect(within(card).queryAllByRole('button')).toHaveLength(0)
     expect(screen.queryByRole('button', { name: 'Add task' })).toBeNull()
+    fireEvent.click(card)
+    const drawer = within(await screen.findByTestId('task-drawer'))
+    expect(drawer.queryAllByRole('button', { name: /Start|Mark|Edit|Delete/ })).toHaveLength(0)
   })
 
   it('does not take the page down when it fails: details and terms stay, the card says what happened', async () => {
@@ -111,7 +114,12 @@ describe('the Tasks card on the project page', () => {
   it('a manager adds a task through the dialog; the list reloads and confirms', async () => {
     let created = false
     await renderProject(projectDetail(), {
-      'GET /tasks': () => ({ status: 200, body: page(created ? [projectTask('new', { subject: 'Send offer' })] : []) }),
+      'GET /tasks': (url) => ({
+        status: 200,
+        body: page(
+          created && url.searchParams.get('status') === 'open' ? [projectTask('new', { subject: 'Send offer' })] : [],
+        ),
+      }),
       'POST /activities': () => {
         created = true
         return { status: 201, body: projectTask('new', { subject: 'Send offer' }) }
@@ -130,7 +138,7 @@ describe('the Tasks card on the project page', () => {
 
   it('no Add task on a cancelled project, even for a manager', async () => {
     await renderProject(projectDetail({ state: 'cancelled' }))
-    await screen.findByText('No open tasks')
+    await screen.findByText(/^No open tasks/)
     expect(screen.queryByRole('button', { name: 'Add task' })).toBeNull()
   })
 })

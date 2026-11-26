@@ -7,6 +7,7 @@ export default defineConfig({
     dedupe: [
       'react',
       'react-dom',
+      '@dnd-kit/core',
       '@tiptap/core',
       '@tiptap/extension-list',
       '@tiptap/extensions',
@@ -26,6 +27,10 @@ export default defineConfig({
       {
         find: /^@operai\/ui\/rich-text$/,
         replacement: fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url)),
+      },
+      {
+        find: /^@operai\/ui\/board$/,
+        replacement: fileURLToPath(new URL('../operai-ui/src/board.ts', import.meta.url)),
       },
       { find: /^@operai\/ui$/, replacement: fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)) },
       {

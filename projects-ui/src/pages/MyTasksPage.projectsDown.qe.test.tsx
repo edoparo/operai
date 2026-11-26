@@ -30,7 +30,7 @@ const page = (items: unknown[], extra: Record<string, unknown> = {}) => ({
   items,
   total: items.length,
   page: 1,
-  pageSize: 25,
+  pageSize: 100,
   ...extra,
 })
 
@@ -94,7 +94,7 @@ describe('when the PROJECTS host cannot be reached (gap G1, not an AC)', () => {
 
   it.fails('an empty list with projects unavailable does not claim "Nothing on your list" without a warning', async () => {
     await renderPage({ 'GET /tasks': () => ({ status: 200, body: page([], { unavailable: ['projects'] }) }) })
-    await screen.findByText('Nothing on your list')
+    await screen.findByText(/^Nothing on your list/)
     expect(screen.queryByTestId('my-tasks-unavailable')).not.toBeNull()
   })
 })

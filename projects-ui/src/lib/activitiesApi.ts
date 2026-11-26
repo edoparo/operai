@@ -84,7 +84,11 @@ export type ProjectTask = {
 /** `open` lists the tasks in progress too; `in_progress` only those. */
 export type TaskStatus = 'open' | 'in_progress' | 'done'
 
-export type ProjectTaskQuery = { status: TaskStatus; page?: number; pageSize?: number }
+/**
+ * `completedSince` (ISO 8601 date-time) narrows `status=done` to the tasks completed from then on; an older server
+ * ignores it and answers every done task.
+ */
+export type ProjectTaskQuery = { status: TaskStatus; page?: number; pageSize?: number; completedSince?: string }
 
 /** A CRM company reference on a pre-sales task; `name` is null when the CRM no longer returns it. */
 export type CompanyRef = { id: string; name: string | null }
@@ -107,7 +111,7 @@ export type MyTask = ProjectTask | PreSalesTask
 /** `unavailable` names the hosts whose items were left out because they could not be resolved (AC-7.5). */
 export type MyTasksPage = Page<MyTask> & { unavailable?: string[] }
 
-export type MyTasksQuery = { status: TaskStatus; page?: number; pageSize?: number }
+export type MyTasksQuery = ProjectTaskQuery
 
 const activityPath = (id: string) => `/activities/${encodeURIComponent(id)}`
 

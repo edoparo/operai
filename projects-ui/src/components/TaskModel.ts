@@ -1,6 +1,6 @@
-import { STATUS } from '@operai/ui'
+import { STATUS, formatDate } from '@operai/ui'
 import type { StatusMeaning, TaskRowState } from '@operai/ui'
-import type { PersonRef, ProjectTask } from '../lib/activitiesApi'
+import type { MyTask, PersonRef, ProjectTask } from '../lib/activitiesApi'
 import { strings } from '../strings'
 
 /**
@@ -58,4 +58,48 @@ export function refName(person: PersonRef | null, currentUserId: string | null =
   if (person.status === 'unknown') return strings.tasks.person.unknown
   const name = person.name ?? strings.people.picker.noName
   return person.id === currentUserId ? `${name} (${strings.people.you})` : name
+}
+
+export type TaskBoardMode = 'project' | 'my'
+
+/** Where a task of My tasks belongs: its project, or its company and deal for a pre-sales task. */
+export function taskContext(task: MyTask): string | null {
+  const my = strings.tasks.my
+  if (task.kind === 'pre_sales') {
+    const company = task.company ? (task.company.name ?? my.unknownCompany) : null
+    const deal = task.deal ? (task.deal.title ?? my.unknownDeal) : null
+    const parts = [company, deal].filter((part): part is string => part !== null)
+    return parts.length > 0 ? parts.join(' · ') : null
+  }
+  return task.project ? (task.project.name ?? my.unknownProject) : null
+}
+
+/** The one state badge a card shows, only when the task needs attention (Blocked, Overdue). */
+export const attentionOf = (task: MyTask) => {
+  const state = taskState(task)
+  return state === 'blocked' || state === 'overdue' ? state : null
+}
+
+export const dueOf = (task: MyTask) =>
+  task.task.dueDate ? strings.tasks.row.due(formatDate(task.task.dueDate)) : strings.tasks.row.noDue
+
+export const assigneeOf = (task: MyTask, currentUserId: string | null) =>
+  task.task.assignee ? strings.tasks.row.assignedTo(refName(task.task.assignee, currentUserId)) : null
+
+/**
+ * The card's accessible name: everything the card shows, in its order, since the card is one button and its
+ * content is not read on its own.
+ */
+export function taskCardLabel(task: MyTask, mode: TaskBoardMode, currentUserId: string | null): string {
+  const attention = attentionOf(task)
+  return [
+    task.subject,
+    mode === 'my' && task.kind === 'pre_sales' ? strings.tasks.my.preSales : null,
+    mode === 'my' ? taskContext(task) : null,
+    attention ? strings.tasks.state[attention] : null,
+    dueOf(task),
+    assigneeOf(task, currentUserId),
+  ]
+    .filter((part): part is string => part !== null)
+    .join(', ')
 }

@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Starting a meeting from a project task (specs/20261104-meetings A18): a holder of `meetings:access`
- * gets "Start a meeting", a link to Meetings' new-meeting page linked to the task's PROJECT and titled
- * after the task; anyone else gets no link.
+ * Starting a meeting from a project task (specs/20261104-meetings A18): in the task's drawer, a holder of
+ * `meetings:access` gets "Start a meeting", a link to Meetings' new-meeting page linked to the task's PROJECT and
+ * titled after the task; anyone else gets no link.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
@@ -23,29 +23,36 @@ vi.mock('shell/session', () => ({
   useSession: () => ({ data: { user: { id: 'u-ada' } } }),
 }))
 
-import ProjectTaskItem from './ProjectTaskItem'
+import TaskDrawer from './TaskDrawer'
 
 afterEach(() => {
   cleanup()
   perms.list = []
 })
 
-const renderRow = () =>
+const noop = () => undefined
+
+const renderDrawer = () =>
   render(
-    <ProjectTaskItem
+    <TaskDrawer
       task={projectTask('t1', { subject: 'Kick-off & scope' }) as unknown as ProjectTask}
+      mode="project"
       currentUserId="u-ada"
-      error={undefined}
-      onChanged={() => undefined}
-      onFailed={() => undefined}
-      onEdit={() => undefined}
+      testIdPrefix="project-task"
+      notice={null}
+      onDismissNotice={noop}
+      onClose={noop}
+      onWritten={noop}
+      onDeleted={noop}
+      onStale={noop}
+      onEdit={noop}
     />,
   )
 
 describe('Start a meeting on a project task (A18)', () => {
   it('links to a new meeting on the task’s project, titled after the task', () => {
     perms.list = [{ resource: 'meetings', action: 'access' }]
-    renderRow()
+    renderDrawer()
     const link = screen.getByRole('link', { name: strings.tasks.row.startMeetingFor('Kick-off & scope') })
     const url = new URL(link.getAttribute('href')!, 'http://suite.test')
     expect(url.pathname).toBe('/meetings/new')
@@ -58,7 +65,7 @@ describe('Start a meeting on a project task (A18)', () => {
   })
 
   it('is absent without meetings:access', () => {
-    renderRow()
+    renderDrawer()
     expect(screen.queryByTestId('project-task-t1-meeting')).toBeNull()
   })
 })

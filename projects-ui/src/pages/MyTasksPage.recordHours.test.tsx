@@ -1,18 +1,15 @@
 /**
  * @vitest-environment jsdom
  *
- * My tasks × Record hours (specs/20261116-record-hours-in-place AC-3.1 – AC-3.4, AC-3.6, AC-4.5, design S2): a
- * row of My tasks — a project task or a pre-sales task — offers hours-ui's widget, through the shell's
- * `hours.recordHours` extension, to the task's assignee and its participants and to nobody else, as the LAST item
- * of the row's actions (after "Open in CRM" on a pre-sales row), done rows included. A project task records on its
+ * My tasks × Record hours (specs/20261116-record-hours-in-place AC-3.1 – AC-3.4, AC-3.6, AC-4.5, design S2): the
+ * drawer of a task of My tasks — a project task or a pre-sales task, opened from its card — offers hours-ui's widget,
+ * through the shell's `hours.recordHours` extension, to the task's assignee and its participants and to nobody else,
+ * as the LAST item of the drawer's actions (after "Open in CRM" for a pre-sales task), done tasks included. The board
+ * itself mounts no widget. A project task records on its
  * project and the task, a pre-sales task with a deal on that deal and the task, a pre-sales task with no deal as
  * other work with no ids. Rendered through the app's real router against a fake activities-api; `shell/extensions`
- * is a spy that records what each row hands the widget.
- *
- * `shell/extensions` is AUTOMOCKED here, with the widget set per test, and not given a `vi.mock` factory: rows mount
- * together and each asks for the module in the same tick, and vitest hands a factory mock only to the first of
- * several concurrent imports and the aliased stub file to the others (a harness limit, the one the shell's
- * extensions.test.tsx works around too; the federation runtime caches the module, so production has no such race).
+ * is a spy that records what each drawer hands the widget. It is AUTOMOCKED, with the widget set per test, as the
+ * shell's extensions.test.tsx does.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
@@ -21,6 +18,7 @@ import type { ReactNode } from 'react'
 import ProjectsShell from '../components/ProjectsShell'
 import { createAppRouter } from '../router'
 import { fakeApi, personRef, projectTask, scope } from '../test-support/fakeApi'
+import { closeDrawer, openCard } from '../test-support/taskBoard'
 import { HostExtension } from 'shell/extensions'
 
 type Mode = 'ready' | 'fallsBack'
@@ -48,7 +46,7 @@ const widget = ({ name, props, fallback }: { name: string; props: Record<string,
   return seam.mode === 'fallsBack' ? <>{fallback}</> : <button data-testid="widget-record-hours">Record hours</button>
 }
 
-const page = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 25 })
+const page = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 100 })
 
 /** A pre-sales task as `GET /tasks?kind=all` returns it: a CRM company, no project, assigned to `u-ada`. */
 const preSalesTask = (id: string, over: Record<string, unknown> = {}, task: Record<string, unknown> = {}) =>
@@ -77,9 +75,11 @@ const renderPage = async (items: unknown[], first: string) => {
   await screen.findByTestId(`my-task-${first}`)
 }
 
-/** A row's action group, named after the task. */
-const actionsOf = (id: string, subject: string) =>
-  within(screen.getByTestId(`my-task-${id}`)).queryByRole('group', { name: `Actions for ${subject}` })
+/** Opens a task's drawer and returns its action group, named after the task (null when the drawer has none). */
+const actionsOf = async (id: string, subject: string) => {
+  const drawer = await openCard('my-task', id)
+  return drawer.queryByRole('group', { name: `Actions for ${subject}` })
+}
 
 const labels = (group: HTMLElement) => Array.from(group.children).map((item) => item.textContent)
 
@@ -107,12 +107,13 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('Record hours on a My tasks row — what it records on (AC-3.2, AC-3.3, AC-3.4)', () => {
+describe('Record hours in a My tasks drawer — what it records on (AC-3.2, AC-3.3, AC-3.4)', () => {
   it('a project task records on its project and on the task, after Mark done', async () => {
     await renderPage([projectTask('p1', { subject: 'Write the offer' })], 'p1')
+    expect(seam.calls).toEqual([])
 
+    const group = (await actionsOf('p1', 'Write the offer'))!
     const widget = await screen.findByTestId('widget-record-hours')
-    const group = actionsOf('p1', 'Write the offer')!
     expect(group.lastElementChild).toBe(widget)
     expect(labels(group)).toEqual(['Start', 'Mark done', 'Record hours'])
     expect(seam.calls.at(-1)).toEqual({
@@ -131,8 +132,8 @@ describe('Record hours on a My tasks row — what it records on (AC-3.2, AC-3.3,
   it('a pre-sales task with a deal records on the deal and on the task, as the last item after "Open in CRM"', async () => {
     await renderPage([preSalesTask('s1', { subject: 'Send the quote' })], 's1')
 
+    const group = (await actionsOf('s1', 'Send the quote'))!
     const widget = await screen.findByTestId('widget-record-hours')
-    const group = actionsOf('s1', 'Send the quote')!
     expect(labels(group)).toEqual(['Start', 'Mark done', 'Open in CRM', 'Record hours'])
     expect(group.lastElementChild).toBe(widget)
     expect(seam.calls.at(-1)?.props).toEqual({
@@ -148,6 +149,7 @@ describe('Record hours on a My tasks row — what it records on (AC-3.2, AC-3.3,
   it('a pre-sales task with no deal records as other work: no ids, no name, the subject only names the button', async () => {
     await renderPage([preSalesTask('s2', { subject: 'Call Globex back', deal: null })], 's2')
 
+    const group = (await actionsOf('s2', 'Call Globex back'))!
     await screen.findByTestId('widget-record-hours')
     expect(seam.calls.at(-1)?.props).toEqual({
       on: 'none',
@@ -157,30 +159,35 @@ describe('Record hours on a My tasks row — what it records on (AC-3.2, AC-3.3,
       activityName: 'Call Globex back',
       placement: 'row',
     })
-    expect(actionsOf('s2', 'Call Globex back')!.lastElementChild).toBe(screen.getByTestId('widget-record-hours'))
+    expect(group.lastElementChild).toBe(screen.getByTestId('widget-record-hours'))
   })
 
-  it('offers it on a pre-sales row that has no company link: it is then the only action besides Mark done', async () => {
+  it('offers it for a pre-sales task that has no company link: it is then the only action besides Mark done', async () => {
     await renderPage([preSalesTask('s3', { subject: 'Orphan', company: null })], 's3')
+    const group = (await actionsOf('s3', 'Orphan'))!
     await screen.findByTestId('widget-record-hours')
-    expect(labels(actionsOf('s3', 'Orphan')!)).toEqual(['Start', 'Mark done', 'Record hours'])
+    expect(labels(group)).toEqual(['Start', 'Mark done', 'Record hours'])
   })
 })
 
-describe('Record hours on a My tasks row — who is offered it (AC-3.1, AC-3.6)', () => {
-  it('offers it to a participant who is not the assignee', async () => {
+describe('Record hours in a My tasks drawer — who is offered it (AC-3.1, AC-3.6)', () => {
+  it('offers it to a participant who is not the assignee, and not on the task of someone else', async () => {
     session.id = 'u-pat'
     await renderPage(
       [projectTask('p1', { participants: [person('u-pat')] }, { assignee: person('u-bob') }), projectTask('p2')],
       'p1',
     )
-    await waitFor(() => expect(screen.getAllByTestId('widget-record-hours')).toHaveLength(1))
-    // Only the row the person takes part in; the other one is assigned to Ada.
-    expect(within(screen.getByTestId('my-task-p1')).getByTestId('widget-record-hours')).not.toBeNull()
-    expect(within(screen.getByTestId('my-task-p2')).queryByTestId('widget-record-hours')).toBeNull()
+    await actionsOf('p1', 'Task p1')
+    expect(await screen.findByTestId('widget-record-hours')).toBeTruthy()
+    closeDrawer()
+    seam.calls = []
+    await actionsOf('p2', 'Task p2')
+    await settled()
+    expect(seam.calls).toEqual([])
+    expect(screen.queryByTestId('widget-record-hours')).toBeNull()
   })
 
-  it('offers it to nobody else who can read the task, and mounts nothing for those rows', async () => {
+  it('offers it to nobody else who can read the task, and mounts nothing for those drawers', async () => {
     session.id = 'u-author'
     await renderPage(
       [
@@ -189,22 +196,27 @@ describe('Record hours on a My tasks row — who is offered it (AC-3.1, AC-3.6)'
       ],
       'p1',
     )
+    await actionsOf('p1', 'Task p1')
+    await settled()
+    closeDrawer()
+    const group = (await actionsOf('s1', 'Pre-sales s1'))!
     await settled()
     expect(seam.calls).toEqual([])
     expect(screen.queryByTestId('widget-record-hours')).toBeNull()
     expect(screen.queryByTestId('record-hours-fallback')).toBeNull()
-    // The pre-sales row keeps its own link and Mark done.
-    expect(labels(actionsOf('s1', 'Pre-sales s1')!)).toEqual(['Start', 'Mark done', 'Open in CRM'])
+    // The pre-sales task keeps its own link and Mark done.
+    expect(labels(group)).toEqual(['Start', 'Mark done', 'Open in CRM'])
   })
 
   it('offers it to nobody while the session has not given the person’s id', async () => {
     session.id = null
     await renderPage([projectTask('p1')], 'p1')
+    await actionsOf('p1', 'Task p1')
     await settled()
     expect(seam.calls).toEqual([])
   })
 
-  it('draws no action group for a row with nothing to put in it: not completable, and not the person’s', async () => {
+  it('leaves the action group empty for a task with nothing in it: not completable, and not the person’s', async () => {
     session.id = 'u-author'
     await renderPage(
       [
@@ -216,18 +228,20 @@ describe('Record hours on a My tasks row — who is offered it (AC-3.1, AC-3.6)'
       ],
       'p1',
     )
+    const group = (await actionsOf('p1', 'Task p1'))!
     await settled()
-    expect(within(screen.getByTestId('my-task-p1')).queryByRole('group')).toBeNull()
+    expect(group.children).toHaveLength(0)
   })
 
-  it('draws the group with only the button for a row the person cannot complete but may record on', async () => {
+  it('the group holds only the button for a task the person cannot complete but may record on', async () => {
     await renderPage([projectTask('p1', { may: { edit: false, delete: false, complete: false } })], 'p1')
+    const group = (await actionsOf('p1', 'Task p1'))!
     const widget = await screen.findByTestId('widget-record-hours')
-    expect(labels(actionsOf('p1', 'Task p1')!)).toEqual(['Record hours'])
-    expect(actionsOf('p1', 'Task p1')!.lastElementChild).toBe(widget)
+    expect(labels(group)).toEqual(['Record hours'])
+    expect(group.lastElementChild).toBe(widget)
   })
 
-  it('offers it on done rows exactly as on open ones: same place, same props (AC-3.6)', async () => {
+  it('offers it on done tasks exactly as on open ones: same place, same props (AC-3.6)', async () => {
     const done = { completedAt: '2026-11-05T10:00:00.000Z', completedBy: person('u-ada') }
     await renderPage(
       [
@@ -236,42 +250,45 @@ describe('Record hours on a My tasks row — who is offered it (AC-3.1, AC-3.6)'
       ],
       'p1',
     )
-    await waitFor(() => expect(screen.getAllByTestId('widget-record-hours')).toHaveLength(2))
-    expect(labels(actionsOf('p1', 'Write the offer')!)).toEqual(['Mark not done', 'Record hours'])
-    expect(labels(actionsOf('s1', 'Send the quote')!)).toEqual(['Mark not done', 'Open in CRM', 'Record hours'])
+    let group = (await actionsOf('p1', 'Write the offer'))!
+    await screen.findByTestId('widget-record-hours')
+    expect(labels(group)).toEqual(['Mark not done', 'Record hours'])
+    closeDrawer()
+    group = (await actionsOf('s1', 'Send the quote'))!
+    await screen.findByTestId('widget-record-hours')
+    expect(labels(group)).toEqual(['Mark not done', 'Open in CRM', 'Record hours'])
     const props = seam.calls.map((call) => call.props)
     expect(props).toContainEqual(expect.objectContaining({ on: 'project', targetId: 'p1', activityId: 'p1' }))
     expect(props).toContainEqual(expect.objectContaining({ on: 'deal', targetId: 'd1', activityId: 's1' }))
   })
 
-  it('withholds it from a done row for the author alone, as from an open one', async () => {
+  it('withholds it from a done task for the author alone, as from an open one', async () => {
     session.id = 'u-author'
     const done = { assignee: person('u-bob'), completedAt: '2026-11-05T10:00:00.000Z', completedBy: person('u-bob') }
     await renderPage([projectTask('p1', { author: person('u-author') }, done)], 'p1')
+    await actionsOf('p1', 'Task p1')
     await settled()
     expect(seam.calls).toEqual([])
   })
 })
 
-describe('Record hours on a My tasks row when the hours screens cannot be loaded (AC-4.5)', () => {
-  it('shows the link to My hours as the last action, after "Open in CRM", and the row still works', async () => {
+describe('Record hours in a My tasks drawer when the hours screens cannot be loaded (AC-4.5)', () => {
+  it('shows the link to My hours as the last action, after "Open in CRM", and the drawer still works', async () => {
     seam.mode = 'fallsBack'
     await renderPage([preSalesTask('s1', { subject: 'Send the quote' })], 's1')
 
-    const link = await waitFor(() =>
-      within(screen.getByTestId('my-task-s1')).getByRole('link', { name: 'Record hours in My hours' }),
-    )
+    const group = (await actionsOf('s1', 'Send the quote'))!
+    const link = await waitFor(() => within(group).getByRole('link', { name: 'Record hours in My hours' }))
     expect(link.getAttribute('href')).toBe('/hours')
-    const group = actionsOf('s1', 'Send the quote')!
     expect(group.lastElementChild).toBe(link)
     expect(labels(group)).toEqual(['Start', 'Mark done', 'Open in CRM', 'Record hours in My hours'])
     expect(within(group).getByRole('link', { name: 'Open in CRM: Send the quote' })).not.toBeNull()
   })
 })
 
-describe('Record hours on a long My tasks list (R1)', () => {
-  it('mounts one widget for each row the person may record on and none for the rest, each with its own task’s props', async () => {
-    // 100 rows. Ada is signed in: 80 are hers — the even ones project tasks, the odd ones pre-sales tasks, of which
+describe('Record hours on a long My tasks board (R1)', () => {
+  it('mounts no widget for the board; each drawer hands the widget its own task’s props', async () => {
+    // 100 cards. Ada is signed in: 80 are hers — the even ones project tasks, the odd ones pre-sales tasks, of which
     // those with i % 4 === 1 have no deal — and 20 more are somebody else's.
     const mine = (i: number) => (i % 2 === 0 ? projectTask : preSalesTask)
     const items = [
@@ -283,22 +300,27 @@ describe('Record hours on a long My tasks list (R1)', () => {
       ),
     ]
     await renderPage(items, 'm0')
+    await settled()
+    expect(seam.calls).toEqual([])
+    expect(screen.queryByTestId('widget-record-hours')).toBeNull()
 
-    await waitFor(() => expect(screen.getAllByTestId('widget-record-hours')).toHaveLength(80))
-    for (let i = 0; i < 80; i += 1) {
-      expect(within(screen.getByTestId(`my-task-m${i}`)).getAllByTestId('widget-record-hours')).toHaveLength(1)
+    const expected: Record<number, Record<string, unknown>> = {
+      0: { on: 'project', targetId: 'p1', activityId: 'm0' },
+      6: { on: 'project', targetId: 'p1', activityId: 'm6' },
+      1: { on: 'none', targetId: '', activityId: '' },
+      5: { on: 'none', targetId: '', activityId: '' },
+      3: { on: 'deal', targetId: 'd1', activityId: 'm3' },
+      7: { on: 'deal', targetId: 'd1', activityId: 'm7' },
     }
-    for (let i = 0; i < 20; i += 1) {
-      expect(within(screen.getByTestId(`my-task-o${i}`)).queryByTestId('widget-record-hours')).toBeNull()
+    for (const [i, props] of Object.entries(expected)) {
+      await actionsOf(`m${i}`, `Mine ${i}`)
+      await screen.findByTestId('widget-record-hours')
+      expect(seam.calls.at(-1)?.props).toMatchObject({ ...props, activityName: `Mine ${i}` })
+      closeDrawer()
     }
-    // Every row handed the widget the props of its own task: 80 different sets, none crossed.
-    const sets = new Map(seam.calls.map((call) => [String(call.props.activityName), call.props]))
-    expect(sets.size).toBe(80)
-    expect(sets.get('Mine 0')).toMatchObject({ on: 'project', targetId: 'p1', activityId: 'm0' })
-    expect(sets.get('Mine 6')).toMatchObject({ on: 'project', targetId: 'p1', activityId: 'm6' })
-    expect(sets.get('Mine 1')).toMatchObject({ on: 'none', targetId: '', activityId: '' })
-    expect(sets.get('Mine 5')).toMatchObject({ on: 'none', targetId: '', activityId: '' })
-    expect(sets.get('Mine 3')).toMatchObject({ on: 'deal', targetId: 'd1', activityId: 'm3' })
-    expect(sets.get('Mine 7')).toMatchObject({ on: 'deal', targetId: 'd1', activityId: 'm7' })
+    seam.calls = []
+    await actionsOf('o4', 'Theirs 4')
+    await settled()
+    expect(seam.calls).toEqual([])
   })
 })

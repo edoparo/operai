@@ -1,7 +1,7 @@
 ---
 spec: 20261110
 generated: 2026-11-10
-synced: 2026-11-23
+synced: 2026-11-26
 ---
 
 # Tasks: Activities — one place for CRM and project activities and tasks
@@ -154,3 +154,18 @@ service.
 - [x] T30: [FE] `@operai/ui` `TaskRow`: state `in_progress` and an optional Start/Stop action (additive props only, ADR 20261114); crm-ui `ActivityItem` and Tasks filter; projects-ui project Tasks card and My tasks filter — refs: AC-10.1, AC-10.3, AC-10.4 — deps: T29 (contract)
   - touch: `operai-ui/src/components/TaskRow*`, `crm-ui/src/**` (tasks), `projects-ui/src/**` (tasks), strings, tests
   - done when: operai-ui typecheck + lint + test, crm-ui and projects-ui lint + build + test pass
+
+## Amendment 2026-11-26 — the task board (spec AC-10.5)
+
+- [x] T31: [FE] `@operai/ui/board` `Board` (own entry, `@dnd-kit/core`, `.board*` classes in tokens.css, `stubLayoutForBoard`, story, tests, README and design-system § Board) — refs: AC-10.5 — deps: none
+  - touch: `operai-ui/src/board*`, `operai-ui/src/styles/tokens.css`, `operai-ui/{README.md,docs/design-system.md,package.json}`
+  - done when: operai-ui typecheck + lint + test pass
+- [x] T32: [BE] activities-api: `GET /tasks?completedSince=` (ISO date-time, `status=done` only, else 422) — refs: AC-10.5 — deps: none
+  - touch: `activities-api/src/tasks/tasks.routes.ts`, `activities-api/src/tasks/tasks.test.ts`
+  - done when: the suite passes on `activities_test` and typecheck is clean
+- [x] T33: [FE] crm-ui: the pipeline drawn with the library `Board`, behaviour and test ids unchanged — refs: AC-10.5 — deps: T31
+  - touch: `crm-ui/src/components/PipelineBoard.tsx`, crm-ui config (alias, dedupe, paths), tests
+  - done when: crm-ui lint + build + test pass
+- [x] T34: [FE] projects-ui: the Tasks card and My tasks as one board (TaskBoard, TaskCard, TaskDrawer), drag = the row's writes, Done the last 30 days with Show older and Load more; ProjectTaskItem and MyTasksPageRow removed, their coverage moved — refs: AC-10.5 — deps: T31, T32
+  - touch: `projects-ui/src/{components,pages,lib,strings}/**` (tasks), projects-ui config, tests
+  - done when: projects-ui lint + build + test pass

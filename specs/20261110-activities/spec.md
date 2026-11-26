@@ -212,6 +212,17 @@ on before it is done.
   shows "In progress" wherever it shows its state.
 - AC-10.4 Task lists keep "Open" (open and in progress, the latter badged) and "Done", and gain
   "In progress" (only those). No notification is sent when a task is started or stopped.
+- AC-10.5 (amended 2026-11-26) In Projects (a project's Tasks card and My tasks) the three filters are
+  one board with the lanes Open (not started), In progress and Done, the same component in both
+  places and the CRM pipeline's board (`@operai/ui/board`). A card shows the title, the project (My
+  tasks) or the company and deal with a Pre-sales badge, the due date, the assignee and one badge
+  only when the task needs attention (blocked, overdue); it holds no button. Opening a card shows
+  the whole task in a side panel with every action the row had (start or stop, mark done or reopen,
+  start a meeting, open in the CRM, record hours, edit, delete), each under the same rule as before.
+  Dragging a card does the same writes: Open → In progress starts, In progress → Open stops, either
+  → Done marks done, Done → Open reopens; Done → In progress is not offered, and a card the person
+  may not move, or a blocked one, does not move. Done shows the tasks completed in the last 30 days,
+  with a way to show the older ones (`GET /tasks?status=done&completedSince=`).
 
 ## Non-goals
 
@@ -276,6 +287,10 @@ Technical decisions taken by the user on 2026-11-10, recorded verbatim in substa
   decisions: started and stopped by whoever may mark it done, free transitions (open → done
   stays possible), a blocked task cannot be started, "Open" lists include in-progress tasks and
   a new "In progress" filter shows only those. A further exception to the same Non-goal.
+- 2026-11-26 (owner): AC-10.5 added. The Projects task lists become one board (Open, In progress,
+  Done) shared with the CRM pipeline as a library component; a compact card opens a side panel
+  with the actions; Done shows the last 30 days with a way to the older ones. Owner decisions:
+  compact card plus side panel, Done limited to 30 days, the board shipped in the library first.
 
 ## Open questions
 

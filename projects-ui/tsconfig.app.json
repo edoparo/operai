@@ -22,7 +22,9 @@
     "paths": {
       "@operai/ui": ["../operai-ui/src/index.ts"],
       "@operai/ui/rich-text": ["../operai-ui/src/richText.ts"],
+      "@operai/ui/board": ["../operai-ui/src/board.ts"],
       "@tiptap/*": ["./node_modules/@tiptap/*"],
+      "@dnd-kit/*": ["./node_modules/@dnd-kit/*"],
       "react": ["./node_modules/@types/react"],
       "react/*": ["./node_modules/@types/react/*"],
       "react-dom": ["./node_modules/@types/react-dom"],
