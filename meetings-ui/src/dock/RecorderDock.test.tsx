@@ -40,6 +40,7 @@ function fakeSession(levels = { input: 0.5 as number | null, output: null as num
     pause: vi.fn(() => update({ phase: 'paused' })),
     resume: vi.fn(async () => update({ phase: 'recording' })),
     stop: vi.fn(async () => update({ phase: 'saving' })),
+    shareComputerAudio: vi.fn(async () => update({ tabAudioLost: null })),
   }
   const update = (patch: Partial<SessionSnapshot>) => {
     snapshot = { ...snapshot, ...patch }
@@ -68,6 +69,15 @@ const mount = (levels?: { input: number | null; output: number | null }) => {
 }
 
 describe('RecorderDock', () => {
+  it('a share without computer audio says so and offers to share it again', () => {
+    const fake = mount()
+    act(() => fake.update({ tabAudioLost: 'no_audio_track' }))
+    expect(screen.getByTestId('meetings-dock-problem').textContent).toBe(t.tabAudioMissing)
+    act(() => screen.getByTestId('meetings-dock-share-audio').click())
+    expect(fake.session.shareComputerAudio).toHaveBeenCalledOnce()
+    expect(screen.queryByTestId('meetings-dock-share-audio')).toBeNull()
+  })
+
   it('shows the state, the elapsed time and the microphone level; no "out" without a shared tab', () => {
     mount()
     expect(screen.getByTestId('meetings-dock-status').textContent).toContain(t.status.recording)

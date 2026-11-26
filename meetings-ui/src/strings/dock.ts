@@ -24,7 +24,8 @@ const en = {
   microphoneLost: 'The microphone stopped. Open the meeting to resume.',
   tabAudioLost: 'The computer audio is no longer recorded; the microphone goes on.',
   tabAudioMissing:
-    'The share carries no computer audio: only the microphone is recorded. Next time tick "Share system audio" in the picker.',
+    'The share carries no computer audio: only the microphone is recorded. Share it again and tick "Share system audio".',
+  shareAudio: 'Share computer audio',
 }
 
 const it: typeof en = {
@@ -52,7 +53,8 @@ const it: typeof en = {
   microphoneLost: 'Il microfono si è fermato. Apri la riunione per riprendere.',
   tabAudioLost: 'L’audio del computer non viene più registrato; il microfono continua.',
   tabAudioMissing:
-    'La condivisione non porta l’audio del computer: si registra solo il microfono. La prossima volta spunta “Condividi l’audio di sistema” nella finestra di scelta.',
+    'La condivisione non porta l’audio del computer: si registra solo il microfono. Condividilo di nuovo e spunta “Condividi l’audio di sistema”.',
+  shareAudio: 'Condividi l’audio del computer',
 }
 
 export const dock = { en, it }

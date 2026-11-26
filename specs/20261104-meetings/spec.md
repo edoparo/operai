@@ -202,6 +202,14 @@ was not removed. The spec stays vendor-neutral; the body below is already update
   `missing`. Projects takes NO host notices (`notices: false`): nothing about a meeting is stored in
   Projects or mirrored into its activities. AC-11.1's "exactly the CRM" now reads "the CRM
   (`deal`) and Projects (`project`)".
+- **A19 — reported by the user 2026-11-26 (AC-2.5):** a share that carries no computer audio (the
+  "Share system audio" box left unticked, or a browser that does not offer it) is told apart from a
+  share that ended: the notice says the share has no audio and how to include it, never "no longer
+  recorded". In both cases, while recording or paused, the panel and the recorder widget offer
+  **Share computer audio**: it opens the picker again and adds the chosen share's audio to the SAME
+  recording (no restart, no gap in the microphone); the previous share is stopped; closing the picker
+  changes nothing; a later loss of the new share is reported again. The widget is capped in width,
+  so a notice wraps under its controls.
 
 ## Problem
 

@@ -222,6 +222,12 @@ export type RecordingSession = {
   /** How loud the microphone ("in") and the shared tab ("out") are right now; nulls when not recording. */
   levels: () => AudioLevels
   /**
+   * Opens the browser's picker again and adds the chosen share's audio to the running recording (the recovery when
+   * the computer audio is missing or was lost). Call it straight from a click: the picker needs the user activation.
+   * The person closing the picker changes nothing.
+   */
+  shareComputerAudio: () => Promise<void>
+  /**
    * Something is showing this session (the recording panel, the recorder widget, spec A13): cancels a pending
    * leave. Holders are COUNTED, so the panel can hand the session to the widget without it stopping.
    */
@@ -577,6 +583,30 @@ export function createRecordingSession(
     patch({ phase: 'recording', microphoneLost: false, resumeFailure: null })
   }
 
+  // ─── Adding the computer audio again ─────────────────────────────────────
+  let sharing = false
+  const shareComputerAudio = async () => {
+    if (sharing || terminal || !pipeline || (snap.phase !== 'recording' && snap.phase !== 'paused')) return
+    if (pipeline.mixer.tabAudio === 'active') return
+    sharing = true
+    try {
+      let stream: MediaStream
+      try {
+        stream = await deps.getDisplayMedia(TAB_CONSTRAINTS)
+      } catch {
+        return // the picker was closed: nothing changes
+      }
+      if (terminal || !pipeline) {
+        stopTracks(stream)
+        return
+      }
+      const result = pipeline.mixer.attachTab(stream)
+      patch({ tabAudioLost: result === 'active' ? null : 'no_audio_track' })
+    } finally {
+      sharing = false
+    }
+  }
+
   // ─── Stop (AC-2.7, AC-2.11) ───────────────────────────────────────────────
   const waitForRecorderStop = (recorder: RecorderLike) =>
     new Promise<void>((resolve) => {
@@ -673,6 +703,7 @@ export function createRecordingSession(
     resume,
     stop: () => stop('user'),
     levels: () => (pipeline ? pipeline.mixer.levels() : { input: null, output: null }),
+    shareComputerAudio,
     attach() {
       holders += 1
       clearTimeout(leaveTimer)

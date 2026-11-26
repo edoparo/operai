@@ -59,7 +59,11 @@ afterEach(() => {
 
 describe('summary cards (AC-7.2, AC-7.11)', () => {
   it('lays out the lines the model wrote as a list as a real list, each item still plain text (ADR 20261104-ai-output-structured-validated-plain-text)', async () => {
-    serve(list([summary({ sections: [{ heading: 'Decisions', body: 'Agreed:\n- Ship on <b>Friday</b>\n- Freeze the scope' }] })]))
+    serve(
+      list([
+        summary({ sections: [{ heading: 'Decisions', body: 'Agreed:\n- Ship on <b>Friday</b>\n- Freeze the scope' }] }),
+      ]),
+    )
     panel()
     const card = await screen.findByRole('region', { name: 'Sales discovery' })
     const items = within(within(card).getByRole('list')).getAllByRole('listitem')
@@ -450,7 +454,10 @@ describe('a summary made from a transcript that may be incomplete (AC-7.13, AC-7
     const fresh = incomplete({ id: 's2' })
     let regenerated = false
     serve({
-      'GET /meetings/:id/summaries': () => ({ status: 200, body: { items: regenerated ? [fresh, summary()] : [summary()] } }),
+      'GET /meetings/:id/summaries': () => ({
+        status: 200,
+        body: { items: regenerated ? [fresh, summary()] : [summary()] },
+      }),
       'POST /meetings/:id/summaries/:sid/regenerate': () => {
         regenerated = true
         return { status: 202, body: fresh }

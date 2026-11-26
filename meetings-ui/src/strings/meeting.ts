@@ -226,7 +226,8 @@ const it: typeof en = {
         provider_unavailable: 'Il servizio di trascrizione non era disponibile.',
         provider_rejected: 'Il servizio di trascrizione non è riuscito a elaborare questo audio.',
         too_long: "L'audio supera la durata massima.",
-        speech_not_transcribed: 'Nella registrazione è stato rilevato del parlato, ma non è stato possibile trascriverlo.',
+        speech_not_transcribed:
+          'Nella registrazione è stato rilevato del parlato, ma non è stato possibile trascriverlo.',
       },
       unknownReason: "Qualcosa è andato storto durante l'elaborazione della riunione.",
       audioDeleted: "L'audio è stato eliminato: non può essere elaborato di nuovo.",

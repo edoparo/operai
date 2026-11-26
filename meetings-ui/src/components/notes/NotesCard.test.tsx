@@ -42,7 +42,7 @@ function serve(routes: Record<string, FakeHandler>) {
 const puts = (api: ReturnType<typeof fakeApi>) => api.mock.calls.filter(([, init]) => init?.method === 'PUT')
 const sent = (call: readonly unknown[]) => ({
   body: JSON.parse(String((call[1] as RequestInit | undefined)?.body)) as { content: unknown },
-  ifMatch: ((call[1] as RequestInit | undefined)?.headers as Record<string, string>)["If-Match"],
+  ifMatch: ((call[1] as RequestInit | undefined)?.headers as Record<string, string>)['If-Match'],
 })
 
 const doc = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
@@ -54,10 +54,16 @@ describe('NotesCard', () => {
   it('shows the caller own notes, says they are private, and saves a moment after an edit', async () => {
     let version = 3
     const api = serve({
-      'GET /meetings/:id/notes': () => ({ status: 200, body: { content: doc('Earlier'), version, updatedAt: '2026-11-12T10:00:00Z' } }),
+      'GET /meetings/:id/notes': () => ({
+        status: 200,
+        body: { content: doc('Earlier'), version, updatedAt: '2026-11-12T10:00:00Z' },
+      }),
       'PUT /meetings/:id/notes': (_url, init) => {
         version += 1
-        return { status: 200, body: { content: JSON.parse(String(init?.body)).content, version, updatedAt: '2026-11-12T10:01:00Z' } }
+        return {
+          status: 200,
+          body: { content: JSON.parse(String(init?.body)).content, version, updatedAt: '2026-11-12T10:01:00Z' },
+        }
       },
     })
     render(<NotesCard meetingId="m1" />)
@@ -76,7 +82,9 @@ describe('NotesCard', () => {
     expect(puts(api)).toHaveLength(1)
     const first = sent(puts(api)[0]!)
     expect(first.ifMatch).toBe('"3"')
-    expect((first.body as unknown as { content: { content: { type: string }[] } }).content.content[0]!.type).toBe('bulletList')
+    expect((first.body as unknown as { content: { content: { type: string }[] } }).content.content[0]!.type).toBe(
+      'bulletList',
+    )
 
     // the next save carries the version the last one returned
     await makeList()
@@ -108,7 +116,13 @@ describe('NotesCard', () => {
     serve({
       'GET /meetings/:id/notes': () => {
         reads += 1
-        return { status: 200, body: reads === 1 ? { content: doc('Old'), version: 1, updatedAt: null } : { content: doc('From the other tab'), version: 2, updatedAt: null } }
+        return {
+          status: 200,
+          body:
+            reads === 1
+              ? { content: doc('Old'), version: 1, updatedAt: null }
+              : { content: doc('From the other tab'), version: 2, updatedAt: null },
+        }
       },
       'PUT /meetings/:id/notes': () => ({ status: 409, body: problem(409, 'version_conflict', { currentVersion: 2 }) }),
     })
@@ -129,7 +143,9 @@ describe('NotesCard', () => {
     const api = serve({
       'GET /meetings/:id/notes': () => ({ status: 200, body: { content: doc('Kept'), version: 1, updatedAt: null } }),
       'PUT /meetings/:id/notes': () =>
-        fail ? { status: 503, body: problem(503) } : { status: 200, body: { content: doc('Kept'), version: 2, updatedAt: null } },
+        fail
+          ? { status: 503, body: problem(503) }
+          : { status: 200, body: { content: doc('Kept'), version: 2, updatedAt: null } },
     })
     render(<NotesCard meetingId="m1" />)
     const box = await editor()

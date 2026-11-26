@@ -446,7 +446,9 @@ describe('an answer built on a transcript that may be incomplete (AC-9.9)', () =
     ['absent', undefined],
   ])('possiblyIncomplete %s: no label (older rows, meetings without gaps)', async (_name, value) => {
     serve(
-      conversation([turn({ answer: { text: 'On Friday.', notInMeeting: false, citations: [], possiblyIncomplete: value } })]),
+      conversation([
+        turn({ answer: { text: 'On Friday.', notInMeeting: false, citations: [], possiblyIncomplete: value } }),
+      ]),
     )
     view()
     await screen.findByText('On Friday.')

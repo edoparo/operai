@@ -33,7 +33,11 @@ export function ManageFoldersDialog({ folders, onCreate, onRename, onDelete, onC
         ) : (
           <ul className="flex flex-col divide-y divide-rule" aria-label={t.manageDialog.title}>
             {folders.map((folder) => (
-              <li key={folder.id} className="flex items-center gap-2 py-2" data-testid={`folders-manage-row-${folder.id}`}>
+              <li
+                key={folder.id}
+                className="flex items-center gap-2 py-2"
+                data-testid={`folders-manage-row-${folder.id}`}
+              >
                 <span className="min-w-0 flex-1 truncate text-sm text-text">{folder.name}</span>
                 <span className="text-2xs text-soft">{t.manageDialog.count(folder.meetingCount)}</span>
                 <Button

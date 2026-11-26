@@ -93,7 +93,8 @@ export default function RecorderDock({ meetingId }: DockProps) {
         : null
 
   return (
-    <div className="flex flex-wrap items-center gap-3" data-testid="meetings-dock">
+    // Capped, so a long notice or agenda wraps under the controls instead of stretching the widget across the window.
+    <div className="flex max-w-xl flex-wrap items-center gap-3" data-testid="meetings-dock">
       <span className="flex items-center gap-2 text-sm" data-testid="meetings-dock-status">
         <Icon name={phase === 'paused' ? 'pause' : 'mic'} />
         <span>{statusText(snapshot)}</span>
@@ -158,6 +159,11 @@ export default function RecorderDock({ meetingId }: DockProps) {
         <span className="basis-full text-xs text-org-text" data-testid="meetings-dock-problem">
           {problem}
         </span>
+      )}
+      {live && session && snapshot?.tabAudioLost && !snapshot.microphoneLost && (
+        <Button size="sm" onClick={() => void session.shareComputerAudio()} data-testid="meetings-dock-share-audio">
+          <Icon name="refresh" /> {t.shareAudio}
+        </Button>
       )}
       {live && <DockAgenda meetingId={meetingId} />}
       <VisuallyHidden live>{statusText(snapshot)}</VisuallyHidden>

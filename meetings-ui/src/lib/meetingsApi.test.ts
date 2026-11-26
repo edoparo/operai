@@ -193,10 +193,28 @@ const ROWS: Row[] = [
   // Summaries
   // Folders (ADR 20261113-personal-meeting-folders)
   { name: 'listFolders', call: () => api.listFolders(), method: GET, url: '/folders' },
-  { name: 'createFolder', call: () => api.createFolder('Clients'), method: POST, url: '/folders', body: { name: 'Clients' } },
-  { name: 'renameFolder', call: () => api.renameFolder('f1', 'ACME'), method: PATCH, url: '/folders/f1', body: { name: 'ACME' } },
+  {
+    name: 'createFolder',
+    call: () => api.createFolder('Clients'),
+    method: POST,
+    url: '/folders',
+    body: { name: 'Clients' },
+  },
+  {
+    name: 'renameFolder',
+    call: () => api.renameFolder('f1', 'ACME'),
+    method: PATCH,
+    url: '/folders/f1',
+    body: { name: 'ACME' },
+  },
   { name: 'deleteFolder', call: () => api.deleteFolder('f1'), method: DELETE, url: '/folders/f1' },
-  { name: 'fileMeeting', call: () => api.fileMeeting('m1', null), method: PUT, url: '/meetings/m1/folder', body: { folderId: null } },
+  {
+    name: 'fileMeeting',
+    call: () => api.fileMeeting('m1', null),
+    method: PUT,
+    url: '/meetings/m1/folder',
+    body: { folderId: null },
+  },
   { name: 'getNotes', call: () => api.getNotes('m1'), method: GET, url: '/meetings/m1/notes' },
   {
     name: 'saveNotes',
@@ -209,10 +227,19 @@ const ROWS: Row[] = [
   { name: 'getAgenda', call: () => api.getAgenda('m1'), method: GET, url: '/meetings/m1/agenda' },
   {
     name: 'saveAgenda',
-    call: () => api.saveAgenda('m1', 3, [{ id: 'p1', title: 'Budget', note: null }, { title: 'Hiring', note: 'Q3' }]),
+    call: () =>
+      api.saveAgenda('m1', 3, [
+        { id: 'p1', title: 'Budget', note: null },
+        { title: 'Hiring', note: 'Q3' },
+      ]),
     method: PUT,
     url: '/meetings/m1/agenda',
-    body: { points: [{ id: 'p1', title: 'Budget', note: null }, { title: 'Hiring', note: 'Q3' }] },
+    body: {
+      points: [
+        { id: 'p1', title: 'Budget', note: null },
+        { title: 'Hiring', note: 'Q3' },
+      ],
+    },
     ifMatch: '"3"',
   },
   {
@@ -394,7 +421,9 @@ describe('the plan route table', () => {
       new Response(
         JSON.stringify({
           version: 2,
-          segments: [{ id: 's1', ordinal: 1, startMs: 0, endMs: 1, speakerKey: 'a', text: 'Hi', edited: false, version: 1 }],
+          segments: [
+            { id: 's1', ordinal: 1, startMs: 0, endMs: 1, speakerKey: 'a', text: 'Hi', edited: false, version: 1 },
+          ],
           speakers: [{ key: 'a', label: { kind: 'default', index: 1 } }],
         }),
         { status: 200 },

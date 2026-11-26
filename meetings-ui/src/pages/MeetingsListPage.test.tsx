@@ -56,9 +56,7 @@ const renderList = async (mine = false, state?: { meetingDeleted?: boolean }) =>
   const base = mine ? '/my-meetings' : '/meetings'
   const history = createMemoryHistory({ initialEntries: [base] })
   if (state) history.replace(base, state)
-  const router = mine
-    ? createMyMeetingsRouter(base, undefined, history)
-    : createAppRouter(base, undefined, history)
+  const router = mine ? createMyMeetingsRouter(base, undefined, history) : createAppRouter(base, undefined, history)
   render(<RouterProvider router={router} />)
   await screen.findByTestId('meetings-list-page')
 }
@@ -195,11 +193,14 @@ describe('the table (AC-10.2)', () => {
 })
 
 describe('the confirmation after a meeting is deleted (design.md F14)', () => {
-  it.each([false, true])('shows "Meeting deleted" when the meeting page sent the person here (mine: %s)', async (mine) => {
-    serve({ 'GET /meetings': () => ({ status: 200, body: page([meetingRow()]) }) })
-    await renderList(mine, { meetingDeleted: true })
-    expect(await screen.findByText(en.list.deleted)).not.toBeNull()
-  })
+  it.each([false, true])(
+    'shows "Meeting deleted" when the meeting page sent the person here (mine: %s)',
+    async (mine) => {
+      serve({ 'GET /meetings': () => ({ status: 200, body: page([meetingRow()]) }) })
+      await renderList(mine, { meetingDeleted: true })
+      expect(await screen.findByText(en.list.deleted)).not.toBeNull()
+    },
+  )
 
   it('shows nothing on an ordinary visit', async () => {
     serve({ 'GET /meetings': () => ({ status: 200, body: page([meetingRow()]) }) })

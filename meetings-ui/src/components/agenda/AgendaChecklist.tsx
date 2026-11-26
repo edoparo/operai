@@ -20,7 +20,14 @@ export type AgendaChecklistProps = {
  * and a screen reader hears the point's position, title and state. Plain text only: titles and notes
  * are what people typed, never links or markup.
  */
-export default function AgendaChecklist({ points, canTick, busyId, onTick, compact = false, testIdPrefix }: AgendaChecklistProps) {
+export default function AgendaChecklist({
+  points,
+  canTick,
+  busyId,
+  onTick,
+  compact = false,
+  testIdPrefix,
+}: AgendaChecklistProps) {
   const t = strings.agenda.card
   return (
     <ol aria-label={t.listLabel} className="flex flex-col divide-y divide-rule" data-testid={`${testIdPrefix}-points`}>

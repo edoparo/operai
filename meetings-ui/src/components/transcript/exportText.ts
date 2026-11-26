@@ -60,7 +60,10 @@ export const noticeRanges = (gaps: readonly TimeRange[]) =>
  * at or after the gap's start, keyed by that segment's index; `segments.length` = after the last one.
  * Markers of one index keep the gaps' order.
  */
-export function gapsBefore(segments: readonly TranscriptSegment[], gaps: readonly TimeRange[]): Map<number, TimeRange[]> {
+export function gapsBefore(
+  segments: readonly TranscriptSegment[],
+  gaps: readonly TimeRange[],
+): Map<number, TimeRange[]> {
   const placed = new Map<number, TimeRange[]>()
   for (const gap of gaps) {
     const found = segments.findIndex((segment) => segment.startMs !== null && segment.startMs >= gap.startMs)
@@ -88,10 +91,7 @@ export function exportText(
   ordered.forEach((segment, index) => {
     markersAt(index)
     const name = speakerNameOf(segment.speakerKey, speakers, participants)
-    const head = [
-      segment.startMs === null ? null : `[${clockOf(segment.startMs)}]`,
-      name === null ? null : `${name}:`,
-    ]
+    const head = [segment.startMs === null ? null : `[${clockOf(segment.startMs)}]`, name === null ? null : `${name}:`]
       .filter((part): part is string => part !== null)
       .join(' ')
     lines.push(head === '' ? segment.text : `${head} ${segment.text}`)
@@ -108,7 +108,13 @@ export function partsText(parts: readonly number[]): string {
   while (start < parts.length) {
     let end = start
     while (end + 1 < parts.length && parts[end + 1] === parts[end]! + 1) end++
-    runs.push(end === start ? String(parts[start]) : end === start + 1 ? `${parts[start]}, ${parts[end]}` : `${parts[start]}–${parts[end]}`)
+    runs.push(
+      end === start
+        ? String(parts[start])
+        : end === start + 1
+          ? `${parts[start]}, ${parts[end]}`
+          : `${parts[start]}–${parts[end]}`,
+    )
     start = end + 1
   }
   return runs.join(', ')

@@ -231,7 +231,10 @@ export async function separateSpeaker(id: string, key: string): Promise<{ speake
 
 /** "No speech here" (A10): the creator marks a possible gap; the answer is the gaps still open. */
 export async function dismissGap(id: string, gap: TimeRange): Promise<{ gaps: TimeRange[] }> {
-  return sendJson<{ gaps: TimeRange[] }>(`${meetingPath(id)}/transcript/gaps/dismiss`, 'POST', { startMs: gap.startMs, endMs: gap.endMs })
+  return sendJson<{ gaps: TimeRange[] }>(`${meetingPath(id)}/transcript/gaps/dismiss`, 'POST', {
+    startMs: gap.startMs,
+    endMs: gap.endMs,
+  })
 }
 
 /** `version` is the segment's own (`If-Match`); the answer bumps the meeting's `transcriptVersion` (AC-6.3, AC-6.8). */
@@ -256,7 +259,8 @@ export const setAgendaPointCovered = (id: string, pointId: string, covered: bool
 
 // ─── Attachments ────────────────────────────────────────────────────────────
 
-export const getAttachments = (id: string, init?: Init) => getJson<AttachmentList>(`${meetingPath(id)}/attachments`, init)
+export const getAttachments = (id: string, init?: Init) =>
+  getJson<AttachmentList>(`${meetingPath(id)}/attachments`, init)
 
 /** 201 with the policy to POST the file to the bucket; 422 `unsupported_type` / `file_too_large`, 409 `too_many_files`. */
 export const requestAttachmentUpload = (id: string, file: { name: string; contentType: string; sizeBytes: number }) =>
@@ -294,11 +298,14 @@ export const listSummaries = (id: string, init?: Init) =>
  * A title proposed by the AI from the transcript (creator, `ready` with speech); nothing is saved: the caller puts it in
  * the edit field. 409 `not_ready` / `no_speech`, 429 `ai_rate_limited`, 503 `title_suggestion_failed`.
  */
-export const suggestMeetingTitle = (id: string) => sendJson<{ title: string }>(`${meetingPath(id)}/title-suggestion`, 'POST')
+export const suggestMeetingTitle = (id: string) =>
+  sendJson<{ title: string }>(`${meetingPath(id)}/title-suggestion`, 'POST')
 
 /** 202 with the new (`generating`) summary; 409 `not_ready` / `no_speech` / `summary_limit` / `agenda_empty`, 429 `ai_rate_limited`. */
-export const generateSummary = (id: string, body: { templateId: string; language: MeetingLanguage; followAgenda?: boolean }) =>
-  sendJson<Summary>(`${meetingPath(id)}/summaries`, 'POST', body)
+export const generateSummary = (
+  id: string,
+  body: { templateId: string; language: MeetingLanguage; followAgenda?: boolean },
+) => sendJson<Summary>(`${meetingPath(id)}/summaries`, 'POST', body)
 
 export const regenerateSummary = (id: string, summaryId: string) =>
   sendJson<Summary>(`${meetingPath(id)}/summaries/${enc(summaryId)}/regenerate`, 'POST')

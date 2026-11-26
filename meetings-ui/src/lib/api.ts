@@ -127,8 +127,7 @@ export const sendJson = <T>(path: string, method: string, body?: unknown, versio
 
 /** A write refused because the record changed meanwhile (409 `version_conflict`) or carried no precondition (428). */
 export const isStaleWrite = (error: unknown): boolean =>
-  error instanceof ApiError &&
-  (error.status === 428 || (error.status === 409 && error.code === 'version_conflict'))
+  error instanceof ApiError && (error.status === 428 || (error.status === 409 && error.code === 'version_conflict'))
 
 /** Builds a query string from the defined, non-empty values (`?a=1&b=x`), or '' when there are none. */
 export const query = (params: Record<string, string | number | boolean | undefined | null>): string => {

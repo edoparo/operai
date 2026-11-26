@@ -383,7 +383,11 @@ describe('postToBucket', () => {
 
   it('sends no Content-Type field for a blob without a type (nothing true to say)', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
-    await postToBucket({ url: 'https://bucket.test/', fields: { key: 'k' }, expiresAt: 'x' }, new Blob(['abc']), fetchImpl)
+    await postToBucket(
+      { url: 'https://bucket.test/', fields: { key: 'k' }, expiresAt: 'x' },
+      new Blob(['abc']),
+      fetchImpl,
+    )
     const form = (fetchImpl.mock.calls[0]![1] as RequestInit).body as FormData
     expect(form.has('Content-Type')).toBe(false)
   })
@@ -391,11 +395,7 @@ describe('postToBucket', () => {
   it('throws a BucketError carrying the status on a refusal', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response('denied', { status: 403 }))
     await expect(
-      postToBucket(
-        { url: 'https://bucket.test/', fields: {}, expiresAt: 'x' },
-        new Blob(['a']),
-        fetchImpl,
-      ),
+      postToBucket({ url: 'https://bucket.test/', fields: {}, expiresAt: 'x' }, new Blob(['a']), fetchImpl),
     ).rejects.toMatchObject({ name: 'BucketError', status: 403 })
   })
 })

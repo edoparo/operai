@@ -18,7 +18,13 @@ import {
   focusFirstInvalid,
   resolveLocale,
 } from '@operai/ui'
-import { AGENDA_MAX_POINTS, blankAgendaRow, inputsOf, validateAgendaRows, type AgendaRow } from '../components/agenda/agendaRows'
+import {
+  AGENDA_MAX_POINTS,
+  blankAgendaRow,
+  inputsOf,
+  validateAgendaRows,
+  type AgendaRow,
+} from '../components/agenda/agendaRows'
 import PermissionDenied from '../components/PermissionDenied'
 import { useResource } from '../hooks/useResource'
 import { codeOf, errorMessage, fieldErrorsOf, isAuthUnavailable, statusOf } from '../lib/errors'
@@ -420,7 +426,11 @@ export default function NewMeetingPage() {
             rowErrors={agendaErrors ?? undefined}
             disabled={busy}
             testIdPrefix="meetings-new-agenda"
-            copy={{ ...strings.agenda.dialog.sections, legend: strings.agenda.newMeeting.legend, hint: strings.agenda.newMeeting.hint }}
+            copy={{
+              ...strings.agenda.dialog.sections,
+              legend: strings.agenda.newMeeting.legend,
+              hint: strings.agenda.newMeeting.hint,
+            }}
           />
 
           {formError && (

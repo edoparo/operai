@@ -276,9 +276,33 @@ export const transcript = (overrides: Partial<Transcript> = {}): Transcript => (
 export const threePartTranscript = (): Transcript =>
   transcript({
     segments: [
-      segment({ id: 'a1', ordinal: 1, startMs: 0, endMs: 5_000, speakerKey: 'p1:1', part: 1, text: 'Opening of part one.' }),
-      segment({ id: 'b1', ordinal: 2, startMs: 3_600_000, endMs: 3_620_000, speakerKey: 'p2:1', part: 2, text: 'Start of part two.' }),
-      segment({ id: 'c1', ordinal: 3, startMs: 7_200_000, endMs: 7_230_000, speakerKey: 'p3:1', part: 3, text: 'Start of part three.' }),
+      segment({
+        id: 'a1',
+        ordinal: 1,
+        startMs: 0,
+        endMs: 5_000,
+        speakerKey: 'p1:1',
+        part: 1,
+        text: 'Opening of part one.',
+      }),
+      segment({
+        id: 'b1',
+        ordinal: 2,
+        startMs: 3_600_000,
+        endMs: 3_620_000,
+        speakerKey: 'p2:1',
+        part: 2,
+        text: 'Start of part two.',
+      }),
+      segment({
+        id: 'c1',
+        ordinal: 3,
+        startMs: 7_200_000,
+        endMs: 7_230_000,
+        speakerKey: 'p3:1',
+        part: 3,
+        text: 'Start of part three.',
+      }),
     ],
     speakers: [
       { key: 'p1:1', label: { kind: 'default', index: 1 }, parts: [1], joined: false },

@@ -10,7 +10,9 @@ describe('textBlocks', () => {
   })
 
   it('turns consecutive "- " and "• " lines into one bulleted list', () => {
-    expect(textBlocks('- First\n• Second\n* Third')).toEqual([{ kind: 'list', ordered: false, items: ['First', 'Second', 'Third'] }])
+    expect(textBlocks('- First\n• Second\n* Third')).toEqual([
+      { kind: 'list', ordered: false, items: ['First', 'Second', 'Third'] },
+    ])
   })
 
   it('turns numbered lines into an ordered list, separate from a bulleted one', () => {
@@ -35,6 +37,8 @@ describe('textBlocks', () => {
   })
 
   it('a hyphen inside a sentence or a negative number is not a list', () => {
-    expect(textBlocks('Costs -5% vs plan\n-10 is a number')).toEqual([{ kind: 'paragraph', text: 'Costs -5% vs plan\n-10 is a number' }])
+    expect(textBlocks('Costs -5% vs plan\n-10 is a number')).toEqual([
+      { kind: 'paragraph', text: 'Costs -5% vs plan\n-10 is a number' },
+    ])
   })
 })

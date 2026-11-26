@@ -48,7 +48,18 @@ describe('consent notice copy (AC-4.1)', () => {
       /not remove that copy/i, // deleting the meeting does not delete it (AC-4.6)
       /Zoom, Teams or Meet/, // a platform banner does not cover this tool
     ],
-    it: [/informate .* consenso/i, /IA/, /UE o in Svizzera/, /letto|leggerlo/i, /30 giorni/, /fornitore .* 5 giorni/i, /UE o in Svizzera/, /addestrare/i, /non rimuove questa copia/i, /Zoom, Teams o Meet/],
+    it: [
+      /informate .* consenso/i,
+      /IA/,
+      /UE o in Svizzera/,
+      /letto|leggerlo/i,
+      /30 giorni/,
+      /fornitore .* 5 giorni/i,
+      /UE o in Svizzera/,
+      /addestrare/i,
+      /non rimuove questa copia/i,
+      /Zoom, Teams o Meet/,
+    ],
   }
   // Statement 2 carries two requirements (AI, and where it is processed); statement 6 (the provider's
   // bounded copy, A6) carries four; the rest one each.

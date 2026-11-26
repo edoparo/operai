@@ -209,7 +209,7 @@ const it: typeof en = {
     notice_outdated: "L'informativa è cambiata. Leggi la nuova versione e conferma di nuovo.",
     agenda_editors_only: 'Solo chi ha creato la riunione e i partecipanti possono modificarne la scaletta.',
     too_many_agenda_points: 'Una scaletta può avere al massimo 30 punti.',
-    unknown_agenda_point: 'La scaletta è cambiata da quando l\'hai aperta. Ricarica e riprova.',
+    unknown_agenda_point: "La scaletta è cambiata da quando l'hai aperta. Ricarica e riprova.",
     attachment_editors_only: 'Solo chi ha creato la riunione e i partecipanti possono modificarne gli allegati.',
     file_too_large: 'Questo file è troppo grande per essere allegato.',
     too_many_files: 'Questa riunione ha raggiunto il limite di file allegati. Rimuovine uno per fare spazio.',

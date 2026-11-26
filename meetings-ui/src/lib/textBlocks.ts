@@ -3,9 +3,7 @@
  * (ADR 20261104-ai-output-structured-validated-plain-text); its lists are lines that start with "- ", "• ", "* " or "1. ". This only groups lines into blocks so the
  * UI can render a list as a list: no markup is interpreted, every item stays text.
  */
-export type TextBlock =
-  | { kind: 'paragraph'; text: string }
-  | { kind: 'list'; ordered: boolean; items: string[] }
+export type TextBlock = { kind: 'paragraph'; text: string } | { kind: 'list'; ordered: boolean; items: string[] }
 
 const BULLET = /^\s*[-•*]\s+(.*)$/
 const NUMBER = /^\s*\d{1,3}[.)]\s+(.*)$/

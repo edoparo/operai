@@ -94,7 +94,9 @@ describe('EditDetailsDialog: form and save', () => {
       'Kick-off with Acme',
     )
     expect((within(dialog).getByLabelText(t.fields.format) as HTMLSelectElement).value).toBe('in_person')
-    expect((within(dialog).getByLabelText(new RegExp(t.fields.startsAt)) as HTMLInputElement).type).toBe('datetime-local')
+    expect((within(dialog).getByLabelText(new RegExp(t.fields.startsAt)) as HTMLInputElement).type).toBe(
+      'datetime-local',
+    )
   })
 
   it('sends only what changed, then reports the server meeting and closes', async () => {
@@ -206,7 +208,9 @@ describe('EditDetailsDialog: form and save', () => {
 
   it('a failed suggestion shows its reason under the title and keeps what was there', async () => {
     const current = readyMeeting({ title: 'Call with Mario Rossi' })
-    servePatch(current, { 'POST /meetings/:id/title-suggestion': () => ({ status: 429, body: problem(429, 'ai_rate_limited') }) })
+    servePatch(current, {
+      'POST /meetings/:id/title-suggestion': () => ({ status: 429, body: problem(429, 'ai_rate_limited') }),
+    })
     open(current)
     await userEvent.click(screen.getByTestId('meetings-edit-details-suggest-title'))
     expect(await screen.findByText(en.common.errors.ai_rate_limited)).toBeTruthy()
@@ -288,25 +292,28 @@ describe('EditDetailsDialog: locked fields follow the server (AC-1.8, G1)', () =
     await vi.waitFor(() => expect(bodies).toEqual([{ language: 'it' }]))
   })
 
-  it.each(['language_locked', 'source_locked'] as const)('a 409 %s shows inline, reloads the meeting and locks the field', async (code) => {
-    const current = draft({ can: { ...CAN_CREATOR_DRAFT, changeLanguage: true, changeSource: true } })
-    const locked = draft({ can: { ...CAN_CREATOR_DRAFT, changeLanguage: false, changeSource: false } })
-    servePatch(current, {
-      'PATCH /meetings/:id': () => ({ status: 409, body: problem(409, code) }),
-      'GET /meetings/:id': () => ({ status: 200, body: locked }),
-    })
-    const { onChanged, onClose } = open(current)
+  it.each(['language_locked', 'source_locked'] as const)(
+    'a 409 %s shows inline, reloads the meeting and locks the field',
+    async (code) => {
+      const current = draft({ can: { ...CAN_CREATOR_DRAFT, changeLanguage: true, changeSource: true } })
+      const locked = draft({ can: { ...CAN_CREATOR_DRAFT, changeLanguage: false, changeSource: false } })
+      servePatch(current, {
+        'PATCH /meetings/:id': () => ({ status: 409, body: problem(409, code) }),
+        'GET /meetings/:id': () => ({ status: 200, body: locked }),
+      })
+      const { onChanged, onClose } = open(current)
 
-    await userEvent.type(screen.getByLabelText(new RegExp(t.fields.title)), '!')
-    await userEvent.selectOptions(screen.getByLabelText(t.fields.language), 'it')
-    await save()
+      await userEvent.type(screen.getByLabelText(new RegExp(t.fields.title)), '!')
+      await userEvent.selectOptions(screen.getByLabelText(t.fields.language), 'it')
+      await save()
 
-    expect(await screen.findByText(en.common.errors[code])).not.toBeNull()
-    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(locked))
-    expect(onClose).not.toHaveBeenCalled()
-    await vi.waitFor(() => expect(screen.queryByLabelText(t.fields.language)).toBeNull())
-    expect(screen.getByRole('dialog', { name: t.title })).not.toBeNull()
-  })
+      expect(await screen.findByText(en.common.errors[code])).not.toBeNull()
+      await vi.waitFor(() => expect(onChanged).toHaveBeenCalledWith(locked))
+      expect(onClose).not.toHaveBeenCalled()
+      await vi.waitFor(() => expect(screen.queryByLabelText(t.fields.language)).toBeNull())
+      expect(screen.getByRole('dialog', { name: t.title })).not.toBeNull()
+    },
+  )
 })
 
 describe('EditDetailsDialog: a lock that appears while open', () => {

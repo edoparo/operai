@@ -19,8 +19,7 @@ const en = {
   },
   dialog: {
     title: 'Edit agenda',
-    description:
-      'Everyone who can open this meeting sees the agenda. A summary can follow it, one section per point.',
+    description: 'Everyone who can open this meeting sees the agenda. A summary can follow it, one section per point.',
     save: 'Save agenda',
     saving: 'Saving…',
     sections: {
@@ -51,7 +50,8 @@ const en = {
   },
   summary: {
     followAgenda: 'Follow the agenda',
-    followAgendaHint: 'The AI uses the agenda to look for its points and report them in order, inside this template’s sections.',
+    followAgendaHint:
+      'The AI uses the agenda to look for its points and report them in order, inside this template’s sections.',
     basedOn: 'Follows the agenda',
     agendaUsed: 'Agenda used',
   },
@@ -108,7 +108,8 @@ const it: typeof en = {
   },
   summary: {
     followAgenda: 'Segui la scaletta',
-    followAgendaHint: 'L’AI usa la scaletta per cercarne i punti e riportarli in ordine, dentro le sezioni di questo template.',
+    followAgendaHint:
+      'L’AI usa la scaletta per cercarne i punti e riportarli in ordine, dentro le sezioni di questo template.',
     basedOn: 'Segue la scaletta',
     agendaUsed: 'Scaletta usata',
   },

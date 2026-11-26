@@ -1,7 +1,7 @@
 ---
 spec: 20261104
 generated: 2026-11-04
-synced: 2026-11-23
+synced: 2026-11-26
 ---
 
 # Tasks: Meetings — record, transcribe, summarise and question meetings
@@ -1042,4 +1042,7 @@ contracts. Only the e2e tasks (T86–T90) join the two tracks.
   - done when: `pnpm lint && pnpm build && pnpm test` pass
 - [x] T140: [FE] projects-ui: Meetings card on the project page through `shell/extensions` (`meetings.hostMeetings`, own fallback), "Start a meeting" on a project task (project page and My tasks) for `meetings:access` holders, linking to the task's project with the task's title; strings en/it — refs: AC-11.2 — deps: T137, T138, T139
   - touch: `projects-ui/src/components/MeetingsSection.tsx`, `projects-ui/src/lib/meetings.ts`, `projects-ui/src/components/ProjectTaskItem.tsx`, `projects-ui/src/pages/{ProjectDetailPage,MyTasksPageRow}.tsx`, `projects-ui/src/federation/**`, `projects-ui/vitest.config.ts`, `projects-ui/src/strings/{project,tasks}.ts`, tests
+  - done when: `pnpm lint && pnpm build && pnpm test` pass
+- [x] T141: [FE] meetings-ui: a share without computer audio says so (not "no longer recorded"); **Share computer audio** on the panel and the widget re-opens the picker and adds the new share to the running mix (`mixer.attachTab`, `session.shareComputerAudio`); the widget is capped in width — refs: AC-2.5, A19 — deps: none
+  - touch: `meetings-ui/src/capture/{mixer,session}.ts`, `meetings-ui/src/dock/RecorderDock.tsx`, `meetings-ui/src/components/meeting/RecordingPanel.tsx`, `meetings-ui/src/strings/{dock,capture}.ts`, tests
   - done when: `pnpm lint && pnpm build && pnpm test` pass

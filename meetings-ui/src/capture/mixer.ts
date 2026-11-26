@@ -106,6 +106,12 @@ export type AudioMixer = {
   on<E extends keyof MixerEvents>(event: E, listener: MixerEvents[E]): () => void
   /** How loud the microphone and the shared tab are right now (spec A13). */
   levels(): AudioLevels
+  /**
+   * Adds a NEW share's audio to the running mix (the recovery after `tabAudioLost`): the recorder keeps recording the
+   * same output, so nothing restarts. The previous share's tracks are stopped. Returns `active` when the share has
+   * audio, else `no_audio_track` (and the new share is stopped too). `tabAudioLost` can fire again afterwards.
+   */
+  attachTab(stream: MediaStream): 'active' | 'no_audio_track'
   /** Disconnects, stops every track and closes the context. Safe to call twice. */
   close(): Promise<void>
 }
@@ -125,7 +131,8 @@ const closeContext = async (context: AudioContextLike) => {
   if (context.state !== 'closed') await context.close()
 }
 
-export async function createMixer({ context, microphone, tab = null }: MixerInput): Promise<AudioMixer> {
+export async function createMixer({ context, microphone, tab: firstTab = null }: MixerInput): Promise<AudioMixer> {
+  let tab = firstTab
   let destination: MediaStreamAudioDestinationNode | null = null
   const cleanups: Array<() => void> = []
   let micSource: MediaStreamAudioSourceNode | null = null
@@ -156,11 +163,40 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
 
   const releaseEverything = () => {
     for (const cleanup of cleanups.splice(0)) cleanup()
+    for (const cleanup of tabCleanups.splice(0)) cleanup()
     micSource?.disconnect()
     if (tabState === 'active') tabSource?.disconnect()
     stopTracks(microphone)
     stopTracks(tab)
     stopTracks(destination?.stream)
+  }
+
+  const tabCleanups: Array<() => void> = []
+  /** Wires a share's audio into the mix; a share without live audio is reported, never connected. */
+  const connectTab = (stream: MediaStream): 'active' | 'no_audio_track' => {
+    const hasLiveAudio = stream.getAudioTracks().some((track) => track.readyState === 'live')
+    if (!hasLiveAudio || !destination) {
+      tabState = 'lost'
+      emit('tabAudioLost', 'no_audio_track')
+      return 'no_audio_track'
+    }
+    const source = context.createMediaStreamSource(stream)
+    source.connect(destination)
+    tabSource = source
+    tabMeter = meter(source)
+    tabState = 'active'
+    // Any tab track ending (the video, when the person clicks "Stop sharing", or the audio) is the share ending.
+    const onTabEnded = () => {
+      if (tabState !== 'active' || tabSource !== source) return
+      tabState = 'lost'
+      source.disconnect()
+      emit('tabAudioLost', 'ended')
+    }
+    for (const track of stream.getTracks()) {
+      track.addEventListener('ended', onTabEnded)
+      tabCleanups.push(() => track.removeEventListener('ended', onTabEnded))
+    }
+    return 'active'
   }
 
   try {
@@ -176,30 +212,7 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
       cleanups.push(() => track.removeEventListener('ended', onEnded))
     }
 
-    if (tab) {
-      const hasLiveAudio = tab.getAudioTracks().some((track) => track.readyState === 'live')
-      if (!hasLiveAudio) {
-        tabState = 'lost'
-        emit('tabAudioLost', 'no_audio_track')
-      } else {
-        tabSource = context.createMediaStreamSource(tab)
-        tabSource.connect(destination)
-        tabMeter = meter(tabSource)
-        tabState = 'active'
-        const source = tabSource
-        // Any tab track ending (the video, when the person clicks "Stop sharing", or the audio) is the share ending.
-        const onTabEnded = () => {
-          if (tabState !== 'active') return
-          tabState = 'lost'
-          source.disconnect()
-          emit('tabAudioLost', 'ended')
-        }
-        for (const track of tab.getTracks()) {
-          track.addEventListener('ended', onTabEnded)
-          cleanups.push(() => track.removeEventListener('ended', onTabEnded))
-        }
-      }
-    }
+    if (tab) connectTab(tab)
   } catch (error) {
     releaseEverything()
     await closeContext(context).catch(() => undefined)
@@ -232,6 +245,26 @@ export async function createMixer({ context, microphone, tab = null }: MixerInpu
       return () => {
         set.delete(listener as (...args: never[]) => void)
       }
+    },
+    attachTab(stream) {
+      if (closing) {
+        stopTracks(stream)
+        return 'no_audio_track'
+      }
+      // The old share goes: its listeners first, so stopping it is not read as a new loss.
+      for (const cleanup of tabCleanups.splice(0)) cleanup()
+      if (tabState === 'active') tabSource?.disconnect()
+      tabSource = null
+      tabMeter = null
+      stopTracks(tab)
+      tab = stream
+      fired.delete('tabAudioLost') // a later loss of the new share is news again
+      const result = connectTab(stream)
+      if (result === 'no_audio_track') {
+        stopTracks(stream)
+        tab = null
+      }
+      return result
     },
     levels() {
       return { input: read(micMeter), output: tabState === 'active' ? read(tabMeter) : null }

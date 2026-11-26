@@ -379,7 +379,22 @@ function LiveCard({ session, snapshot, focusPause }: LiveCardProps) {
   const banners: ReactNode[] = []
   if (snapshot.tabAudioLost) {
     banners.push(
-      <Banner key="tab" tone="warning" data-testid="meetings-recording-tab-ended">
+      <Banner
+        key="tab"
+        tone="warning"
+        data-testid="meetings-recording-tab-ended"
+        actions={
+          live ? (
+            <Button
+              size="sm"
+              onClick={() => void session.shareComputerAudio()}
+              data-testid="meetings-recording-share-audio"
+            >
+              {t.shareAudio}
+            </Button>
+          ) : undefined
+        }
+      >
         {snapshot.tabAudioLost === 'no_audio_track' ? t.tabNoAudio : t.tabEnded}
       </Banner>,
     )

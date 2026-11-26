@@ -133,12 +133,7 @@ export default function ConsentCard({ meeting, onChanged }: ConsentCardProps) {
         )}
 
         <div>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={!ticked}
-            busy={busy}
-          >
+          <Button type="submit" variant="primary" disabled={!ticked} busy={busy}>
             {busy ? t.busy : t.continue}
           </Button>
         </div>

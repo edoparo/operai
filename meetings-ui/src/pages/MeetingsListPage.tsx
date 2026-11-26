@@ -51,7 +51,8 @@ type Filters = {
 
 const NO_FILTERS: Filters = { q: '', role: '', status: '', hostApp: '', folder: '', page: 1 }
 
-type FolderDialog = { kind: 'create' } | { kind: 'rename'; folder: MeetingFolder } | { kind: 'delete'; folder: MeetingFolder }
+type FolderDialog =
+  { kind: 'create' } | { kind: 'rename'; folder: MeetingFolder } | { kind: 'delete'; folder: MeetingFolder }
 
 /** One option per registered app (an app may register several entity kinds), labelled in the page language. */
 const hostAppOptions = (hosts: HostInfo[] | null) => {

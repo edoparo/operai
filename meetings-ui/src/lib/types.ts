@@ -137,9 +137,7 @@ export type TranscriptSegment = {
 }
 
 export type SpeakerLabel =
-  | { kind: 'default'; index: number }
-  | { kind: 'participant'; participantId: string }
-  | { kind: 'text'; text: string }
+  { kind: 'default'; index: number } | { kind: 'participant'; participantId: string } | { kind: 'text'; text: string }
 
 /**
  * `parts` = the transcript parts the key's segments come from, ascending (`[]` for a text meeting);

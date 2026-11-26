@@ -67,6 +67,7 @@ const en = {
     textNote: 'Pasting text needs no consent confirmation, so the confirmation is removed.',
   },
   tabEnded: 'The meeting audio is no longer being captured. Your microphone is still recording.',
+  shareAudio: 'Share computer audio',
   tabNoAudio:
     'The share carries no computer audio, so only your microphone is recorded. Tick "Share system audio" when you choose the screen. On a Mac it needs Chrome 141 or later, macOS 14.2 or later, and Chrome allowed under System Settings › Privacy & Security › Screen & System Audio Recording.',
   restored: 'Connection restored. Saving audio.',
@@ -183,6 +184,7 @@ const it: typeof en = {
     textNote: 'Incollare il testo non richiede la conferma del consenso, quindi la conferma viene rimossa.',
   },
   tabEnded: "L'audio della riunione non viene più registrato. Il microfono sta ancora registrando.",
+  shareAudio: 'Condividi l’audio del computer',
   tabNoAudio:
     "La condivisione non porta l'audio del computer, quindi si registra solo il microfono. Spunta «Condividi l'audio di sistema» quando scegli lo schermo. Su Mac servono Chrome 141 o successivo, macOS 14.2 o successivo e Chrome autorizzato in Impostazioni di Sistema › Privacy e sicurezza › Registrazione schermo e audio di sistema.",
   restored: 'Connessione ripristinata. Salvataggio dell’audio in corso.',

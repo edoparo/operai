@@ -576,7 +576,9 @@ describe('EditParticipantsDialog: saving (AC-5.1, AC-5.4)', () => {
     })
     render(
       <EditParticipantsDialog
-        meeting={readyMeeting({ participants: [external('p1', 'Ann'), operai('p2', GONE), external('p3', 'Cy'), external('p4', 'Di')] })}
+        meeting={readyMeeting({
+          participants: [external('p1', 'Ann'), operai('p2', GONE), external('p3', 'Cy'), external('p4', 'Di')],
+        })}
         onClose={vi.fn()}
         onChanged={vi.fn()}
       />,

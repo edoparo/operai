@@ -189,7 +189,10 @@ export function installFakeBrowserCapture(
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: mediaDevices })
   // Chromium names itself in `userAgentData`; Firefox and Safari do not, so they get microphone only.
   if (options.chromium !== false) {
-    Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: { brands: [{ brand: 'Chromium' }] } })
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: { brands: [{ brand: 'Chromium' }] },
+    })
   }
 
   return {

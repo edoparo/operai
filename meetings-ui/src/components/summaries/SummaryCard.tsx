@@ -1,4 +1,16 @@
-import { Badge, Banner, Button, Card, Icon, Menu, MenuItem, Spinner, StatusBadge, VisuallyHidden, formatDateTime } from '@operai/ui'
+import {
+  Badge,
+  Banner,
+  Button,
+  Card,
+  Icon,
+  Menu,
+  MenuItem,
+  Spinner,
+  StatusBadge,
+  VisuallyHidden,
+  formatDateTime,
+} from '@operai/ui'
 import { useEffect, useRef, useState } from 'react'
 import { SUMMARY_STATUS_MEANING } from '../../lib/statusMeanings'
 import { regenerateSummary, retrySummary } from '../../lib/meetingsApi'
@@ -58,7 +70,16 @@ const summaryText = (summary: Summary): string => {
  * One summary. Everything the AI wrote is rendered as plain text — React text nodes, its paragraphs and
  * lists laid out by `AiText`, never HTML or Markdown (ADR 20261104-ai-output-structured-validated-plain-text).
  */
-export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onError, onDeleted, onReload }: SummaryCardProps) {
+export function SummaryCard({
+  meeting,
+  summary,
+  atLimit,
+  focus,
+  onResult,
+  onError,
+  onDeleted,
+  onReload,
+}: SummaryCardProps) {
   const t = strings.summaries
   const [busy, setBusy] = useState<'regenerate' | 'retry' | null>(null)
   const [copied, setCopied] = useState<'copied' | 'copyFailed' | null>(null)
@@ -123,7 +144,9 @@ export function SummaryCard({ meeting, summary, atLimit, focus, onResult, onErro
             {t.aiGenerated}
           </Badge>
           <Badge>{t.languages[summary.language]}</Badge>
-          {agenda !== null && <Badge data-testid="meetings-summary-follows-agenda">{strings.agenda.summary.basedOn}</Badge>}
+          {agenda !== null && (
+            <Badge data-testid="meetings-summary-follows-agenda">{strings.agenda.summary.basedOn}</Badge>
+          )}
           {summary.edited && <Badge>{t.edited}</Badge>}
           {summary.stale && <Badge tone="warning">{t.stale}</Badge>}
           {incomplete && (

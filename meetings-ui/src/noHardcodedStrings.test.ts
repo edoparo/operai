@@ -131,7 +131,11 @@ describe('no hardcoded user-facing strings in src/', () => {
   it('scans the components and pages it is supposed to (the walk is not silently empty)', () => {
     const relative = files.map((file) => path.relative(SRC_DIR, file))
     expect(relative).toEqual(
-      expect.arrayContaining(['App.tsx', path.join('components', 'MeetingsShell.tsx'), path.join('pages', 'MeetingsListPage.tsx')]),
+      expect.arrayContaining([
+        'App.tsx',
+        path.join('components', 'MeetingsShell.tsx'),
+        path.join('pages', 'MeetingsListPage.tsx'),
+      ]),
     )
     expect(relative.some((file) => file.startsWith('strings') || file.startsWith('federation'))).toBe(false)
   })

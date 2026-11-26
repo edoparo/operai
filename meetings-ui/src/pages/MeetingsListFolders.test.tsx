@@ -55,9 +55,7 @@ const renderList = async (mine = false, state?: { meetingDeleted?: boolean }) =>
   const base = mine ? '/my-meetings' : '/meetings'
   const history = createMemoryHistory({ initialEntries: [base] })
   if (state) history.replace(base, state)
-  const router = mine
-    ? createMyMeetingsRouter(base, undefined, history)
-    : createAppRouter(base, undefined, history)
+  const router = mine ? createMyMeetingsRouter(base, undefined, history) : createAppRouter(base, undefined, history)
   render(<RouterProvider router={router} />)
   await screen.findByTestId('meetings-list-page')
 }
@@ -76,16 +74,22 @@ const FOLDERS = [
   { id: 'f-acme', name: 'ACME', meetingCount: 1 },
   { id: 'f-arch', name: 'Archive', meetingCount: 0 },
 ]
-const rows = () => page([meetingRow({ id: 'm1', title: 'Kick-off', folderId: 'f-acme' }), meetingRow({ id: 'm2', title: 'Retro' })])
+const rows = () =>
+  page([meetingRow({ id: 'm1', title: 'Kick-off', folderId: 'f-acme' }), meetingRow({ id: 'm2', title: 'Retro' })])
 const calls = (method: string, path: string) =>
   vi
     .mocked(apiFetch)
-    .mock.calls.filter(([input, init]) => (init?.method ?? 'GET') === method && new URL(String(input)).pathname === path)
+    .mock.calls.filter(
+      ([input, init]) => (init?.method ?? 'GET') === method && new URL(String(input)).pathname === path,
+    )
     .map(([, init]) => (init?.body ? JSON.parse(String(init.body)) : null))
 
 describe('personal folders (ADR 20261113-personal-meeting-folders)', () => {
   it('shows no folder controls when the folders cannot be loaded; the list still works', async () => {
-    serve({ 'GET /meetings': () => ({ status: 200, body: rows() }), 'GET /folders': () => ({ status: 503, body: problem(503) }) })
+    serve({
+      'GET /meetings': () => ({ status: 200, body: rows() }),
+      'GET /folders': () => ({ status: 503, body: problem(503) }),
+    })
     await renderList()
     await screen.findByText('Kick-off')
     expect(screen.queryByTestId('meetings-list-folder-filter')).toBeNull()
@@ -93,15 +97,17 @@ describe('personal folders (ADR 20261113-personal-meeting-folders)', () => {
   })
 
   it('filters on a folder, or on the meetings in none', async () => {
-    serve({ 'GET /meetings': () => ({ status: 200, body: rows() }), 'GET /folders': () => ({ status: 200, body: { items: FOLDERS } }) })
+    serve({
+      'GET /meetings': () => ({ status: 200, body: rows() }),
+      'GET /folders': () => ({ status: 200, body: { items: FOLDERS } }),
+    })
     await renderList()
     const filter = await screen.findByTestId('meetings-list-folder-filter')
-    expect(within(filter).getAllByRole('option').map((o) => o.textContent)).toEqual([
-      en.folders.all,
-      en.folders.none,
-      'ACME (1)',
-      'Archive (0)',
-    ])
+    expect(
+      within(filter)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual([en.folders.all, en.folders.none, 'ACME (1)', 'Archive (0)'])
 
     await userEvent.selectOptions(filter, 'f-acme')
     await waitFor(() => expect(lastQuery()).toMatchObject({ folder: 'f-acme' }))
@@ -160,7 +166,10 @@ describe('personal folders (ADR 20261113-personal-meeting-folders)', () => {
     serve({
       'GET /meetings': () => ({ status: 200, body: rows() }),
       'GET /folders': () => ({ status: 200, body: { items: FOLDERS } }),
-      'PATCH /folders/:id': (_url, init) => ({ status: 200, body: { id: 'f-acme', name: JSON.parse(String(init?.body)).name, meetingCount: 1 } }),
+      'PATCH /folders/:id': (_url, init) => ({
+        status: 200,
+        body: { id: 'f-acme', name: JSON.parse(String(init?.body)).name, meetingCount: 1 },
+      }),
       'DELETE /folders/:id': () => ({ status: 204 }),
     })
     await renderList()
@@ -211,7 +220,11 @@ describe('personal folders (ADR 20261113-personal-meeting-folders)', () => {
     await userEvent.click(screen.getByTestId('folder-rename-submit'))
     await waitFor(() => expect(within(screen.getByTestId('folders-manage')).getByText('Old stuff')).not.toBeNull())
 
-    await userEvent.click(within(screen.getByTestId('folders-manage')).getByRole('button', { name: en.folders.manageDialog.delete('ACME') }))
+    await userEvent.click(
+      within(screen.getByTestId('folders-manage')).getByRole('button', {
+        name: en.folders.manageDialog.delete('ACME'),
+      }),
+    )
     await userEvent.click(screen.getByTestId('folder-delete-confirm'))
     await waitFor(() => expect(within(screen.getByTestId('folders-manage')).queryByText('ACME')).toBeNull())
     expect(calls('DELETE', '/folders/f-acme')).toHaveLength(1)

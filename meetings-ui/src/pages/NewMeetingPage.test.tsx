@@ -230,7 +230,10 @@ describe('started from a record (AC-1.1)', () => {
     expect(titleInput().value).toBe('Kick-off with the client')
     await userEvent.click(submit())
     await waitFor(() => expect(router.state.location.pathname).toBe('/m/new1'))
-    expect(posts()[0]?.body).toMatchObject({ title: 'Kick-off with the client', host: { app: 'crm', entityType: 'deal', entityId: 'd1' } })
+    expect(posts()[0]?.body).toMatchObject({
+      title: 'Kick-off with the client',
+      host: { app: 'crm', entityType: 'deal', entityId: 'd1' },
+    })
   })
 
   it('ignores a blank suggested title', async () => {

@@ -14,7 +14,7 @@ import { apiFetch } from 'shell/session'
 import type { Meeting, PresignedPost } from '../lib/types'
 import { ADA, fakeApi, meeting, problem } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
-import { FakeMediaRecorder, installFakeBrowserCapture } from '../test-support/fakeCapture'
+import { FakeMediaRecorder, installFakeBrowserCapture, tabStream } from '../test-support/fakeCapture'
 import type { FakeBrowser } from '../test-support/fakeCapture'
 import {
   HEARTBEAT_MS,
@@ -477,6 +477,42 @@ describe('the shared tab and the microphone (AC-2.5)', () => {
     const { session } = setup({ source: 'microphone+tab', browser: { tab: 'no-audio' } })
     await session.start()
     expect(session.getSnapshot()).toMatchObject({ phase: 'recording', tabAudioLost: 'no_audio_track' })
+  })
+
+  it('Share computer audio asks again and adds the new share to the same recording; a later loss is reported again', async () => {
+    const { session } = setup({ source: 'microphone+tab', browser: { tab: 'no-audio' } })
+    await session.start()
+    const before = recorder()
+    const withAudio = tabStream(true)
+    browser.getDisplayMedia.mockImplementationOnce(async () => withAudio)
+
+    await session.shareComputerAudio()
+    expect(browser.getDisplayMedia).toHaveBeenLastCalledWith(TAB_CONSTRAINTS)
+    expect(session.getSnapshot()).toMatchObject({ phase: 'recording', tabAudioLost: null })
+    expect(recorder()).toBe(before) // nothing restarted
+    expect(before.state).toBe('recording')
+    expect(browser.tabs[0]!.getTracks().every((track) => track.readyState === 'ended')).toBe(true) // the silent share ended
+
+    ;(withAudio.getVideoTracks()[0] as unknown as { end: () => void }).end()
+    expect(session.getSnapshot().tabAudioLost).toBe('ended')
+  })
+
+  it('closing the picker of Share computer audio changes nothing', async () => {
+    const { session } = setup({ source: 'microphone+tab', browser: { tab: 'no-audio' } })
+    await session.start()
+    browser.getDisplayMedia.mockImplementationOnce(async () => {
+      throw new DOMException('closed', 'NotAllowedError')
+    })
+    await session.shareComputerAudio()
+    expect(session.getSnapshot()).toMatchObject({ phase: 'recording', tabAudioLost: 'no_audio_track' })
+  })
+
+  it('a share without audio again is still reported as having none', async () => {
+    const { session } = setup({ source: 'microphone+tab', browser: { tab: 'no-audio' } })
+    await session.start()
+    await session.shareComputerAudio()
+    expect(session.getSnapshot().tabAudioLost).toBe('no_audio_track')
+    expect(browser.tabs[1]!.getTracks().every((track) => track.readyState === 'ended')).toBe(true)
   })
 
   it('a microphone that stops pauses the recording; Resume asks for a new one and records on', async () => {

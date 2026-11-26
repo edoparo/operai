@@ -182,6 +182,38 @@ describe('the shared tab has no audio (AC-2.5)', () => {
   })
 })
 
+describe('sharing the computer audio again (recovery)', () => {
+  it('connects the new share to the same output, stops the old share, and a later loss fires again', async () => {
+    const silent = new FakeStream([video()])
+    const { context, create } = setup({ tab: silent })
+    const mixer = await create()
+    const lost = vi.fn()
+    mixer.on('tabAudioLost', lost)
+    const output = mixer.output
+
+    const newAudio = audio()
+    const fresh = new FakeStream([video(), newAudio])
+    expect(mixer.attachTab(fresh as unknown as MediaStream)).toBe('active')
+    expect(mixer.tabAudio).toBe('active')
+    expect(mixer.output).toBe(output)
+    expect(sourceFor(context, fresh)?.connectedTo).toEqual([context.destination])
+    expect(silent.tracks.every((track) => track.readyState === 'ended')).toBe(true)
+
+    newAudio.end()
+    expect(lost).toHaveBeenLastCalledWith('ended')
+    expect(mixer.tabAudio).toBe('lost')
+  })
+
+  it('a new share without audio is reported and stopped', async () => {
+    const { create } = setup({ tab: new FakeStream([video()]) })
+    const mixer = await create()
+    const again = new FakeStream([video()])
+    expect(mixer.attachTab(again as unknown as MediaStream)).toBe('no_audio_track')
+    expect(mixer.tabAudio).toBe('lost')
+    expect(again.tracks.every((track) => track.readyState === 'ended')).toBe(true)
+  })
+})
+
 describe('the share ends mid-recording (AC-2.5)', () => {
   it('emits tabAudioLost when the tab audio track ends', async () => {
     const tabAudio = audio()

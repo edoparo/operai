@@ -121,12 +121,26 @@ function NotesEditor({ meetingId, initial, onReload }: { meetingId: string; init
   }
 
   const statusText =
-    state === 'saving' ? t.status.saving : state === 'unsaved' ? t.status.unsaved : state === 'failed' ? t.status.failed : state === 'saved' ? t.status.saved : ''
+    state === 'saving'
+      ? t.status.saving
+      : state === 'unsaved'
+        ? t.status.unsaved
+        : state === 'failed'
+          ? t.status.failed
+          : state === 'saved'
+            ? t.status.saved
+            : ''
 
   return (
     <div className="flex flex-col gap-2">
       {state === 'conflict' && (
-        <Banner tone="warning" title={t.conflict.title} onRetry={onReload} retryLabel={t.reload} data-testid="meetings-notes-conflict">
+        <Banner
+          tone="warning"
+          title={t.conflict.title}
+          onRetry={onReload}
+          retryLabel={t.reload}
+          data-testid="meetings-notes-conflict"
+        >
           {t.conflict.body}
         </Banner>
       )}
