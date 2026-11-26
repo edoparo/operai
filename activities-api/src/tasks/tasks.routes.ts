@@ -38,6 +38,15 @@ const ListTasksQuery = z.object({
   projectId: IdParam.optional(),
   /** `open` includes the tasks in progress; `in_progress` lists only those (US-10 AC-10.4). */
   status: z.enum(["open", "in_progress", "done"]).default("open"),
+  /** Done tasks completed at or after this instant (a board's Done column, the last 30 days). Only with `status=done`. */
+  completedSince: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .openapi({
+      description:
+        "ISO 8601 date-time. With `status=done`, only the tasks completed at or after it are listed and counted; with any other status the request is 422 `completed_since_only_for_done`.",
+    }),
   /** `me` (default; a person's tasks are those assigned to them and those they take part in, 017 US-8), `any`, or a user id. */
   assignee: IdParam.optional(),
   ...pageQuery(),
@@ -108,8 +117,12 @@ const orderOf = (status: "open" | "in_progress" | "done"): Prisma.ActivityOrderB
 
 tasksRouter.openapi(tasksRoute, async (c) => {
   const query = c.req.valid("query");
-  const { projectId, status, page, pageSize } = query;
+  const { projectId, status, completedSince, page, pageSize } = query;
   const session = new HostSession(authorizationOf(c));
+
+  if (completedSince !== undefined && status !== "done") {
+    throw unprocessable("Only done tasks are listed by completion date", { field: "completedSince" }, "completed_since_only_for_done");
+  }
 
   if (projectId !== undefined && query.kind !== undefined && query.kind !== "operational") {
     throw unprocessable("A project's tasks are operational ones", { field: "kind" }, "kind_conflicts_with_project");
@@ -152,7 +165,9 @@ tasksRouter.openapi(tasksRoute, async (c) => {
     const where: Prisma.ActivityWhereInput = {
       type: "task",
       kind: { in: [...hostKinds] },
-      ...(status === "done" ? { completedAt: { not: null } } : { completedAt: null }),
+      ...(status === "done"
+        ? { completedAt: completedSince !== undefined ? { gte: new Date(completedSince) } : { not: null } }
+        : { completedAt: null }),
       ...(status === "in_progress" ? { startedAt: { not: null } } : {}),
       ...(projectHost ? { hostApp: projectHost.app, hostType: projectHost.entityType, hostId: projectId! } : {}),
       ...(assignee === "any" ? {} : personsTasks(assignee === "me" ? c.get("userId") : assignee)),

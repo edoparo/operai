@@ -150,6 +150,33 @@ describe("GET /tasks — the CRM Tasks page (ported from crm-api, specs/20261101
     expect((await call("GET", "/tasks?kind=pre_sales&pageSize=101")).status).toBe(422);
   });
 
+  it("completedSince keeps the done tasks completed at or after it, counted, newest first; only with status=done", async () => {
+    const co = makeCompany();
+    const host = { app: "crm", id: co.id } as const;
+    await seed({ subject: "Long ago", host, completedAt: "2026-09-01T10:00:00Z" });
+    await seed({ subject: "At the cutoff", host, completedAt: "2026-10-27T00:00:00Z" });
+    await seed({ subject: "Recent", host, completedAt: "2026-11-20T10:00:00Z" });
+    await seed({ subject: "Still open", host });
+
+    const since = encodeURIComponent("2026-10-27T00:00:00Z");
+    const recent = await call("GET", `/tasks?kind=pre_sales&status=done&completedSince=${since}`, { as: "consultant" });
+    expect(recent.status).toBe(200);
+    expect(subjects(recent)).toEqual(["Recent", "At the cutoff"]);
+    expect(recent.json.total).toBe(2);
+    // an offset is honoured: 01:00+01:00 is the same instant as the cutoff
+    const offset = encodeURIComponent("2026-10-27T01:00:00+01:00");
+    expect((await call("GET", `/tasks?kind=pre_sales&status=done&completedSince=${offset}`, { as: "consultant" })).json.total).toBe(2);
+    // omitted: every done task, as before
+    expect((await call("GET", "/tasks?kind=pre_sales&status=done", { as: "consultant" })).json.total).toBe(3);
+
+    const open = await call("GET", `/tasks?kind=pre_sales&status=open&completedSince=${since}`, { as: "consultant" });
+    expect(open.status).toBe(422);
+    expect(open.json.code).toBe("completed_since_only_for_done");
+    // the default status is open, so it is refused too
+    expect((await call("GET", `/tasks?kind=pre_sales&completedSince=${since}`, { as: "consultant" })).status).toBe(422);
+    expect((await call("GET", "/tasks?kind=pre_sales&status=done&completedSince=yesterday")).status).toBe(422);
+  });
+
   it("needs a signed-in caller", async () => {
     expect((await call("GET", "/tasks?kind=pre_sales", { as: null })).status).toBe(401);
     expect((await call("GET", "/tasks/assignees", { as: null })).status).toBe(401);
