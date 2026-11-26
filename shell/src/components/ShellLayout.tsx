@@ -1,4 +1,5 @@
 import { type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { publishChromeHeaderHeight } from '../lib/chromeHeader'
 import { Outlet, useBlocker, useRouterState } from '@tanstack/react-router'
 import { ConfirmDialog } from '@operai/ui'
 import { SidebarCollapsedProvider } from '../hooks/SidebarCollapsedProvider'
@@ -133,6 +134,7 @@ function ShellLayoutFrame({ header, sidebar, footer }: ShellLayoutProps) {
       const header = headerRef.current?.getBoundingClientRect().height ?? 0
       const footer = footerRef.current?.getBoundingClientRect().height ?? 0
       setChrome((current) => (current.header === header && current.footer === footer ? current : { header, footer }))
+      publishChromeHeaderHeight(header)
     }
     measure()
     if (typeof ResizeObserver !== 'function') return

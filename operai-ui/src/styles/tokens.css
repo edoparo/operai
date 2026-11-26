@@ -1117,6 +1117,7 @@ select:not([multiple]):not([size]) {
     display: flex;
     justify-content: flex-end;
     background: rgba(0, 0, 0, 0.4);
+    animation: op-fade-in 0.2s ease-out;
   }
 
   .drawer {
@@ -1128,20 +1129,23 @@ select:not([multiple]):not([size]) {
     background: var(--ink-soft);
     color: var(--text);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    animation: op-drawer-in 0.15s ease-out;
+    animation: op-drawer-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .drawer:focus {
     outline: none;
   }
 
+  /* As tall as the shell's header (--chrome-header, set by the shell), so the two rules line up. */
   .drawer-header {
     display: flex;
+    box-sizing: border-box;
+    min-height: var(--chrome-header, auto);
     flex-shrink: 0;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 16px 20px;
+    padding: 12px 20px;
     border-bottom: 1px solid var(--rule);
   }
 
@@ -1216,10 +1220,10 @@ select:not([multiple]):not([size]) {
     overflow-x: auto;
   }
 
+  /* Lanes stretch to the tallest one, so a card can be dropped on any lane at any scroll position. */
   .board-lanes {
     display: grid;
     gap: 12px;
-    align-items: start;
   }
 
   .board-lane {
@@ -1950,7 +1954,12 @@ select:not([multiple]):not([size]) {
 
 @keyframes op-drawer-in {
   from {
-    transform: translateX(16px);
+    transform: translateX(100%);
+  }
+}
+
+@keyframes op-fade-in {
+  from {
     opacity: 0;
   }
 }
@@ -1973,7 +1982,8 @@ select:not([multiple]):not([size]) {
 @media (prefers-reduced-motion: reduce) {
   .skeleton,
   .spinner,
-  .drawer {
+  .drawer,
+  .drawer-backdrop {
     animation: none;
   }
 
