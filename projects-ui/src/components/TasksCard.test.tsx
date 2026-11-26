@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { fakeApi, personRef, problem, projectDetail, projectTask } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
-import { laneCards, openCard } from '../test-support/taskBoard'
+import { factValue, laneCards, openCard } from '../test-support/taskBoard'
 import type { Project } from '../lib/types'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -199,7 +199,7 @@ describe('the board', () => {
 })
 
 describe('the drawer', () => {
-  it('opens on a click with the whole task: participants, due date, assignee, description', async () => {
+  it('opens on a click with the whole task as labelled facts: due date, assignee, participants one per line', async () => {
     renderCard({
       'GET /tasks': tasks([
         projectTask('t1', { participants: [personRef('u-bob', 'Bob Builder'), personRef('u-cara', 'Cara Coder')] }),
@@ -207,8 +207,36 @@ describe('the drawer', () => {
     })
     const drawer = await openCard('project-task', 't1')
     expect(screen.getByRole('dialog', { name: 'Task t1' })).toBeTruthy()
-    expect(drawer.getByText(/Due 20\.11\.2026/).textContent).toContain('Assigned to Ada Lovelace (You)')
-    expect(drawer.getByText('With Bob Builder, Cara Coder')).toBeTruthy()
+    const terms = Array.from(screen.getByTestId('task-drawer').querySelectorAll('dt')).map((term) => term.textContent)
+    expect(terms).toEqual(['Due date', 'Assignee', 'With'])
+    expect(factValue('project-task', 't1', 'due')).toBe('20.11.2026')
+    expect(factValue('project-task', 't1', 'assignee')).toBe('Ada Lovelace (You)')
+    const people = drawer.getByTestId('project-task-t1-fact-participants').nextElementSibling!
+    expect(Array.from(people.querySelectorAll('li')).map((item) => item.textContent)).toEqual([
+      'Bob Builder',
+      'Cara Coder',
+    ])
+    // No description: no Description section.
+    expect(drawer.queryByRole('heading', { name: 'Description' })).toBeNull()
+  })
+
+  it('puts the primary actions first: Start and Mark done (primary), full width, before the facts', async () => {
+    renderCard({ 'GET /tasks': tasks([projectTask('t1')]) })
+    const drawer = await openCard('project-task', 't1')
+    const primary = drawer.getByRole('group', { name: 'Progress of Task t1' })
+    expect(Array.from(primary.querySelectorAll('button')).map((button) => button.textContent)).toEqual([
+      'Start',
+      'Mark done',
+    ])
+    expect(drawer.getByRole('button', { name: 'Mark done' }).className).toContain('btn-primary')
+    expect(drawer.getByRole('button', { name: 'Start' }).className).toContain('btn-secondary')
+    const facts = screen.getByTestId('task-drawer').querySelector('dl')!
+    expect(primary.compareDocumentPosition(facts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Delete is last in More, set apart, danger.
+    const more = drawer.getByRole('group', { name: 'Actions for Task t1' })
+    expect(more.lastElementChild?.textContent).toBe('Delete')
+    expect(drawer.getByRole('button', { name: 'Delete' }).className).toContain('btn-danger')
+    expect(drawer.getByRole('heading', { name: 'More' })).toBeTruthy()
   })
 
   it('opens on Enter too, and gives focus back to the card when closed', async () => {
@@ -228,7 +256,8 @@ describe('the drawer', () => {
     renderCard({ 'GET /tasks': tasks([], [done('d1')]) })
     const drawer = await openCard('project-task', 'd1')
     expect(drawer.getByText('Done', { selector: '.badge, .badge *' })).toBeTruthy()
-    expect(drawer.getByText('Done by Bob Builder on 05.11.2026')).toBeTruthy()
+    expect(drawer.getByTestId('project-task-d1-fact-completed').textContent).toBe('Done')
+    expect(factValue('project-task', 'd1', 'completed')).toBe('05.11.2026 · Bob Builder')
   })
 
   it('a blocked task names what it waits on, not what is already finished', async () => {
@@ -325,7 +354,9 @@ describe('who sees which action', () => {
     fireEvent.click(drawer.getByTestId('task-drawer-close'))
 
     drawer = await openCard('project-task', 'none')
-    expect(drawer.getByRole('group', { name: 'Actions for Task none' }).children).toHaveLength(0)
+    expect(drawer.queryByRole('group', { name: 'Actions for Task none' })).toBeNull()
+    expect(drawer.queryByRole('group', { name: 'Progress of Task none' })).toBeNull()
+    expect(within(screen.getByTestId('project-task-none-details')).queryAllByRole('button')).toHaveLength(0)
     fireEvent.click(drawer.getByTestId('task-drawer-close'))
 
     drawer = await openCard('project-task', 'editOnly')

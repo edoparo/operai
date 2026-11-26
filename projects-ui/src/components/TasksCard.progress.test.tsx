@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event'
 import { stubLayoutForBoard } from '@operai/ui/board'
 import { fakeApi, personRef, problem, projectDetail, projectTask as baseTask } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
-import { dragCard, laneCards, openCard } from '../test-support/taskBoard'
+import { dragCard, factValue, laneCards, openCard } from '../test-support/taskBoard'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
@@ -85,7 +85,8 @@ describe('TasksCard — in progress', () => {
     expect(lane('in_progress')).toEqual(['project-task-t2'])
     const drawer = await openCard('project-task', 't2')
     expect(drawer.getByText('In progress', { selector: '.badge, .badge *' })).toBeTruthy()
-    expect(drawer.getByText(/In progress since 23\.11\.2026/)).toBeTruthy()
+    expect(drawer.getByTestId('project-task-t2-fact-started').textContent).toBe('In progress since')
+    expect(factValue('project-task', 't2', 'started')).toBe('23.11.2026 · Ada Lovelace (You)')
     expect(drawer.queryByRole('button', { name: 'Start' })).toBeNull()
     await userEvent.click(drawer.getByRole('button', { name: 'Stop' }))
     await waitFor(() => expect(posts()).toContain('/activities/t2/stop'))

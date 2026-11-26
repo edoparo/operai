@@ -14,7 +14,7 @@ import ProjectsShell from '../components/ProjectsShell'
 import { createAppRouter } from '../router'
 import { fakeApi, personRef, problem, projectTask, scope } from '../test-support/fakeApi'
 import type { FakeHandler } from '../test-support/fakeApi'
-import { laneCards, openCard } from '../test-support/taskBoard'
+import { factValue, laneCards, openCard } from '../test-support/taskBoard'
 
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
 vi.mock('shell/session', () => ({
@@ -118,14 +118,16 @@ describe('the mixed board', () => {
     const drawer = await openCard('my-task', 'p1')
     const link = drawer.getByRole('link', { name: 'Intranet' })
     expect(link.getAttribute('href')).toBe('/p1')
-    expect(drawer.getByText(/Project:/).textContent).toContain('Project: Intranet')
+    expect(drawer.getByTestId('my-task-p1-fact-project').textContent).toBe('Project')
+    expect(factValue('my-task', 'p1', 'project')).toBe('Intranet')
   })
 
   it('a pre-sales card names its company and deal; its drawer opens the company in the CRM through a link named for the task (AC-7.3)', async () => {
     await renderPage({ 'GET /tasks': tasks([preSalesTask('s1')]) })
     expect((await screen.findByTestId('my-task-s1')).textContent).toContain('Globex AG · Website')
     const drawer = await openCard('my-task', 's1')
-    expect(drawer.getByText('Company: Globex AG')).toBeTruthy()
+    expect(factValue('my-task', 's1', 'company')).toBe('Globex AG')
+    expect(factValue('my-task', 's1', 'deal')).toBe('Website')
     const link = drawer.getByRole('link', { name: 'Open in CRM: Pre-sales s1' })
     expect(link.getAttribute('href')).toBe('/crm/companies/c9')
   })
@@ -164,7 +166,7 @@ describe('the mixed board', () => {
   it('a pre-sales task whose company name is gone still opens it by id and says the name is unknown', async () => {
     await renderPage({ 'GET /tasks': tasks([preSalesTask('s1', { company: { id: 'c9', name: null } })]) })
     const drawer = await openCard('my-task', 's1')
-    expect(drawer.getByText('Company: Unknown company')).toBeTruthy()
+    expect(factValue('my-task', 's1', 'company')).toBe('Unknown company')
     expect(drawer.getByRole('link', { name: /Open in CRM/ }).getAttribute('href')).toBe('/crm/companies/c9')
   })
 

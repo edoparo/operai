@@ -32,6 +32,19 @@ const en = {
   /** The side panel a task card opens. */
   drawer: {
     close: 'Close',
+    progressFor: (title: string) => `Progress of ${title}`,
+    project: 'Project',
+    company: 'Company',
+    deal: 'Deal',
+    due: 'Due date',
+    assignee: 'Assignee',
+    participants: 'With',
+    started: 'In progress since',
+    completed: 'Done',
+    /** "23.11.2026 · Ada Lovelace": when, and by whom. */
+    when: (date: string, name: string) => `${date} · ${name}`,
+    description: 'Description',
+    more: 'More',
   },
   closedNote: 'This project is closed or cancelled. Tasks can be marked done or not done, nothing else.',
   state: { open: 'Open', in_progress: 'In progress', blocked: 'Blocked', overdue: 'Overdue', done: 'Done' },
@@ -213,6 +226,18 @@ const it: typeof en = {
   },
   drawer: {
     close: 'Chiudi',
+    progressFor: (title: string) => `Avanzamento di ${title}`,
+    project: 'Progetto',
+    company: 'Azienda',
+    deal: 'Opportunità',
+    due: 'Scadenza',
+    assignee: 'Assegnata a',
+    participants: 'Con',
+    started: 'In corso dal',
+    completed: 'Completata',
+    when: (date: string, name: string) => `${date} · ${name}`,
+    description: 'Descrizione',
+    more: 'Altro',
   },
   closedNote:
     'Questo progetto è chiuso o annullato. Le attività si possono segnare come completate o non completate, nient’altro.',

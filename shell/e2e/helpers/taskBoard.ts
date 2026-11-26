@@ -38,3 +38,14 @@ export async function closeTaskDrawer(page: Page): Promise<void> {
 /** The drawer's action group (Start, Mark done, Edit, Delete, links, Record hours), named after the task. */
 export const taskActions = (details: Locator, subject: string): Locator =>
   details.getByRole('group', { name: `Actions for ${subject}` })
+
+/** The primary actions of the drawer (Start / Stop, Mark done / Mark not done), named after the task. */
+export const taskProgress = (details: Locator, subject: string): Locator =>
+  details.getByRole('group', { name: `Progress of ${subject}` })
+
+/**
+ * The value of one labelled fact in a task's drawer: `due`, `assignee`, `participants`, `started`, `completed`,
+ * `project` (My tasks), `company` and `deal` (a pre-sales task). Test id of its label: `<prefix>-<id>-fact-<fact>`.
+ */
+export const taskFact = (details: Locator, prefix: 'project-task' | 'my-task', id: string, fact: string): Locator =>
+  details.getByTestId(`${prefix}-${id}-fact-${fact}`).locator('xpath=following-sibling::dd[1]')

@@ -40,3 +40,8 @@ export function laneCards(base: string, lane: 'open' | 'in_progress' | 'done', p
     .queryAllByTestId(new RegExp(`^${prefix}-[^-]+$`))
     .map((card) => card.getAttribute('data-testid') ?? '')
 }
+
+/** The value of one labelled fact in a task's drawer (`due`, `assignee`, `participants`, `project`, `company`, …). */
+export function factValue(prefix: string, id: string, fact: string): string {
+  return screen.getByTestId(`${prefix}-${id}-fact-${fact}`).nextElementSibling?.textContent ?? ''
+}

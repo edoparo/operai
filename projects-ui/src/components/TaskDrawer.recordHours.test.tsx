@@ -3,8 +3,9 @@
  *
  * TaskDrawer × Record hours (specs/20261116-record-hours-in-place AC-3.1, AC-3.2, AC-3.6, AC-4.5, design S2): a
  * project task's drawer (opened from its card on the project's Tasks board) offers hours-ui's widget, through the
- * shell's `hours.recordHours` extension, to the task's assignee and to its participants and to nobody else — as the
- * LAST item of the drawer's actions, done tasks included — with the six plain strings of the task and its project
+ * shell's `hours.recordHours` extension, to the task's assignee and to its participants and to nobody else — in the
+ * drawer's "More" actions, after the links and before Edit and Delete (the owner's 2026-11-26 layout: the destructive
+ * action is last), done tasks included — with the six plain strings of the task and its project
  * (`placement: 'row'`, the task's placement). When the widget cannot be had the drawer works as before and shows the
  * link to My hours in its place. `shell/extensions` is a spy that records what the drawer hands the widget (the real
  * one is the shell's).
@@ -67,8 +68,11 @@ const renderRow = (row: ProjectTask, me: string | null = 'u-ada') =>
     />,
   )
 
-/** The drawer's action group, which names itself after the task. */
+/** The drawer's "More" action group, which names itself after the task. */
 const actions = () => screen.getByRole('group', { name: 'Actions for Write the offer' })
+/** The drawer's primary actions (Start / Stop, Mark done / Mark not done). */
+const progress = () => screen.getByRole('group', { name: 'Progress of Write the offer' })
+const labelsOf = (group: HTMLElement) => Array.from(group.children).map((item) => item.textContent)
 
 /** Waits for the wrapper's dynamic import of `shell/extensions` to settle, so an absence is not just "not yet". */
 const settled = () => new Promise((resolve) => setTimeout(resolve, 25))
@@ -85,14 +89,14 @@ afterEach(() => {
 })
 
 describe('Record hours in a project task’s drawer — who is offered it (AC-3.1)', () => {
-  it('offers it to the assignee as the LAST item of the row’s actions, after Mark done, Edit and Delete (design S2)', async () => {
+  it('offers it to the assignee in the drawer’s More actions, before Edit and the set-apart Delete', async () => {
     renderRow(task())
 
     const widget = await screen.findByTestId('widget-record-hours')
     const group = actions()
-    expect(group.lastElementChild).toBe(widget)
-    const labels = Array.from(group.children).map((item) => item.textContent)
-    expect(labels).toEqual(['Start', 'Mark done', 'Edit', 'Delete', 'Record hours'])
+    expect(group.firstElementChild?.contains(widget)).toBe(true)
+    expect(labelsOf(group)).toEqual(['Record hours', 'Edit', 'Delete'])
+    expect(labelsOf(progress())).toEqual(['Start', 'Mark done'])
   })
 
   it('hands the widget the extension’s name and the six plain strings of the task and its project (AC-3.2, R10)', async () => {
@@ -118,7 +122,7 @@ describe('Record hours in a project task’s drawer — who is offered it (AC-3.
   it('offers it to a participant who is not the assignee', async () => {
     renderRow(task({ participants: [person('u-pat')] }, { assignee: person('u-bob') }), 'u-pat')
     await screen.findByTestId('widget-record-hours')
-    expect(actions().lastElementChild).toBe(screen.getByTestId('widget-record-hours'))
+    expect(actions().contains(screen.getByTestId('widget-record-hours'))).toBe(true)
   })
 
   it('offers it to nobody else who can read the task: the author alone, or anyone else', async () => {
@@ -130,13 +134,9 @@ describe('Record hours in a project task’s drawer — who is offered it (AC-3.
     expect(seam.calls).toEqual([])
     expect(screen.queryByTestId('widget-record-hours')).toBeNull()
     expect(screen.queryByTestId('record-hours-fallback')).toBeNull()
-    // The row's own buttons are all still there.
-    expect(Array.from(actions().children).map((item) => item.textContent)).toEqual([
-      'Start',
-      'Mark done',
-      'Edit',
-      'Delete',
-    ])
+    // The drawer's own buttons are all still there.
+    expect(labelsOf(progress())).toEqual(['Start', 'Mark done'])
+    expect(labelsOf(actions())).toEqual(['Edit', 'Delete'])
     cleanup()
 
     renderRow(row, 'u-someone-else')
@@ -156,7 +156,9 @@ describe('Record hours in a project task’s drawer — who is offered it (AC-3.
     renderRow(task({ may: { edit: false, delete: false, complete: false } }))
 
     const widget = await screen.findByTestId('widget-record-hours')
-    expect(Array.from(actions().children)).toEqual([widget])
+    expect(actions().children).toHaveLength(1)
+    expect(actions().firstElementChild?.contains(widget)).toBe(true)
+    expect(screen.queryByRole('group', { name: 'Progress of Write the offer' })).toBeNull()
   })
 
   it('offers no button for a task whose project the answer left out: the widget would have nothing to record on', async () => {
@@ -171,17 +173,13 @@ describe('Record hours in a project task’s drawer — who is offered it (AC-3.
 describe('Record hours in a done project task’s drawer (AC-3.6)', () => {
   const done = { completedAt: '2026-11-05T10:00:00.000Z', completedBy: person('u-ada') }
 
-  it('offers it exactly as an open row does: same props, same place — last, after Mark not done', async () => {
+  it('offers it exactly as an open task does: same props, same place', async () => {
     renderRow(task({}, done))
 
     const widget = await screen.findByTestId('widget-record-hours')
-    expect(Array.from(actions().children).map((item) => item.textContent)).toEqual([
-      'Mark not done',
-      'Edit',
-      'Delete',
-      'Record hours',
-    ])
-    expect(actions().lastElementChild).toBe(widget)
+    expect(labelsOf(progress())).toEqual(['Mark not done'])
+    expect(labelsOf(actions())).toEqual(['Record hours', 'Edit', 'Delete'])
+    expect(actions().firstElementChild?.contains(widget)).toBe(true)
     expect(seam.calls.at(-1)?.props).toEqual({
       on: 'project',
       targetId: 'p1',
@@ -201,16 +199,15 @@ describe('Record hours in a done project task’s drawer (AC-3.6)', () => {
 })
 
 describe('Record hours in a project task’s drawer when the hours screens cannot be loaded (AC-4.5)', () => {
-  it('works as before and shows the link to My hours, centred, as the last action', async () => {
+  it('works as before and shows the link to My hours in the widget’s place', async () => {
     seam.mode = 'fallsBack'
     renderRow(task())
 
     const link = await waitFor(() => screen.getByRole('link', { name: 'Record hours in My hours' }))
     expect(link.getAttribute('href')).toBe('/hours')
-    expect(link.className).toContain('self-center')
-    expect(actions().lastElementChild).toBe(link)
-    // The row's own actions still work and are in their places.
-    expect(within(actions()).getByRole('button', { name: 'Mark done' })).not.toBeNull()
+    expect(actions().firstElementChild?.contains(link)).toBe(true)
+    // The drawer's own actions still work and are in their places.
+    expect(within(progress()).getByRole('button', { name: 'Mark done' })).not.toBeNull()
     expect(within(actions()).getByRole('button', { name: 'Edit' })).not.toBeNull()
   })
 

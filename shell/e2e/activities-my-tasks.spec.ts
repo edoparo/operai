@@ -37,7 +37,7 @@ import {
   type ProjectRow,
   type TaskRow,
 } from './helpers/activitiesFixtures'
-import { closeTaskDrawer, openTaskCard, taskActions, taskLane } from './helpers/taskBoard'
+import { closeTaskDrawer, openTaskCard, taskFact, taskLane, taskProgress } from './helpers/taskBoard'
 
 const runId = newRunId()
 
@@ -114,7 +114,7 @@ test.describe('specs/20261110-activities T21: My tasks with pre-sales tasks (US-
     await expect(rows[2]!).not.toContainText('Pre-sales')
     // The drawers say the same, with the company and a link to the project.
     let details = await openTaskCard(page, 'my-task', preSales.id)
-    await expect(details).toContainText(`Company: ${company.name}`)
+    await expect(taskFact(details, 'my-task', preSales.id, 'company')).toHaveText(company.name)
     await closeTaskDrawer(page)
     details = await openTaskCard(page, 'my-task', dueLater.id)
     await expect(details.getByRole('link', { name: project.name })).toBeVisible()
@@ -138,10 +138,10 @@ test.describe('specs/20261110-activities T21: My tasks with pre-sales tasks (US-
     // hours, hours-ui's widget): no Edit, no Delete, whatever the CRM would allow its author.
     await expect(row.getByRole('button')).toHaveCount(0)
     let details = await openTaskCard(page, 'my-task', preSales.id)
-    const actions = taskActions(details, preSales.subject)
-    await expect(actions.getByRole('button').filter({ hasNotText: /^Record hours/ })).toHaveCount(2)
-    await expect(actions.getByRole('button', { name: 'Start' })).toBeVisible()
-    await expect(actions.getByRole('button', { name: 'Mark done' })).toBeVisible()
+    await expect(details.getByRole('button').filter({ hasNotText: /^Record hours/ })).toHaveCount(2)
+    const primary = taskProgress(details, preSales.subject)
+    await expect(primary.getByRole('button', { name: 'Start' })).toBeVisible()
+    await expect(primary.getByRole('button', { name: 'Mark done' })).toBeVisible()
     await expect(details.getByRole('button', { name: /Edit|Delete/ })).toHaveCount(0)
     const crmLink = details.getByRole('link', { name: `Open in CRM: ${preSales.subject}` })
     await expect(crmLink).toHaveAttribute('href', `/crm/companies/${company.id}`)

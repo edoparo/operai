@@ -40,7 +40,7 @@ import {
   type Person,
   type ProjectRow,
 } from './helpers/activitiesFixtures'
-import { closeTaskDrawer, openTaskCard, taskActions, taskDrawer, taskLane } from './helpers/taskBoard'
+import { closeTaskDrawer, openTaskCard, taskDrawer, taskFact, taskLane } from './helpers/taskBoard'
 
 const runId = newRunId()
 
@@ -122,8 +122,8 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     await edit.getByLabel('Assignee').selectOption({ label: member.name })
     await page.getByTestId('task-form-submit').click()
     await expect(page.getByText('Task saved.')).toBeVisible({ timeout: 15_000 })
-    await expect(details).toContainText('Due 01.03.2031')
-    await expect(details).toContainText(`Assigned to ${member.name}`)
+    await expect(taskFact(details, 'project-task', id, 'due')).toHaveText('01.03.2031')
+    await expect(taskFact(details, 'project-task', id, 'assignee')).toHaveText(member.name)
     await expect(taskDrawer(page)).toContainText(`${title} v2`)
     await closeTaskDrawer(page)
     await expect(row).toContainText(`${title} v2`)
@@ -136,7 +136,7 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     details = await openTaskCard(page, 'project-task', id)
     await details.getByTestId(`project-task-${id}-toggle`).click()
     await expect(page.getByText('Task marked done.')).toBeVisible({ timeout: 15_000 })
-    await expect(details).toContainText(`Done by ${admin.name}`, { timeout: 15_000 })
+    await expect(taskFact(details, 'project-task', id, 'completed')).toContainText(admin.name, { timeout: 15_000 })
     await closeTaskDrawer(page)
     await expect(openLane.getByTestId(`project-task-${id}`)).toHaveCount(0)
     await expect(doneLane.getByTestId(`project-task-${id}`)).toBeVisible({ timeout: 15_000 })
@@ -198,8 +198,9 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     for (const task of [late, soon, later, nodue]) {
       await expect(page.getByTestId(`project-task-${task.id}`).getByRole('button')).toHaveCount(0)
       const details = await openTaskCard(page, 'project-task', task.id)
-      await expect(taskActions(details, task.subject).getByRole('button')).toHaveCount(0)
-      if (task.id === soon.id) await expect(details).toContainText(`With ${member.name}`)
+      await expect(details.getByRole('button')).toHaveCount(0)
+      if (task.id === soon.id)
+        await expect(taskFact(details, 'project-task', task.id, 'participants')).toHaveText(member.name)
       await closeTaskDrawer(page)
     }
     // The finished one is not in Open; the Done lane lists it (done today, so within its last 30 days).
@@ -232,7 +233,7 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     await expect(page.getByTestId(`project-task-${theirs.id}`)).toBeVisible()
     await expect(page.getByTestId(`project-task-${theirs.id}`).getByRole('button')).toHaveCount(0)
     const theirsDetails = await openTaskCard(page, 'project-task', theirs.id)
-    await expect(taskActions(theirsDetails, theirs.subject).getByRole('button')).toHaveCount(0)
+    await expect(theirsDetails.getByRole('button')).toHaveCount(0)
     await closeTaskDrawer(page)
 
     const details = await openTaskCard(page, 'project-task', mine.id)

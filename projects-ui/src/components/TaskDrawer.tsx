@@ -1,6 +1,7 @@
-import { useId, useState } from 'react'
+import { Fragment, useId, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Badge, Button, ConfirmDialog, Drawer, StatusBadge, formatDate } from '@operai/ui'
+import { Badge, Banner, Button, ConfirmDialog, Drawer, StatusBadge, buttonClassName, formatDate } from '@operai/ui'
 import { RichTextFilesView } from '@operai/ui/rich-text'
 import { deleteTask } from '../lib/activitiesApi'
 import type { MyTask, ProjectTask } from '../lib/activitiesApi'
@@ -16,26 +17,31 @@ import { TASK_STATE_MEANING, refName, taskState, taskStatus } from './TaskModel'
 import type { TaskBoardMode } from './TaskModel'
 
 /**
- * TaskDrawer — everything about one task, opened from its card on the board: where it belongs, its state, due date,
- * assignee, participants, what it waits on, when it was started or done, its description and files, and every action
- * the person may take on it. It replaces the task rows of the project page and of My tasks, so it carries what both
- * offered:
+ * TaskDrawer — everything about one task, opened from its card on the board, in a fixed order:
  *
- * - Start / Stop and Mark done / Mark not done, under the task's own `may.complete` (the server decided it for this
- *   caller, AC-3.2, AC-3.3, AC-3.8). A blocked task's buttons stay reachable, `aria-disabled` and described by the
- *   "Waiting on …" line, and do nothing (AC-4.2). They are the same writes as dragging the card (`moveTask`).
- * - Start a meeting (a project task, for a holder of `meetings:access`, specs/20261104-meetings A18) and Open in CRM
- *   (a pre-sales task with a company, AC-7.3).
- * - Edit and Delete on the project page only, under `may.edit` / `may.delete` (My tasks never offered them: a
- *   pre-sales task is the CRM's, AC-7.3). Delete asks first, in a `ConfirmDialog` stacked on the drawer (the drawer
- *   holds no form, ADR 20261118 on dialogs); Edit is the board's `TaskFormDialog`, opened beside the drawer.
- * - Record hours, hours-ui's widget, LAST, for the task's assignee and participants (`mayRecordOnTask`), done tasks
- *   included (specs/20261116-record-hours-in-place AC-3.1 – AC-3.6). It is not a `may` flag; hours-api decides.
+ * 1. Its badges (Pre-sales, the state), then its PRIMARY actions as two full-width buttons: Start / Stop
+ *    (`secondary`) and Mark done (`primary`) / Mark not done, under the task's own `may.complete` (the server decided
+ *    it for this caller, AC-3.2, AC-3.3, AC-3.8). A blocked task's buttons stay reachable, `aria-disabled` and
+ *    described by the "Waiting on …" warning right under them, and do nothing (AC-4.2). They are the same writes as
+ *    dragging the card (`moveTask`). The confirmation of a write and a refusal show right there.
+ * 2. Its facts as a labelled list: project (My tasks), or company and deal (a pre-sales task); due date; assignee;
+ *    participants, one per line; in progress since / done, with by whom.
+ * 3. Its description and files, under a heading, when it has any (or the "details are restricted" note).
+ * 4. "More": Start a meeting (a project task, for a holder of `meetings:access`, specs/20261104-meetings A18), Open in
+ *    CRM (a pre-sales task with a company, AC-7.3), Record hours — hours-ui's widget, for the task's assignee and
+ *    participants (`mayRecordOnTask`), done tasks included (specs/20261116-record-hours-in-place AC-3.1 – AC-3.6; not
+ *    a `may` flag, hours-api decides) —, Edit and, last and set apart, Delete. Edit and Delete only on the project page,
+ *    under `may.edit` / `may.delete` (My tasks never offered them: a pre-sales task is the CRM's, AC-7.3). Delete asks
+ *    first, in a `ConfirmDialog` stacked on the drawer (the drawer holds no form, ADR 20261118 on dialogs); Edit is the
+ *    board's `TaskFormDialog`, opened beside the drawer.
  *
  * The drawer stays mounted while the board reads its lists again after a write, so its error and the widget's own
- * message survive the re-read (design S3). A refusal is shown here, as an alert; a refusal that means the flags were
- * stale (`forbidden`, `task_blocked`, 404) also has the board read its lists again.
+ * message survive the re-read (design S3). A refusal that means the flags were stale (`forbidden`, `task_blocked`,
+ * 404) also has the board read its lists again.
  */
+/** A label of the panel: the library's fact-list term style (design-system.md type scale, `FactList` term). */
+const TERM = 'm-0 font-mono text-2xs uppercase tracking-wide text-soft'
+
 export default function TaskDrawer({
   task,
   mode,
@@ -122,168 +128,229 @@ export default function TaskDrawer({
     )
   }
 
-  const facts = [
-    task.task.dueDate ? t.due(formatDate(task.task.dueDate)) : t.noDue,
-    task.task.assignee ? t.assignedTo(refName(task.task.assignee, currentUserId)) : null,
-  ].filter((fact): fact is string => fact !== null)
+  const d = strings.tasks.drawer
   const started =
     status === 'in_progress' && task.task.startedBy && task.task.startedAt
-      ? t.startedBy(refName(task.task.startedBy, currentUserId), formatDate(task.task.startedAt))
+      ? d.when(formatDate(task.task.startedAt), refName(task.task.startedBy, currentUserId))
       : null
   const completed =
     done && task.task.completedBy && task.task.completedAt
-      ? t.completedBy(refName(task.task.completedBy, currentUserId), formatDate(task.task.completedAt))
+      ? d.when(formatDate(task.task.completedAt), refName(task.task.completedBy, currentUserId))
       : null
 
-  const where =
-    mode !== 'my' ? null : task.kind === 'pre_sales' ? (
-      <>
-        <p className="text-sm text-soft">{my.company(task.company?.name ?? my.unknownCompany)}</p>
-        {task.deal && (
-          <p className="text-sm text-soft">
-            {my.dealLabel}{' '}
-            {/* The CRM is a sibling tool outside this router's basepath: a plain anchor, its href built from the id. */}
-            <a className="link" href={`/crm/deals/${encodeURIComponent(task.deal.id)}`} data-testid={`${prefix}-deal`}>
-              {task.deal.title ?? my.unknownDeal}
-            </a>
-          </p>
-        )}
-      </>
-    ) : task.project ? (
-      <p className="text-sm text-soft">
-        {my.projectLabel}{' '}
+  /** The task's facts, one labelled row each. */
+  const facts: { id: string; term: string; value: ReactNode }[] = []
+  if (mode === 'my' && task.kind === 'pre_sales') {
+    facts.push({ id: 'company', term: d.company, value: task.company?.name ?? my.unknownCompany })
+    if (task.deal)
+      facts.push({
+        id: 'deal',
+        term: d.deal,
+        value: (
+          // The CRM is a sibling tool outside this router's basepath: a plain anchor, its href built from the id.
+          <a className="link" href={`/crm/deals/${encodeURIComponent(task.deal.id)}`} data-testid={`${prefix}-deal`}>
+            {task.deal.title ?? my.unknownDeal}
+          </a>
+        ),
+      })
+  } else if (mode === 'my' && task.project) {
+    facts.push({
+      id: 'project',
+      term: d.project,
+      value: (
         <Link to="/$id" params={{ id: task.project.id }} className="link">
           {task.project.name ?? my.unknownProject}
         </Link>
-      </p>
-    ) : null
+      ),
+    })
+  }
+  facts.push({ id: 'due', term: d.due, value: task.task.dueDate ? formatDate(task.task.dueDate) : t.noDue })
+  facts.push({ id: 'assignee', term: d.assignee, value: refName(task.task.assignee, currentUserId) })
+  if (participants.length > 0)
+    facts.push({
+      id: 'participants',
+      term: d.participants,
+      value: (
+        <ul className="m-0 list-none p-0">
+          {participants.map((person) => (
+            <li key={person.id}>{refName(person, currentUserId)}</li>
+          ))}
+        </ul>
+      ),
+    })
+  if (started) facts.push({ id: 'started', term: d.started, value: started })
+  if (completed) facts.push({ id: 'completed', term: d.completed, value: completed })
 
   const progressShown = task.may.complete && !done
   const describedBy = blocked && waiting !== null ? hintId : undefined
+  const hasDescription =
+    task.detailsHidden === true || (task.task.description ?? null) !== null || (task.task.files ?? []).length > 0
+
+  const meeting = canStartMeetings && projectTask !== null && projectTask.project !== null ? projectTask.project : null
+  const company = task.kind === 'pre_sales' ? task.company : null
+  const canEdit = onEdit !== undefined && projectTask !== null && task.may.edit
+  const canDelete = onEdit !== undefined && projectTask !== null && task.may.delete
+  const hasMore = meeting !== null || company !== null || recordHours !== null || canEdit || canDelete
+  const wide = buttonClassName({ variant: 'secondary', className: 'w-full' })
 
   return (
-    <Drawer title={task.subject} onClose={onClose} closeLabel={strings.tasks.drawer.close} testIdPrefix="task-drawer">
-      <div className="flex flex-col gap-4" data-testid={`${prefix}-details`}>
+    <Drawer title={task.subject} onClose={onClose} closeLabel={d.close} testIdPrefix="task-drawer">
+      <div className="flex flex-col gap-5" data-testid={`${prefix}-details`}>
         <div className="flex flex-wrap items-center gap-2">
           {task.kind === 'pre_sales' && <Badge tone="neutral">{my.preSales}</Badge>}
           <StatusBadge status={TASK_STATE_MEANING[state]}>{strings.tasks.state[state]}</StatusBadge>
         </div>
-        {where}
-        <div className="flex flex-col gap-1">
-          <p className="text-sm text-soft">{facts.join(' · ')}</p>
-          {participants.length > 0 && (
-            <p className="text-sm text-soft">
-              {t.with(participants.map((person) => refName(person, currentUserId)).join(', '))}
-            </p>
-          )}
-          {started && <p className="text-sm text-soft">{started}</p>}
-          {completed && <p className="text-sm text-soft">{completed}</p>}
-          {waiting !== null && (
-            <p className="text-sm text-soft" id={hintId} data-testid={`${prefix}-waiting`}>
-              {waiting}
-            </p>
-          )}
-        </div>
-        {task.detailsHidden ? (
-          <p className="text-sm text-soft" data-testid={`${prefix}-restricted`}>
-            {my.detailsRestricted}
-          </p>
-        ) : (
-          <RichTextFilesView
-            doc={task.task.description ?? null}
-            attachments={(task.task.files ?? [])
-              .filter((file) => file.kind === 'attachment')
-              .map((file) => ({ id: file.id, name: file.fileName, sizeBytes: file.sizeBytes }))}
-            resolveImageUrl={taskFileUrlResolver(task.id)}
-            onDownload={(item) => {
-              void openTaskFile(task.id, item.id).then((opened) => {
-                if (!opened) setError(strings.tasks.files.errors.openFailed)
-              })
-            }}
-            copy={{
-              images: strings.tasks.files.images,
-              check: strings.tasks.files.check,
-              attachments: strings.tasks.files.attachments,
-            }}
-            testIdPrefix={`project-task-${task.id}-description`}
-          />
+
+        {task.may.complete && (
+          <div className="flex flex-col gap-2">
+            <div
+              className={progressShown ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}
+              role="group"
+              aria-label={d.progressFor(task.subject)}
+            >
+              {progressShown && (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  busy={running === 'progress'}
+                  aria-disabled={blocked || undefined}
+                  aria-describedby={describedBy}
+                  onClick={() => run('progress')}
+                  data-testid={`${prefix}-progress`}
+                >
+                  {running === 'progress' ? t.completing : status === 'in_progress' ? t.stop : t.start}
+                </Button>
+              )}
+              <Button
+                variant={done ? 'secondary' : 'primary'}
+                className="w-full"
+                busy={running === 'complete'}
+                aria-disabled={blocked || undefined}
+                aria-describedby={describedBy}
+                onClick={() => run('complete')}
+                data-testid={`${prefix}-toggle`}
+              >
+                {running === 'complete' ? t.completing : done ? t.reopen : t.complete}
+              </Button>
+            </div>
+          </div>
+        )}
+        {waiting !== null && (
+          // Why the buttons above do nothing; also their accessible description.
+          <Banner tone="warning" live="off" id={hintId} data-testid={`${prefix}-waiting`}>
+            {waiting}
+          </Banner>
         )}
         {notice && <Saved message={notice} onDismiss={onDismissNotice} />}
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t.actionsFor(task.subject)}>
-          {progressShown && (
-            <Button
-              size="sm"
-              variant="secondary"
-              busy={running === 'progress'}
-              aria-disabled={blocked || undefined}
-              aria-describedby={describedBy}
-              onClick={() => run('progress')}
-              data-testid={`${prefix}-progress`}
-            >
-              {running === 'progress' ? t.completing : status === 'in_progress' ? t.stop : t.start}
-            </Button>
-          )}
-          {task.may.complete && (
-            <Button
-              size="sm"
-              busy={running === 'complete'}
-              aria-disabled={blocked || undefined}
-              aria-describedby={describedBy}
-              onClick={() => run('complete')}
-              data-testid={`${prefix}-toggle`}
-            >
-              {running === 'complete' ? t.completing : done ? t.reopen : t.complete}
-            </Button>
-          )}
-          {canStartMeetings && projectTask !== null && projectTask.project !== null && (
-            // specs/20261104-meetings A18: a meeting about a project task is linked to its project.
-            <a
-              className="link text-sm"
-              href={newMeetingHref(projectTask.project.id, task.subject)}
-              aria-label={t.startMeetingFor(task.subject)}
-              data-testid={`${prefix}-meeting`}
-            >
-              {t.startMeeting}
-            </a>
-          )}
-          {task.kind === 'pre_sales' && task.company && (
-            <a
-              className="link text-sm"
-              href={`/crm/companies/${encodeURIComponent(task.company.id)}`}
-              aria-label={my.openInCrmFor(task.subject)}
-              data-testid={`${prefix}-crm`}
-            >
-              {my.openInCrm}
-            </a>
-          )}
-          {onEdit && projectTask !== null && task.may.edit && (
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-haspopup="dialog"
-              onClick={() => onEdit(projectTask)}
-              data-testid={`${prefix}-edit`}
-            >
-              {t.edit}
-            </Button>
-          )}
-          {onEdit && projectTask !== null && task.may.delete && (
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-haspopup="dialog"
-              onClick={() => setConfirming(true)}
-              data-testid={`${prefix}-delete`}
-            >
-              {t.delete}
-            </Button>
-          )}
-          {recordHours && <RecordHoursAction {...recordHours} />}
-        </div>
         {error && (
           <p role="alert" className="form-error">
             {error}
           </p>
+        )}
+
+        <dl className="m-0 grid grid-cols-[minmax(6rem,auto)_1fr] gap-x-4 gap-y-2">
+          {facts.map((fact) => (
+            <Fragment key={fact.id}>
+              <dt className={TERM} data-testid={`${prefix}-fact-${fact.id}`}>
+                {fact.term}
+              </dt>
+              <dd className="m-0 min-w-0 break-words text-sm text-text">{fact.value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+
+        {hasDescription && (
+          <section className="flex flex-col gap-2" aria-labelledby={`${hintId}-description`}>
+            <h3 id={`${hintId}-description`} className={TERM}>
+              {d.description}
+            </h3>
+            {task.detailsHidden ? (
+              <p className="text-sm text-soft" data-testid={`${prefix}-restricted`}>
+                {my.detailsRestricted}
+              </p>
+            ) : (
+              <RichTextFilesView
+                doc={task.task.description ?? null}
+                attachments={(task.task.files ?? [])
+                  .filter((file) => file.kind === 'attachment')
+                  .map((file) => ({ id: file.id, name: file.fileName, sizeBytes: file.sizeBytes }))}
+                resolveImageUrl={taskFileUrlResolver(task.id)}
+                onDownload={(item) => {
+                  void openTaskFile(task.id, item.id).then((opened) => {
+                    if (!opened) setError(strings.tasks.files.errors.openFailed)
+                  })
+                }}
+                copy={{
+                  images: strings.tasks.files.images,
+                  check: strings.tasks.files.check,
+                  attachments: strings.tasks.files.attachments,
+                }}
+                testIdPrefix={`project-task-${task.id}-description`}
+              />
+            )}
+          </section>
+        )}
+
+        {hasMore && (
+          <section className="flex flex-col gap-2" aria-labelledby={`${hintId}-more`}>
+            <h3 id={`${hintId}-more`} className={TERM}>
+              {d.more}
+            </h3>
+            <div className="flex flex-col items-stretch gap-2" role="group" aria-label={t.actionsFor(task.subject)}>
+              {meeting !== null && (
+                // specs/20261104-meetings A18: a meeting about a project task is linked to its project.
+                <a
+                  className={wide}
+                  href={newMeetingHref(meeting.id, task.subject)}
+                  aria-label={t.startMeetingFor(task.subject)}
+                  data-testid={`${prefix}-meeting`}
+                >
+                  {t.startMeeting}
+                </a>
+              )}
+              {company && (
+                <a
+                  className={wide}
+                  href={`/crm/companies/${encodeURIComponent(company.id)}`}
+                  aria-label={my.openInCrmFor(task.subject)}
+                  data-testid={`${prefix}-crm`}
+                >
+                  {my.openInCrm}
+                </a>
+              )}
+              {recordHours && (
+                // hours-ui's widget (or the host's link to My hours) in a column of its own, so its button spans the panel.
+                <div className="flex flex-col" data-testid={`${prefix}-record-hours`}>
+                  <RecordHoursAction {...recordHours} />
+                </div>
+              )}
+              {canEdit && (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  aria-haspopup="dialog"
+                  onClick={() => onEdit(projectTask)}
+                  data-testid={`${prefix}-edit`}
+                >
+                  {t.edit}
+                </Button>
+              )}
+              {canDelete && (
+                // Destructive, last and set apart.
+                <div className="mt-2 border-t border-rule pt-3">
+                  <Button
+                    variant="danger"
+                    className="w-full"
+                    aria-haspopup="dialog"
+                    onClick={() => setConfirming(true)}
+                    data-testid={`${prefix}-delete`}
+                  >
+                    {t.delete}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </section>
         )}
       </div>
       {confirming && (

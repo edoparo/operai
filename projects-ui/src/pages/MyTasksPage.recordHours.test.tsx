@@ -114,8 +114,9 @@ describe('Record hours in a My tasks drawer — what it records on (AC-3.2, AC-3
 
     const group = (await actionsOf('p1', 'Write the offer'))!
     const widget = await screen.findByTestId('widget-record-hours')
-    expect(group.lastElementChild).toBe(widget)
-    expect(labels(group)).toEqual(['Start', 'Mark done', 'Record hours'])
+    expect(group.lastElementChild?.contains(widget)).toBe(true)
+    expect(labels(group)).toEqual(['Record hours'])
+    expect(labels(screen.getByRole('group', { name: 'Progress of Write the offer' }))).toEqual(['Start', 'Mark done'])
     expect(seam.calls.at(-1)).toEqual({
       name: 'hours.recordHours',
       props: {
@@ -134,8 +135,8 @@ describe('Record hours in a My tasks drawer — what it records on (AC-3.2, AC-3
 
     const group = (await actionsOf('s1', 'Send the quote'))!
     const widget = await screen.findByTestId('widget-record-hours')
-    expect(labels(group)).toEqual(['Start', 'Mark done', 'Open in CRM', 'Record hours'])
-    expect(group.lastElementChild).toBe(widget)
+    expect(labels(group)).toEqual(['Open in CRM', 'Record hours'])
+    expect(group.lastElementChild?.contains(widget)).toBe(true)
     expect(seam.calls.at(-1)?.props).toEqual({
       on: 'deal',
       targetId: 'd1',
@@ -159,14 +160,14 @@ describe('Record hours in a My tasks drawer — what it records on (AC-3.2, AC-3
       activityName: 'Call Globex back',
       placement: 'row',
     })
-    expect(group.lastElementChild).toBe(screen.getByTestId('widget-record-hours'))
+    expect(group.lastElementChild?.contains(screen.getByTestId('widget-record-hours'))).toBe(true)
   })
 
-  it('offers it for a pre-sales task that has no company link: it is then the only action besides Mark done', async () => {
+  it('offers it for a pre-sales task that has no company link: it is then the only action of More', async () => {
     await renderPage([preSalesTask('s3', { subject: 'Orphan', company: null })], 's3')
     const group = (await actionsOf('s3', 'Orphan'))!
     await screen.findByTestId('widget-record-hours')
-    expect(labels(group)).toEqual(['Start', 'Mark done', 'Record hours'])
+    expect(labels(group)).toEqual(['Record hours'])
   })
 })
 
@@ -205,7 +206,7 @@ describe('Record hours in a My tasks drawer — who is offered it (AC-3.1, AC-3.
     expect(screen.queryByTestId('widget-record-hours')).toBeNull()
     expect(screen.queryByTestId('record-hours-fallback')).toBeNull()
     // The pre-sales task keeps its own link and Mark done.
-    expect(labels(group)).toEqual(['Start', 'Mark done', 'Open in CRM'])
+    expect(labels(group)).toEqual(['Open in CRM'])
   })
 
   it('offers it to nobody while the session has not given the person’s id', async () => {
@@ -228,9 +229,10 @@ describe('Record hours in a My tasks drawer — who is offered it (AC-3.1, AC-3.
       ],
       'p1',
     )
-    const group = (await actionsOf('p1', 'Task p1'))!
+    const group = await actionsOf('p1', 'Task p1')
     await settled()
-    expect(group.children).toHaveLength(0)
+    expect(group).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Progress of Task p1' })).toBeNull()
   })
 
   it('the group holds only the button for a task the person cannot complete but may record on', async () => {
@@ -238,7 +240,7 @@ describe('Record hours in a My tasks drawer — who is offered it (AC-3.1, AC-3.
     const group = (await actionsOf('p1', 'Task p1'))!
     const widget = await screen.findByTestId('widget-record-hours')
     expect(labels(group)).toEqual(['Record hours'])
-    expect(group.lastElementChild).toBe(widget)
+    expect(group.lastElementChild?.contains(widget)).toBe(true)
   })
 
   it('offers it on done tasks exactly as on open ones: same place, same props (AC-3.6)', async () => {
@@ -252,11 +254,11 @@ describe('Record hours in a My tasks drawer — who is offered it (AC-3.1, AC-3.
     )
     let group = (await actionsOf('p1', 'Write the offer'))!
     await screen.findByTestId('widget-record-hours')
-    expect(labels(group)).toEqual(['Mark not done', 'Record hours'])
+    expect(labels(group)).toEqual(['Record hours'])
     closeDrawer()
     group = (await actionsOf('s1', 'Send the quote'))!
     await screen.findByTestId('widget-record-hours')
-    expect(labels(group)).toEqual(['Mark not done', 'Open in CRM', 'Record hours'])
+    expect(labels(group)).toEqual(['Open in CRM', 'Record hours'])
     const props = seam.calls.map((call) => call.props)
     expect(props).toContainEqual(expect.objectContaining({ on: 'project', targetId: 'p1', activityId: 'p1' }))
     expect(props).toContainEqual(expect.objectContaining({ on: 'deal', targetId: 'd1', activityId: 's1' }))
@@ -280,8 +282,8 @@ describe('Record hours in a My tasks drawer when the hours screens cannot be loa
     const group = (await actionsOf('s1', 'Send the quote'))!
     const link = await waitFor(() => within(group).getByRole('link', { name: 'Record hours in My hours' }))
     expect(link.getAttribute('href')).toBe('/hours')
-    expect(group.lastElementChild).toBe(link)
-    expect(labels(group)).toEqual(['Start', 'Mark done', 'Open in CRM', 'Record hours in My hours'])
+    expect(group.lastElementChild?.contains(link)).toBe(true)
+    expect(labels(group)).toEqual(['Open in CRM', 'Record hours in My hours'])
     expect(within(group).getByRole('link', { name: 'Open in CRM: Send the quote' })).not.toBeNull()
   })
 })
