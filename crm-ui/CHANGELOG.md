@@ -1,5 +1,11 @@
 # @operai/crm-ui
 
+## 0.10.1
+
+### Patch Changes
+
+- 7492ae3: The pipeline is drawn with the shared `Board` (`@operai/ui/board`); behaviour unchanged.
+
 ## 0.10.0
 
 ### Minor Changes

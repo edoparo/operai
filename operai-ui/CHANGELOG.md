@@ -1,5 +1,11 @@
 # @operai/ui
 
+## 0.11.0
+
+### Minor Changes
+
+- d5b9ad8: A `Board` (cards in lanes, moved by dragging or with the keyboard) in its own entry, `@operai/ui/board`; its styles ship with the shell.
+
 ## 0.10.0
 
 ### Minor Changes

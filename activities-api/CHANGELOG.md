@@ -1,5 +1,12 @@
 # @operai/activities-api
 
+## 0.5.0
+
+### Minor Changes
+
+- 80e6949: `GET /tasks?status=done&completedSince=` lists the tasks completed since a moment (a board's Done lane: the last 30 days).
+- 5318e3c: A task with a due date that is not done emails its assignee and participants the day before, at 08:00 (Zurich), in the CRM and in Projects; `TASK_DUE_REMINDERS=off` turns it off.
+
 ## 0.4.0
 
 ### Minor Changes

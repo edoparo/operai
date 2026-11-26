@@ -1,5 +1,12 @@
 # @operai/meetings-ui
 
+## 0.4.1
+
+### Patch Changes
+
+- be4075e: A screen shared without system audio says so (and how to include it), instead of "no longer recorded".
+- 769c97b: While recording, "Share computer audio" adds the computer's audio back to the same recording when the share had none or ended; the recorder widget no longer stretches across the window.
+
 ## 0.4.0
 
 ### Minor Changes

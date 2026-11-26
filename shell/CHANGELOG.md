@@ -1,5 +1,12 @@
 # @operai/shell
 
+## 0.7.2
+
+### Patch Changes
+
+- 0b5863b: The sidebar's pin button sits centred on its tool's row.
+- d5b9ad8: A `Board` (cards in lanes, moved by dragging or with the keyboard) in its own entry, `@operai/ui/board`; its styles ship with the shell.
+
 ## 0.7.1
 
 ### Patch Changes
