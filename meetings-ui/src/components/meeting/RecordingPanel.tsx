@@ -380,7 +380,7 @@ function LiveCard({ session, snapshot, focusPause }: LiveCardProps) {
   if (snapshot.tabAudioLost) {
     banners.push(
       <Banner key="tab" tone="warning" data-testid="meetings-recording-tab-ended">
-        {t.tabEnded}
+        {snapshot.tabAudioLost === 'no_audio_track' ? t.tabNoAudio : t.tabEnded}
       </Banner>,
     )
   }

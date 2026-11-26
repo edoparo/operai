@@ -23,6 +23,8 @@ const en = {
   offline: 'Not saving right now: the audio is kept in this tab until the connection is back.',
   microphoneLost: 'The microphone stopped. Open the meeting to resume.',
   tabAudioLost: 'The computer audio is no longer recorded; the microphone goes on.',
+  tabAudioMissing:
+    'The share carries no computer audio: only the microphone is recorded. Next time tick "Share system audio" in the picker.',
 }
 
 const it: typeof en = {
@@ -49,6 +51,8 @@ const it: typeof en = {
   offline: 'Il salvataggio è fermo: l’audio resta in questa scheda finché torna la connessione.',
   microphoneLost: 'Il microfono si è fermato. Apri la riunione per riprendere.',
   tabAudioLost: 'L’audio del computer non viene più registrato; il microfono continua.',
+  tabAudioMissing:
+    'La condivisione non porta l’audio del computer: si registra solo il microfono. La prossima volta spunta “Condividi l’audio di sistema” nella finestra di scelta.',
 }
 
 export const dock = { en, it }

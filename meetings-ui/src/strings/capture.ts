@@ -11,7 +11,8 @@ const en = {
     sourceLabel: 'What to record',
     micOnly: 'Microphone only',
     micAndTab: 'Microphone and the computer audio',
-    tabHint: 'Choose Entire screen and turn on "Share system audio": everything your computer plays is recorded, whatever app runs the meeting. If that option is missing, choose the tab with your meeting and turn on "Share tab audio".',
+    tabHint:
+      'Choose Entire screen and turn on "Share system audio": everything your computer plays is recorded, whatever app runs the meeting. If that option is missing, choose the tab with your meeting and turn on "Share tab audio".',
     unsupportedTab:
       "This browser can't capture the other participants' audio. Uploading a recording of the meeting gives a better result.",
     micOnlyWarning: 'With the microphone only, remote voices are captured only if they play through your speakers.',
@@ -66,6 +67,8 @@ const en = {
     textNote: 'Pasting text needs no consent confirmation, so the confirmation is removed.',
   },
   tabEnded: 'The meeting audio is no longer being captured. Your microphone is still recording.',
+  tabNoAudio:
+    'The share carries no computer audio, so only your microphone is recorded. Tick "Share system audio" when you choose the screen. On a Mac it needs Chrome 141 or later, macOS 14.2 or later, and Chrome allowed under System Settings › Privacy & Security › Screen & System Audio Recording.',
   restored: 'Connection restored. Saving audio.',
   limitWarning: 'This recording stops by itself in 10 minutes (limit 3 hours).',
   autoStopped: 'The recording reached 3 hours, was stopped and is being saved.',
@@ -126,7 +129,8 @@ const it: typeof en = {
     sourceLabel: 'Cosa registrare',
     micOnly: 'Solo il microfono',
     micAndTab: 'Microfono e audio del computer',
-    tabHint: 'Scegli Schermo intero e attiva "Condividi audio di sistema": viene registrato tutto ciò che il computer riproduce, qualunque app usi la riunione. Se l’opzione non c’è, scegli la scheda con la riunione e attiva "Condividi audio scheda".',
+    tabHint:
+      'Scegli Schermo intero e attiva "Condividi audio di sistema": viene registrato tutto ciò che il computer riproduce, qualunque app usi la riunione. Se l’opzione non c’è, scegli la scheda con la riunione e attiva "Condividi audio scheda".',
     unsupportedTab:
       "Questo browser non può registrare l'audio degli altri partecipanti. Caricare una registrazione della riunione dà un risultato migliore.",
     micOnlyWarning: 'Con il solo microfono, le voci a distanza vengono registrate solo se escono dagli altoparlanti.',
@@ -179,6 +183,8 @@ const it: typeof en = {
     textNote: 'Incollare il testo non richiede la conferma del consenso, quindi la conferma viene rimossa.',
   },
   tabEnded: "L'audio della riunione non viene più registrato. Il microfono sta ancora registrando.",
+  tabNoAudio:
+    "La condivisione non porta l'audio del computer, quindi si registra solo il microfono. Spunta «Condividi l'audio di sistema» quando scegli lo schermo. Su Mac servono Chrome 141 o successivo, macOS 14.2 o successivo e Chrome autorizzato in Impostazioni di Sistema › Privacy e sicurezza › Registrazione schermo e audio di sistema.",
   restored: 'Connessione ripristinata. Salvataggio dell’audio in corso.',
   limitWarning: 'Questa registrazione si interrompe da sola tra 10 minuti (limite 3 ore).',
   autoStopped: 'La registrazione ha raggiunto le 3 ore, è stata interrotta ed è in corso di salvataggio.',

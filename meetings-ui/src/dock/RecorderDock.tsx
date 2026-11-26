@@ -87,7 +87,9 @@ export default function RecorderDock({ meetingId }: DockProps) {
     : snapshot?.offline
       ? t.offline
       : snapshot?.tabAudioLost && live
-        ? t.tabAudioLost
+        ? snapshot.tabAudioLost === 'no_audio_track'
+          ? t.tabAudioMissing
+          : t.tabAudioLost
         : null
 
   return (
