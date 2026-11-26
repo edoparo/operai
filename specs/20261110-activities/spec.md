@@ -224,6 +224,25 @@ on before it is done.
   may not move, or a blocked one, does not move. Done shows the tasks completed in the last 30 days,
   with a way to show the older ones (`GET /tasks?status=done&completedSince=`).
 
+### US-11 A reminder the day before a task is due (owner, 2026-11-26)
+
+As the person a task is assigned to, or someone taking part in it, I want an email the day
+before it is due, so a deadline does not pass unnoticed.
+
+- AC-11.1 A task with a due date that is not done sends, the day before its due date at 08:00
+  Europe/Zurich, one notification with an email to its assignee and its participants (each once),
+  in the CRM (pre-sales) and in Projects (operational) alike. A task created or re-dated after
+  08:00 with a due date of tomorrow gets it at the next check that day (within 15 minutes).
+- AC-11.2 One reminder per due date: changing the due date makes the new date get its own
+  reminder; a task due today or earlier, or done, gets none; one completed or re-dated before the
+  send gets none for the old date.
+- AC-11.3 The reminder names the task, its due date and the tool it lives in (the CRM or Projects,
+  with a link there), never its details (US-9) and not the company, deal or project: those names
+  come only from asking the host as a person, and the reminder is sent by the service with no person
+  behind it (ADR 20261110-activities-service-access-delegated-to-host). Sending is the service's own action: a reminder
+  notify-api does not take is retried at the next check, and is never sent twice for the same
+  date and person (ADR 20261118-assignment-reminders-in-process-scheduler-claimed-by-cas).
+
 ## Non-goals
 
 - **Operational activities other than tasks** (notes, calls, meetings, emails on a project):
@@ -234,7 +253,7 @@ on before it is done.
 - **A suite-wide My tasks screen** outside the CRM and the project module.
 - **Changing CRM activity rules or copy**: US-1 is a move, not a redesign (except as recorded
   in Amendments 2026-11-11).
-- **Time tracking, effort or due-date reminders** on any task.
+- **Time tracking or effort** on any task. (Due-date reminders were a non-goal until 2026-11-26: see US-11.)
 - **Deleting companies or deals** (the CRM does not delete them today); if it ever does, its
   activities must be handled by that future change.
 
@@ -291,6 +310,9 @@ Technical decisions taken by the user on 2026-11-10, recorded verbatim in substa
   Done) shared with the CRM pipeline as a library component; a compact card opens a side panel
   with the actions; Done shows the last 30 days with a way to the older ones. Owner decisions:
   compact card plus side panel, Done limited to 30 days, the board shipped in the library first.
+- 2026-11-26 (owner): US-11 added, an email reminder the day before a task is due, removing
+  "due-date reminders" from the Non-goals. Owner decisions: assignee and participants, CRM and
+  Projects tasks alike, at 08:00 Europe/Zurich.
 
 ## Open questions
 

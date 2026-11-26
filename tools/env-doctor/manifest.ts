@@ -514,7 +514,8 @@ export const REQUIRED_KEYS: Partial<Record<ServiceName, string[]>> = {
   // PROJECTS_API_URL are the hosts it asks (without them every read is 503 host_unavailable);
   // NOTIFY_INTERNAL_URL + SERVICE_CLIENT_* let it notify as itself; SERVICE_AUDIENCE is what crm-api's
   // /system/v1/* calls are verified against. ACTIVITIES_MAINTENANCE is a runbook switch (default false),
-  // deliberately not required.
+  // deliberately not required; so is TASK_DUE_REMINDERS (`on` default | `off`: the due-date reminder scheduler,
+  // which sends nothing without the notify group above).
   "activities-api": [
     "DATABASE_URL", "ALLOWED_ORIGINS", "AUTH_ISSUER", "AUTH_JWKS_URL", "AUTH_BASE_URL", "AUTH_AUDIENCE",
     "CRM_API_URL", "PROJECTS_API_URL", "NOTIFY_INTERNAL_URL", "SERVICE_CLIENT_ID", "SERVICE_CLIENT_SECRET",

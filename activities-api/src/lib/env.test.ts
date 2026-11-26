@@ -91,3 +91,15 @@ describe("parseEnv", () => {
     }
   });
 });
+
+describe("TASK_DUE_REMINDERS", () => {
+  it("defaults to on, reads on/off in any case, refuses anything else", () => {
+    const absent = parseEnv(BASE);
+    expect(absent.ok && absent.env.TASK_DUE_REMINDERS).toBe("on");
+    const off = parseEnv({ ...BASE, TASK_DUE_REMINDERS: " OFF " });
+    expect(off.ok && off.env.TASK_DUE_REMINDERS).toBe("off");
+    const bad = parseEnv({ ...BASE, TASK_DUE_REMINDERS: "false" });
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.errors["TASK_DUE_REMINDERS"]).toEqual(["must be on or off"]);
+  });
+});

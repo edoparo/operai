@@ -169,3 +169,10 @@ service.
 - [x] T34: [FE] projects-ui: the Tasks card and My tasks as one board (TaskBoard, TaskCard, TaskDrawer), drag = the row's writes, Done the last 30 days with Show older and Load more; ProjectTaskItem and MyTasksPageRow removed, their coverage moved — refs: AC-10.5 — deps: T31, T32
   - touch: `projects-ui/src/{components,pages,lib,strings}/**` (tasks), projects-ui config, tests
   - done when: projects-ui lint + build + test pass
+
+## Amendment 2026-11-26 — a reminder the day before a task is due (spec US-11)
+
+- [x] T35: [BE] activities-api: due-date reminder — `dueReminderSentFor` column, pure Europe/Zurich clock (08:00 the day before), in-process 15-minute scheduler claimed by CAS and given back on a failed send (`TASK_DUE_REMINDERS=off`, off in tests), notification `task_due_tomorrow` (en/it, email, origin crm or projects, no details) to assignee and participants with an idempotency key — refs: AC-11.1 to AC-11.3 — deps: none
+  - touch: `activities-api/prisma/**`, `activities-api/src/{tasks,lib}/**`, `activities-api/src/index.ts`, `tools/env-doctor/manifest.ts`
+  - done when: the suite passes on `activities_test` and typecheck is clean
+

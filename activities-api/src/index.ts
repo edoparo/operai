@@ -14,6 +14,7 @@ import { setupOpenAPI } from "./openapi/registry";
 import { systemRouter } from "./system/system.routes";
 import { tasksRouter } from "./tasks/tasks.routes";
 import { filesRouter } from "./files/files.routes";
+import { startDueReminderScheduler } from "./tasks/dueReminders";
 
 // Exported so the authorization matrix (src/matrix.test.ts, T11) can read the ASSEMBLED
 // app's own route table; Bun serves only the default export below.
@@ -112,6 +113,9 @@ app.notFound((c) =>
 console.log(`Activities API → http://localhost:${env.PORT}`);
 console.log(`API docs       → http://localhost:${env.PORT}/docs`);
 if (env.ACTIVITIES_MAINTENANCE) console.warn("Activities API is in MAINTENANCE: every route but /health answers 503");
+
+// Due-date reminders (the day before, 08:00 Europe/Zurich): off in tests and with TASK_DUE_REMINDERS=off.
+startDueReminderScheduler();
 
 export default {
   port: env.PORT,

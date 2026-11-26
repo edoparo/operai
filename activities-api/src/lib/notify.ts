@@ -18,6 +18,9 @@
  * - A no-op when the env group is absent (logged once at startup), and under
  *   `NODE_ENV=test` unless a test injects a notifier (`setNotifierForTests`).
  * - BILINGUAL: English `title`/`body` plus `it: { title, body }` from `notificationCopy.ts`.
+ * - `deliver` (the due-date reminder, src/tasks/dueReminders.ts) is the one path whose caller
+ *   awaits the outcome: no actor, an idempotency key per recipient, and a boolean back so the
+ *   scheduler can give its claim back. It never throws either.
  *
  * Env names relied on (env.ts, T3): `NOTIFY_INTERNAL_URL`, `SERVICE_CLIENT_ID`,
  * `SERVICE_CLIENT_SECRET` (all-or-none), `AUTH_BASE_URL` (service token + actor name) and
@@ -27,7 +30,15 @@
 import { env } from "./env";
 import { errorFacts } from "./errorFacts";
 import { resolveIdentities } from "./identities";
-import { clip, MAX_NAME, renderNotification, type NotifyActivity, type NotifyKind, type NotifyTarget } from "./notificationCopy";
+import {
+  clip,
+  MAX_NAME,
+  renderNotification,
+  type NotifyActivity,
+  type NotifyKind,
+  type NotifyTarget,
+  type RenderedNotification,
+} from "./notificationCopy";
 import { serviceTokens, type ServiceTokenProvider } from "./serviceToken";
 
 export { clip, formatDueDate, type NotifyActivity, type NotifyKind, type NotifyTarget } from "./notificationCopy";
@@ -48,9 +59,29 @@ export interface NotifyEvent {
   readonly target: NotifyTarget;
 }
 
+/**
+ * A notification with no actor whose sender must know whether it was taken (the due-date reminder,
+ * src/tasks/dueReminders.ts): already rendered, one request per distinct recipient, each with its
+ * own idempotency key (notify-api scopes it to our `sub`, ADR 20261117-notify-api-system-routes-…),
+ * so a retry after a lost answer or a partial failure never notifies anyone twice.
+ */
+export interface Delivery {
+  /** For the log only: the kind and the activity id, never anything else. */
+  readonly kind: string;
+  readonly activityId: string;
+  readonly recipientIds: readonly (string | null | undefined)[];
+  readonly notification: RenderedNotification;
+  readonly idempotencyKeyFor: (recipientId: string) => string;
+}
+
 export interface Notifier {
   /** Never throws, never rejects. */
   notify(event: NotifyEvent): Promise<void>;
+  /**
+   * True only when notify-api took it for EVERY recipient (2xx; a repeat of a key is a 2xx too). Never throws, never
+   * rejects. Optional so a recording test notifier need not implement it; absent = not delivered.
+   */
+  deliver?(delivery: Delivery): Promise<boolean>;
 }
 
 /** The distinct recipients, without the actor and without empty ids. */
@@ -58,6 +89,11 @@ export function recipientsOf(event: Pick<NotifyEvent, "actorId" | "recipientIds"
   const out = new Set<string>();
   for (const id of event.recipientIds) if (id && id !== event.actorId) out.add(id);
   return [...out];
+}
+
+/** The distinct, non-empty recipients of a delivery (nobody is excluded: there is no actor). */
+export function distinctRecipients(ids: readonly (string | null | undefined)[]): string[] {
+  return [...new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0))];
 }
 
 export interface NotifierOptions {
@@ -71,9 +107,8 @@ export interface NotifierOptions {
 export function createNotifier(options: NotifierOptions): Notifier {
   const timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
 
-  async function post(token: string, recipientId: string, event: NotifyEvent): Promise<Response> {
+  async function post(token: string, recipientId: string, text: RenderedNotification, idempotencyKey?: string): Promise<Response> {
     const doFetch = options.fetchImpl ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
-    const text = renderNotification(event.kind, event, event.actorName);
     return doFetch(`${options.baseUrl}/system/notifications`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -86,25 +121,26 @@ export function createNotifier(options: NotifierOptions): Notifier {
         link: { href: text.href },
         it: text.it,
         ...(text.email ? { email: true } : {}),
+        ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
       }),
       signal: AbortSignal.timeout(timeoutMs),
       redirect: "error",
     });
   }
 
-  async function pushOne(recipientId: string, event: NotifyEvent): Promise<void> {
-    const ref = `${event.kind} activity=${event.activityId}`;
+  /** One recipient, one 401 retried with a fresh token. True when notify-api answered 2xx. Never throws. */
+  async function pushOne(recipientId: string, ref: string, text: RenderedNotification, idempotencyKey?: string): Promise<boolean> {
     try {
       for (let attempt = 0; ; attempt++) {
         const token = await options.tokens.getToken();
-        const res = await post(token, recipientId, event);
+        const res = await post(token, recipientId, text, idempotencyKey);
         await res.body?.cancel().catch(() => {});
         if (res.status === 401 && attempt === 0) {
           options.tokens.invalidate(token);
           continue;
         }
         if (!res.ok) console.error(`[notify] notify-api answered HTTP ${res.status} for ${ref} — change NOT rolled back`);
-        return;
+        return res.ok;
       }
     } catch (error) {
       // Messages come from our own ServiceTokenError (status only) or the
@@ -113,15 +149,28 @@ export function createNotifier(options: NotifierOptions): Notifier {
         `[notify] could not push ${ref} — change NOT rolled back:`,
         errorFacts(error),
       );
+      return false;
     }
   }
 
   return {
     async notify(event) {
       try {
-        await Promise.all(recipientsOf(event).map((id) => pushOne(id, event)));
+        const ref = `${event.kind} activity=${event.activityId}`;
+        const text = renderNotification(event.kind, event, event.actorName);
+        await Promise.all(recipientsOf(event).map((id) => pushOne(id, ref, text)));
       } catch {
         // pushOne already catches; this is the belt to its braces.
+      }
+    },
+    async deliver(delivery) {
+      try {
+        const ref = `${delivery.kind} activity=${delivery.activityId}`;
+        const ids = distinctRecipients(delivery.recipientIds);
+        const results = await Promise.all(ids.map((id) => pushOne(id, ref, delivery.notification, delivery.idempotencyKeyFor(id))));
+        return results.every(Boolean);
+      } catch {
+        return false;
       }
     },
   };
@@ -151,6 +200,21 @@ if (env.NODE_ENV !== "test" && !active) {
 export function setNotifierForTests(notifier: Notifier | null): void {
   current = notifier ?? noop;
   active = notifier !== null;
+}
+
+/** Whether a notifier is wired (the environment group is set, or a test injected one). */
+export const notificationsActive = (): boolean => active;
+
+/**
+ * Sends a delivery through the wired notifier and says whether it was taken. False when no notifier is wired or it
+ * has no delivery path. Never throws, never rejects.
+ */
+export async function deliver(delivery: Delivery): Promise<boolean> {
+  try {
+    return (await current.deliver?.(delivery)) ?? false;
+  } catch {
+    return false;
+  }
 }
 
 /**

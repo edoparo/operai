@@ -167,3 +167,16 @@ describe("task_blocker_not_self", () => {
     expect(await db.taskBlocker.count()).toBe(0);
   });
 });
+
+describe("activity_due_reminder_only_on_tasks", () => {
+  const RULE = "activity_due_reminder_only_on_tasks";
+
+  it("accepts the reminded due date on a task", async () => {
+    const task = await make(crmData({ type: "task", dueDate: date("2026-12-01"), dueReminderSentFor: date("2026-12-01") }));
+    expect(task.dueReminderSentFor).toEqual(date("2026-12-01"));
+  });
+
+  it("refuses it on any other type", async () => {
+    await refusedBy(RULE, make(crmData({ dueReminderSentFor: date("2026-12-01") })));
+  });
+});

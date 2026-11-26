@@ -171,3 +171,48 @@ export function renderNotification(kind: NotifyKind, ctx: NotifyContext, actorNa
     it: render("it"),
   };
 }
+
+// ─── The due-date reminder (no actor) ────────────────────────────────────────
+
+/**
+ * `task_due_tomorrow`: the email reminder the scheduler sends the day before a task's due date
+ * (src/tasks/dueReminders.ts) to its assignee and participants. Not one of `NOTIFY_KINDS`: nobody
+ * did anything, so there is no actor to name.
+ *
+ * It carries the task's subject, its due date and which tool it lives in, NOTHING else: never the
+ * body or the description (specs/20261110-activities US-9, `detailsVisibility`, applies to every
+ * recipient), and no host label either, because the scheduler has no user JWT to ask the host for
+ * one (ADR 20261110-activities-service-access-delegated-to-host). The link opens where the task is
+ * listed: the project page, or the CRM's Tasks page.
+ */
+export const DUE_REMINDER_KIND = "task_due_tomorrow";
+
+export type DueReminderTarget = { readonly host: "crm" } | { readonly host: "projects"; readonly projectId: string };
+
+const DUE_REMINDER: Record<Lang, { title: (s: string) => string; body: (date: string, host: "crm" | "projects") => string }> = {
+  en: {
+    title: (s) => `Due tomorrow: ${s}`,
+    body: (date, host) => `This task is due tomorrow, ${date}. Open it in ${host === "crm" ? "the CRM" : "Projects"}.`,
+  },
+  it: {
+    title: (s) => `In scadenza domani: ${s}`,
+    body: (date, host) => `Questa attività scade domani, ${date}. Aprila ${host === "crm" ? "nel CRM" : "in Progetti"}.`,
+  },
+};
+
+export function renderDueReminder(task: { readonly subject: string; readonly dueDate: string | Date }, target: DueReminderTarget): RenderedNotification {
+  const subject = clip(task.subject, MAX_NAME);
+  const date = formatDueDate(task.dueDate);
+  const render = (lang: Lang): Words => ({
+    title: clip(DUE_REMINDER[lang].title(subject), MAX_TITLE),
+    body: clip(DUE_REMINDER[lang].body(date, target.host), MAX_BODY),
+  });
+  return {
+    originApp: target.host,
+    severity: "info",
+    email: true,
+    href: target.host === "projects" ? `/projects/${target.projectId}` : "/crm/tasks",
+    ...render("en"),
+    it: render("it"),
+  };
+}

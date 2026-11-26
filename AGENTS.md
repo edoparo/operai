@@ -447,7 +447,13 @@ Per-service specifics:
   DB `activities`; the one-off
   `scripts/import-crm-activities.ts` copies the CRM's activities in (dry run by default, found-vs-present report);
   `GET /activities?ids=` (≤ 50, a fifth "exactly one of" filter, each id's host asked as the caller, an
-  unreadable id omitted exactly like a missing one) is how hours-api checks an activity pointer (specs/20261112-time-tracking)
+  unreadable id omitted exactly like a missing one) is how hours-api checks an activity pointer (specs/20261112-time-tracking);
+  a task with a due date that is not done emails its assignee and participants the day before, at 08:00
+  Europe/Zurich (specs/20261110-activities US-11): an in-process 15-minute tick (`src/tasks/dueReminders.ts`, off in
+  tests, with `TASK_DUE_REMINDERS=off` and under maintenance) claims each reminder by a CAS on `dueReminderSentFor`
+  before the push and gives it back when notify-api does not take it (ADR 20261118-assignment-reminders-in-process-scheduler-claimed-by-cas pattern);
+  notification `task_due_tomorrow` (`email: true`, origin `crm` or `projects`, idempotency key per task, date and
+  person) names the task, the date and the tool, never its details nor its company, deal or project
 - `hours-api` — Time tracking (specs/20261112-time-tracking): **ungated** — the `hours` catalog has no `access` resource, so a
   person's own hours need only a valid JWT: every query is scoped to the verified `sub`
   and an entry that is not theirs is a 404 identical to a nonexistent one (ADR 20261112-hours-api-time-entries-own-service-hours-catalog). Two permissions, both

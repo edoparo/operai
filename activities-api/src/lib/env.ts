@@ -70,6 +70,13 @@ const envSchema = z
     // Maintenance switch (AC-2.5, ADR 20261110-activities-migration-write-pause): true = every route but GET /health answers 503
     // `maintenance`. Absent = off. A malformed value stops the start rather than reading as off.
     ACTIVITIES_MAINTENANCE: booleanFlag.default(false),
+    // Due-date reminders (src/tasks/dueReminders.ts): `on` (default) or `off`. Off = the scheduler never starts. A
+    // malformed value stops the start rather than reading as either. The scheduler is off under NODE_ENV=test anyway.
+    TASK_DUE_REMINDERS: z
+      .string()
+      .transform((v) => v.trim().toLowerCase())
+      .pipe(z.enum(["on", "off"], { error: () => "must be on or off" }))
+      .default("on"),
     // ─── Task files bucket (ADR 20261113-task-description-files-in-activities-api-bucket) ─────────────────────────────────────────
     // Its OWN private EU bucket, never another tool's. Residency is checked here: an AWS
     // endpoint must name an EU region, any other endpoint must match the operator-declared
