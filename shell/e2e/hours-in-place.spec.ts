@@ -15,7 +15,7 @@
  *     on the page is read again (AC-4.3).
  *  B. The deal's owner records from the header; a person who is on the deal only through one of its tasks sees none
  *     there and one on their task's row, whose entry points at the task (AC-2.1, 2.2, 3.1, 3.3).
- *  C. A project task's assignee records from the Tasks card row; the entry points at the task (AC-3.1, 3.2).
+ *  C. A project task's assignee records from the task's drawer on the Tasks card; the entry points at the task (AC-3.1, 3.2).
  *  D. A CRM company task with no deal records other work with a category and no task (AC-3.4, 3.5).
  *  E. With hours-ui's `remoteEntry.js` aborted, the project page, the deal page and My tasks load and show the My
  *     hours link (AC-4.5, the remote-failure.spec.ts pattern).
@@ -98,6 +98,7 @@ import {
   ACTIVITIES_API_URL,
   PROJECTS_API_URL,
 } from './helpers/activitiesFixtures'
+import { openTaskCard } from './helpers/taskBoard'
 import type { SeededSession } from './helpers/adminSession'
 
 const runId = newRunId()
@@ -369,10 +370,14 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await recordHoursSettled(readerPage) // the seam loads after the page: a missing button must stay missing
     await expect(pageRecordHours(readerPage)).toHaveCount(0)
     await expect(readerPage.getByTestId('record-hours-fallback')).toHaveCount(0)
-    // …and no task row of the Tasks card offers it to them either (the task is the member's).
+    // …and no task of the Tasks card offers it to them either (the task is the member's): not its card, not its drawer.
     await expect(readerPage.getByTestId(`project-task-${projectTaskId}`).getByTestId('hours-record-hours')).toHaveCount(
       0,
     )
+    const readerDetails = await openTaskCard(readerPage, 'project-task', projectTaskId)
+    await recordHoursSettled(readerPage)
+    await expect(readerDetails.getByTestId('hours-record-hours')).toHaveCount(0)
+    await expect(readerDetails.getByTestId('record-hours-fallback')).toHaveCount(0)
     await readerCtx.close()
   })
 
@@ -458,14 +463,16 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
 
   // ─── C ────────────────────────────────────────────────────────────────────
 
-  test("C: a project task's assignee records from the Tasks card row and the entry points at the task (AC-3.1, 3.2)", async ({
+  test("C: a project task's assignee records from the task's drawer on the Tasks card and the entry points at the task (AC-3.1, 3.2)", async ({
     browser,
   }) => {
     const ctx = await personContext(browser, member)
     const page = await ctx.newPage()
     await openProject(page, project)
-    const row = page.getByTestId(`project-task-${projectTaskId}`)
-    await expect(row).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId(`project-task-${projectTaskId}`)).toBeVisible({ timeout: 30_000 })
+    // The card holds no button: Record hours is in the task's drawer, the last of its actions.
+    await expect(page.getByTestId(`project-task-${projectTaskId}`).getByRole('button')).toHaveCount(0)
+    const row = await openTaskCard(page, 'project-task', projectTaskId)
     const button = row.getByRole('button', { name: `Record hours on ${projectTaskSubject}` })
     await expect(button).toBeVisible({ timeout: 30_000 })
 
@@ -473,7 +480,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await button.click()
     const dialog = hoursDialog(page)
     await expect(dialog).toBeVisible({ timeout: 30_000 })
-    console.log(`[T13] C: Record hours on a task row opened its dialog in ${Date.now() - started} ms`)
+    console.log(`[T13] C: Record hours in a task's drawer opened its dialog in ${Date.now() - started} ms`)
     // AC-3.2: the project and the task are chosen and not changeable.
     await expect(dialog).toContainText(`Recording hours on the project ${project.name}.`)
     await expect(dialog).toContainText(projectTaskSubject)
@@ -488,7 +495,7 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     const message = row.getByTestId('hours-record-hours-message')
     await expect(message).toContainText(`1 h recorded on ${project.name}.`)
     await expect(button).toBeFocused()
-    // × dismisses and gives the focus back to the row's button (design S3).
+    // × dismisses and gives the focus back to the drawer's button (design S3).
     await row.getByTestId('hours-record-hours-dismiss').click()
     await expect(message).toHaveCount(0)
     await expect(button).toBeFocused()
@@ -578,20 +585,20 @@ test.describe('specs/20261116-record-hours-in-place T13: record hours in place, 
     await expect(projectLink).toHaveAttribute('href', '/hours')
     await expect(projectLink).toHaveText('Record hours in My hours')
     await expect(pageRecordHours(projectPage)).toHaveCount(0)
-    // The page works as before: the facts, the Tasks card with its row, and the row's own link.
+    // The page works as before: the facts, the Tasks card with its task, and the link in the task's drawer.
     await expect(projectPage.getByTestId('project-facts')).toBeVisible()
-    const taskRow = projectPage.getByTestId(`project-task-${projectTaskId}`)
-    await expect(taskRow).toContainText(projectTaskSubject)
-    await expect(taskRow.getByTestId('record-hours-fallback')).toBeVisible()
+    await expect(projectPage.getByTestId(`project-task-${projectTaskId}`)).toContainText(projectTaskSubject)
+    const taskRow = await openTaskCard(projectPage, 'project-task', projectTaskId)
+    await expect(taskRow.getByTestId('record-hours-fallback')).toBeVisible({ timeout: 30_000 })
     expect(aborted.length, 'the failure was injected at the hours remote').toBeGreaterThan(0)
 
-    // My tasks: the assignee's row carries the link; the list works.
+    // My tasks: the assignee's task carries the link in its drawer; the board works.
     const tasksPage = await memberCtx.newPage()
     await failOnHours(tasksPage)
     await tasksPage.goto('/projects/tasks')
     await expect(tasksPage.getByTestId('my-tasks-page')).toBeVisible({ timeout: 30_000 })
-    const myRow = tasksPage.getByTestId(`my-task-${projectTaskId}`)
-    await expect(myRow).toBeVisible({ timeout: 30_000 })
+    await expect(tasksPage.getByTestId(`my-task-${projectTaskId}`)).toBeVisible({ timeout: 30_000 })
+    const myRow = await openTaskCard(tasksPage, 'my-task', projectTaskId)
     await expect(myRow.getByTestId('record-hours-fallback')).toBeVisible({ timeout: 30_000 })
     await expect(myRow.getByTestId('record-hours-fallback')).toHaveAttribute('href', '/hours')
     await memberCtx.close()
@@ -2065,10 +2072,10 @@ test.describe('specs/20261116-record-hours-in-place T24: the table view — addr
         'the host’s Record hours': pageRecordHours(page),
       })
 
-      // 6. The same widget on the task's row (the long name's project has a task named the same way): its dialog shows the task's
-      //    subject as a fact, and its message goes in the row, which the host sizes, not in the page's header.
+      // 6. The same widget in the task's drawer (the long name's project has a task named the same way): its dialog shows the
+      //    task's subject as a fact, and its message goes in the drawer, which the host sizes, not in the page's header.
       if (!ordinary) {
-        const taskRow = page.getByTestId(`project-task-${longTaskId}`)
+        const taskRow = await openTaskCard(page, 'project-task', longTaskId!)
         const rowRecord = taskRow.getByRole('button', { name: /^Record hours on / })
         await rowRecord.click()
         const taskWidget = hoursDialog(page)

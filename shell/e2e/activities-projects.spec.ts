@@ -5,13 +5,16 @@
  *   AC-3.1  title required, due date and assignee optional (empty = the author); assignee limited to PM + team
  *   AC-3.2  create / edit / reassign / delete need manage-projects; without it the action is refused, nothing changes
  *   AC-3.3  the assignee marks a task done / not done without manage-projects
- *   AC-3.4  open tasks earliest due first, no due date last, overdue marked; a Done view
+ *   AC-3.4  open tasks earliest due first, no due date last, overdue marked; a Done lane
  *   AC-3.5  every projects:access holder reads every project's tasks
  *   AC-3.6  a project task is only a task (a note on a project is refused)
  *   AC-3.8  closed project: tasks readable and completable, creating / editing / deleting refused
  *   AC-4.1  blockers: no self-block, no cycle
  *   AC-4.2  a blocked task shows Blocked, lists what it waits on, cannot be marked done
- *   AC-5.2  the row shows "With …"
+ *   AC-5.2  the task's drawer shows "With …"
+ *
+ * The card is a board (Open, In progress, Done lanes) of compact cards; a card opens a drawer with the task's facts
+ * and every action (helpers/taskBoard.ts).
  *
  * Prerequisites: see the header of activities-crm.spec.ts (same stack, same env). Notifications (AC-6.1) are in
  * activities-notify.spec.ts, My tasks (AC-7.x) in activities-my-tasks.spec.ts.
@@ -37,6 +40,7 @@ import {
   type Person,
   type ProjectRow,
 } from './helpers/activitiesFixtures'
+import { closeTaskDrawer, openTaskCard, taskActions, taskDrawer, taskLane } from './helpers/taskBoard'
 
 const runId = newRunId()
 
@@ -95,6 +99,7 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     await expect(page.getByText('Task added.')).toBeVisible({ timeout: 15_000 })
     const id = await findProjectTaskId(admin, project.id, title)
     const row = page.getByTestId(`project-task-${id}`)
+    await expect(taskLane(page, 'project-tasks', 'open').getByTestId(`project-task-${id}`)).toBeVisible()
     await expect(row).toContainText(title)
     await expect(row).toContainText('No due date')
     await expect(row).toContainText(`Assigned to ${admin.name}`)
@@ -108,38 +113,49 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     await expect(page.getByRole('dialog')).toHaveCount(0)
     expect((await listProjectTasksViaApi(admin, project.id)).total).toBe(1)
 
-    // Edit + reassign to a team member, with a due date.
-    await page.getByTestId(`project-task-${id}-edit`).click()
+    // Edit + reassign to a team member, with a due date: from the task's drawer.
+    let details = await openTaskCard(page, 'project-task', id)
+    await details.getByTestId(`project-task-${id}-edit`).click()
     const edit = page.getByRole('dialog', { name: 'Edit task' })
     await edit.getByLabel('Title').fill(`${title} v2`)
     await edit.getByLabel('Due date').fill('2031-03-01')
     await edit.getByLabel('Assignee').selectOption({ label: member.name })
     await page.getByTestId('task-form-submit').click()
     await expect(page.getByText('Task saved.')).toBeVisible({ timeout: 15_000 })
+    await expect(details).toContainText('Due 01.03.2031')
+    await expect(details).toContainText(`Assigned to ${member.name}`)
+    await expect(taskDrawer(page)).toContainText(`${title} v2`)
+    await closeTaskDrawer(page)
     await expect(row).toContainText(`${title} v2`)
     await expect(row).toContainText('Due 01.03.2031')
     await expect(row).toContainText(`Assigned to ${member.name}`)
 
-    // The manager may mark it done although it is not theirs; it moves to Done and back.
-    await page.getByTestId(`project-task-${id}-toggle`).click()
+    // The manager may mark it done although it is not theirs; it moves to the Done lane and back.
+    const openLane = taskLane(page, 'project-tasks', 'open')
+    const doneLane = taskLane(page, 'project-tasks', 'done')
+    details = await openTaskCard(page, 'project-task', id)
+    await details.getByTestId(`project-task-${id}-toggle`).click()
     await expect(page.getByText('Task marked done.')).toBeVisible({ timeout: 15_000 })
-    await expect(row).toHaveCount(0)
-    await card.getByRole('tab', { name: 'Done' }).click()
-    await expect(row).toBeVisible({ timeout: 15_000 })
-    await expect(row).toContainText(`Done by ${admin.name}`)
-    await page.getByTestId(`project-task-${id}-toggle`).click()
+    await expect(details).toContainText(`Done by ${admin.name}`, { timeout: 15_000 })
+    await closeTaskDrawer(page)
+    await expect(openLane.getByTestId(`project-task-${id}`)).toHaveCount(0)
+    await expect(doneLane.getByTestId(`project-task-${id}`)).toBeVisible({ timeout: 15_000 })
+    details = await openTaskCard(page, 'project-task', id)
+    await details.getByTestId(`project-task-${id}-toggle`).click()
     await expect(page.getByText('Task marked not done.')).toBeVisible({ timeout: 15_000 })
-    await expect(row).toHaveCount(0)
-    await card.getByRole('tab', { name: 'Open' }).click()
-    await expect(row).toBeVisible({ timeout: 15_000 })
+    await closeTaskDrawer(page)
+    await expect(doneLane.getByTestId(`project-task-${id}`)).toHaveCount(0)
+    await expect(openLane.getByTestId(`project-task-${id}`)).toBeVisible({ timeout: 15_000 })
 
     // Delete asks first, names the task, and removes it.
-    await page.getByTestId(`project-task-${id}-delete`).click()
+    details = await openTaskCard(page, 'project-task', id)
+    await details.getByTestId(`project-task-${id}-delete`).click()
     // ConfirmDialog is an alertdialog (a destructive confirmation), not a plain dialog.
     const confirm = page.getByRole('alertdialog')
     await expect(confirm).toContainText(`${title} v2`)
     await page.getByTestId('project-task-delete-confirm').click()
     await expect(page.getByText('Task deleted.')).toBeVisible({ timeout: 15_000 })
+    await expect(taskDrawer(page)).toHaveCount(0)
     await expect(row).toHaveCount(0)
     await expect(card.getByText('No open tasks')).toBeVisible()
     expect((await listProjectTasksViaApi(admin, project.id)).total).toBe(0)
@@ -174,16 +190,24 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     }
     expect(ys, 'rows in order: overdue, 2031-05-01, 2031-06-01, no due date').toEqual([...ys].sort((a, b) => a - b))
     await expect(page.getByTestId(`project-task-${late.id}`)).toContainText('Overdue')
-    await expect(page.getByTestId(`project-task-${soon.id}`)).toContainText(`With ${member.name}`)
     await expect(page.getByTestId(`project-task-${nodue.id}`)).toContainText('No due date')
-    // Nothing is theirs and they manage nothing: no button on any row.
+    // All four are in the Open lane.
+    for (const task of [late, soon, later, nodue])
+      await expect(taskLane(page, 'project-tasks', 'open').getByTestId(`project-task-${task.id}`)).toBeVisible()
+    // Nothing is theirs and they manage nothing: no button on any card, and none in any task's drawer.
     for (const task of [late, soon, later, nodue]) {
       await expect(page.getByTestId(`project-task-${task.id}`).getByRole('button')).toHaveCount(0)
+      const details = await openTaskCard(page, 'project-task', task.id)
+      await expect(taskActions(details, task.subject).getByRole('button')).toHaveCount(0)
+      if (task.id === soon.id) await expect(details).toContainText(`With ${member.name}`)
+      await closeTaskDrawer(page)
     }
-    // The finished one is not in Open; the Done view lists it.
-    await expect(page.getByTestId(`project-task-${finished.id}`)).toHaveCount(0)
-    await card.getByRole('tab', { name: 'Done' }).click()
-    await expect(page.getByTestId(`project-task-${finished.id}`)).toBeVisible({ timeout: 15_000 })
+    // The finished one is not in Open; the Done lane lists it (done today, so within its last 30 days).
+    await expect(taskLane(page, 'project-tasks', 'open').getByTestId(`project-task-${finished.id}`)).toHaveCount(0)
+    await expect(taskLane(page, 'project-tasks', 'done').getByTestId(`project-task-${finished.id}`)).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(card).toBeVisible()
     await ctx.close()
   })
 
@@ -204,16 +228,24 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     await expect(page.getByTestId('project-tasks-add')).toHaveCount(0)
     const mineRow = page.getByTestId(`project-task-${mine.id}`)
     await expect(mineRow).toBeVisible()
-    await expect(page.getByTestId(`project-task-${mine.id}-toggle`)).toBeVisible()
-    await expect(page.getByTestId(`project-task-${mine.id}-edit`)).toHaveCount(0)
-    await expect(page.getByTestId(`project-task-${mine.id}-delete`)).toHaveCount(0)
-    // Another person's task is readable but has no action at all.
+    // Another person's task is readable but its drawer has no action at all.
     await expect(page.getByTestId(`project-task-${theirs.id}`)).toBeVisible()
     await expect(page.getByTestId(`project-task-${theirs.id}`).getByRole('button')).toHaveCount(0)
+    const theirsDetails = await openTaskCard(page, 'project-task', theirs.id)
+    await expect(taskActions(theirsDetails, theirs.subject).getByRole('button')).toHaveCount(0)
+    await closeTaskDrawer(page)
 
-    await page.getByTestId(`project-task-${mine.id}-toggle`).click()
+    const details = await openTaskCard(page, 'project-task', mine.id)
+    await expect(details.getByTestId(`project-task-${mine.id}-toggle`)).toBeVisible()
+    await expect(details.getByTestId(`project-task-${mine.id}-edit`)).toHaveCount(0)
+    await expect(details.getByTestId(`project-task-${mine.id}-delete`)).toHaveCount(0)
+    await details.getByTestId(`project-task-${mine.id}-toggle`).click()
     await expect(page.getByText('Task marked done.')).toBeVisible({ timeout: 15_000 })
-    await expect(mineRow).toHaveCount(0)
+    await closeTaskDrawer(page)
+    await expect(taskLane(page, 'project-tasks', 'open').getByTestId(`project-task-${mine.id}`)).toHaveCount(0)
+    await expect(taskLane(page, 'project-tasks', 'done').getByTestId(`project-task-${mine.id}`)).toBeVisible({
+      timeout: 15_000,
+    })
     const done = await getTaskViaApi(admin, mine.id, { projectId: project.id })
     expect(done?.task.completedAt).toBeTruthy()
 
@@ -256,13 +288,16 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     const secondId = await findProjectTaskId(admin, project.id, secondTitle)
     const secondRow = page.getByTestId(`project-task-${secondId}`)
     await expect(secondRow).toContainText('Blocked')
-    await expect(page.getByTestId(`project-task-${secondId}-waiting`)).toContainText(
+    let details = await openTaskCard(page, 'project-task', secondId)
+    await expect(details.getByTestId(`project-task-${secondId}-waiting`)).toContainText(
       `Waiting on ${first.subject}. Finish those first.`,
     )
-    const toggle = page.getByTestId(`project-task-${secondId}-toggle`)
+    const toggle = details.getByTestId(`project-task-${secondId}-toggle`)
     await expect(toggle).toHaveAttribute('aria-disabled', 'true')
     // aria-disabled: Playwright would wait forever for it to become enabled, so force the (ignored) click
     await toggle.click({ force: true })
+    await expect(details).toContainText('Blocked')
+    await closeTaskDrawer(page)
     await expect(secondRow).toContainText('Blocked')
     // The server refuses it too: 409 task_blocked, and the task stays open.
     const refused = await completeTaskViaApi(admin, secondId)
@@ -282,15 +317,24 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     expect((cycle.body as { code?: string }).code).toBe('blocker_cycle')
 
     // Completing the blocker frees it: no Blocked, no waiting line, the button works.
-    await page.getByTestId(`project-task-${first.id}-toggle`).click()
+    details = await openTaskCard(page, 'project-task', first.id)
+    await details.getByTestId(`project-task-${first.id}-toggle`).click()
     await expect(page.getByText('Task marked done.')).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByTestId(`project-task-${secondId}-waiting`)).toHaveCount(0)
-    await expect(secondRow).not.toContainText('Blocked')
+    await closeTaskDrawer(page)
+    await expect(secondRow).not.toContainText('Blocked', { timeout: 15_000 })
+    details = await openTaskCard(page, 'project-task', secondId)
+    await expect(details.getByTestId(`project-task-${secondId}-waiting`)).toHaveCount(0)
     await expect(toggle).not.toHaveAttribute('aria-disabled', 'true')
     await toggle.click()
-    await expect(secondRow).toHaveCount(0, { timeout: 15_000 })
-    await card.getByRole('tab', { name: 'Done' }).click()
-    await expect(secondRow).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Task marked done.')).toBeVisible({ timeout: 15_000 })
+    await closeTaskDrawer(page)
+    await expect(taskLane(page, 'project-tasks', 'open').getByTestId(`project-task-${secondId}`)).toHaveCount(0, {
+      timeout: 15_000,
+    })
+    await expect(taskLane(page, 'project-tasks', 'done').getByTestId(`project-task-${secondId}`)).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(card).toBeVisible()
     await ctx.close()
   })
 
@@ -308,13 +352,18 @@ test.describe('specs/20261110-activities T21: the project Tasks card (US-3, US-4
     await expect(card.getByText(/This project is closed or cancelled/)).toBeVisible()
     const row = page.getByTestId(`project-task-${task.id}`)
     await expect(row).toBeVisible()
-    await expect(page.getByTestId(`project-task-${task.id}-edit`)).toHaveCount(0)
-    await expect(page.getByTestId(`project-task-${task.id}-delete`)).toHaveCount(0)
+    const details = await openTaskCard(page, 'project-task', task.id)
+    await expect(details.getByTestId(`project-task-${task.id}-edit`)).toHaveCount(0)
+    await expect(details.getByTestId(`project-task-${task.id}-delete`)).toHaveCount(0)
 
     // Marking it done still works (even for a manager of a closed project).
-    await page.getByTestId(`project-task-${task.id}-toggle`).click()
+    await details.getByTestId(`project-task-${task.id}-toggle`).click()
     await expect(page.getByText('Task marked done.')).toBeVisible({ timeout: 15_000 })
-    await expect(row).toHaveCount(0)
+    await closeTaskDrawer(page)
+    await expect(taskLane(page, 'project-tasks', 'open').getByTestId(`project-task-${task.id}`)).toHaveCount(0)
+    await expect(taskLane(page, 'project-tasks', 'done').getByTestId(`project-task-${task.id}`)).toBeVisible({
+      timeout: 15_000,
+    })
 
     // The server refuses everything else with 409 host_read_only, and nothing changes.
     const code = (r: { body: unknown }) => (r.body as { code?: string }).code

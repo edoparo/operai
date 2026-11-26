@@ -27,6 +27,7 @@ import {
   setTeamViaApi,
   type Person,
 } from './helpers/activitiesFixtures'
+import { openTaskCard } from './helpers/taskBoard'
 
 const runId = newRunId()
 
@@ -103,7 +104,8 @@ test.describe('specs/20261110-activities T21: a project task reaches the assigne
     // The project page lands on its Tasks card, where the task is the member's to mark done.
     await expect(page.getByTestId('project-tasks')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId(`project-task-${taskId}`)).toContainText(title)
-    await expect(page.getByTestId(`project-task-${taskId}-toggle`)).toBeVisible()
+    const details = await openTaskCard(page, 'project-task', taskId)
+    await expect(details.getByTestId(`project-task-${taskId}-toggle`)).toBeVisible()
     await memberCtx.close()
   })
 })

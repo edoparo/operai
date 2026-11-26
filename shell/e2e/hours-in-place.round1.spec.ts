@@ -7,16 +7,19 @@
  * jsdom has no such rule, so a unit test cannot tell the fix from its absence on its own account. Chromium does the real
  * thing, so `toBeFocused()` here is the proof that a person who pressed Save (or Confirm) keeps the keyboard.
  *
- *  R1  D1, D2 — a task row whose task was deleted since the page was drawn: the refusal is shown (the alert says the
+ *  R1  D1, D2 — a task whose task was deleted since the page was drawn: the refusal is shown (the alert says the
  *      activity does not belong to the project / the deal), the dialog stays, the values are kept, and focus is on Save
- *      (Enter retries). Real activities-api and hours-api, nothing stubbed. Project Tasks card row and CRM deal timeline row.
+ *      (Enter retries). Real activities-api and hours-api, nothing stubbed. Project Tasks card (the task's drawer) and CRM
+ *      deal timeline row.
  *  R2  D2 — a refusal that has no field (`host_unavailable`, a 500, a dropped connection) leaves focus on Save: the widget's
  *      dialog from the project page's header, and My hours' own dialog.
  *  R3  D2 — a delete that fails leaves focus on Confirm, from My hours' List and from the Week's cell dialog; a Week read that
  *      fails again puts focus on the new Retry, and one that works on the card's heading.
- *  R4  D3 — a success message shown in a task row stays when the list is re-read after a write on another row: a row marked
- *      done above it, a row deleted above it and a row inserted above it, in the project's Tasks card and in the CRM's deal
- *      timeline (the two lists use the library's `ListRows`, which must key a row by its record).
+ *  R4  D3 — a success message shown for a task stays when the list is re-read after a write: in the project's Tasks card the
+ *      message is in the task's drawer, which stays open while the board re-reads its lists after the drawer's own writes
+ *      (Start, Stop), as cards above it are inserted, marked done and deleted by others; in the CRM's deal timeline a row
+ *      marked done above it, a row deleted above it and a row inserted above it (the timeline uses the library's
+ *      `ListRows`, which must key a row by its record).
  *
  * R2 and R3 stub the answer of hours-api in the browser (the harness never breaks the service other journeys share); the focus
  * they assert is the real browser's.
@@ -49,7 +52,14 @@ import {
   type DealRow,
   type ProjectRow,
 } from './helpers/hoursOwnersFixtures'
-import { ACTIVITIES_API_URL, apiCall, findCompanyActivityId, findProjectTaskId } from './helpers/activitiesFixtures'
+import {
+  ACTIVITIES_API_URL,
+  apiCall,
+  completeTaskViaApi,
+  findCompanyActivityId,
+  findProjectTaskId,
+} from './helpers/activitiesFixtures'
+import { openTaskCard, taskLane } from './helpers/taskBoard'
 import type { SeededSession } from './helpers/adminSession'
 
 const runId = newRunId()
@@ -136,7 +146,7 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
 
   // ─── R1 ───────────────────────────────────────────────────────────────────
 
-  test('R1: a task deleted since the row was drawn: the refusal is shown on the project row and on the deal row, the keyboard stays on Save (D1, D2)', async ({
+  test('R1: a task deleted since the page was drawn: the refusal is shown from the project task’s drawer and from the deal row, the keyboard stays on Save (D1, D2)', async ({
     browser,
   }) => {
     const projectSubject = `Hip R1 project task ${runId}`
@@ -166,13 +176,13 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
 
     // The project's Tasks card.
     await page.goto(`/projects/${project.id}`)
-    const projectRow = page.getByTestId(`project-task-${projectTaskId}`)
-    await expect(projectRow).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId(`project-task-${projectTaskId}`)).toBeVisible({ timeout: 30_000 })
+    const projectRow = await openTaskCard(page, 'project-task', projectTaskId)
     await projectRow.getByRole('button', { name: `Record hours on ${projectSubject}` }).click()
     let dialog = hoursDialog(page)
     await expect(dialog).toBeVisible({ timeout: 30_000 })
     await dialog.getByTestId('hours-entry-duration').fill('1')
-    // Someone else did the task: it is gone from the owner, and the row on this page is still drawn.
+    // Someone else did the task: it is gone from the owner, and its drawer on this page is still drawn.
     await deleteTask(projectTaskId)
     await dialog.getByTestId('hours-entry-dialog-submit').click()
     await expect(dialog.getByRole('alert')).toHaveText('This activity does not belong to the chosen project.', {
@@ -334,7 +344,7 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
 
   // ─── R4 ───────────────────────────────────────────────────────────────────
 
-  test("R4: a success message in a task row survives the list's re-read after a row above it was marked done, deleted or inserted: the project's Tasks card and the CRM deal's timeline (D3)", async ({
+  test("R4: a success message for a task survives the list's re-read after tasks above it were marked done, deleted or inserted: the project's Tasks card (the task's drawer) and the CRM deal's timeline (D3)", async ({
     browser,
   }) => {
     const ctx = await personContext(browser, admin)
@@ -369,10 +379,16 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
 
     await page.goto(`/projects/${project.id}`)
     await expect(taskRow(idC)).toBeVisible({ timeout: 30_000 })
-    await record(taskRow(idC), names[2]!)
+    // The message lives in C's drawer; the drawer is modal, so the writes that make the board re-read are its own (Start,
+    // Stop) while other people change the tasks above C.
+    const drawerC = await openTaskCard(page, 'project-task', idC)
+    await record(drawerC, names[2]!)
+    const openLane = taskLane(page, 'project-tasks', 'open')
+    const doneLane = taskLane(page, 'project-tasks', 'done')
 
-    // A task is made earlier than all the others (it lands first), then A is marked done: the re-read removes a row above C
-    // and inserts one above it. Wait for the re-read to land before looking, or the check passes before anything changed.
+    // A task is made earlier than all the others (it lands first) and A is marked done by someone else; then C is started
+    // from its drawer: the re-read inserts a card above C and moves one above it to Done. Wait for the re-read to land
+    // before looking, or the check passes before anything changed.
     const earlySubject = `Hip R4 early ${runId}`
     await createTaskViaApi(admin, {
       subject: earlySubject,
@@ -381,17 +397,21 @@ test.describe("specs/20261116-record-hours-in-place QE pass 2: the fix round's r
       dueDate: '2027-01-01',
     })
     const earlyId = rememberTask(await findProjectTaskId(admin, project.id, earlySubject))
-    await taskRow(idA).getByRole('button', { name: 'Mark done' }).click()
-    await expect(taskRow(idA)).toHaveCount(0, { timeout: 30_000 })
-    await expect(taskRow(earlyId)).toBeVisible({ timeout: 30_000 })
-    await expect(message(taskRow(idC)), 'marked done above, and a row inserted above').toHaveCount(1)
+    expect((await completeTaskViaApi(admin, idA)).status).toBe(200)
+    await drawerC.getByTestId(`project-task-${idC}-progress`).click()
+    await expect(page.getByText('Task started.')).toBeVisible({ timeout: 30_000 })
+    await expect(openLane.getByTestId(`project-task-${earlyId}`)).toBeVisible({ timeout: 30_000 })
+    await expect(doneLane.getByTestId(`project-task-${idA}`)).toBeVisible({ timeout: 30_000 })
+    await expect(message(drawerC), 'marked done above, and a card inserted above').toHaveCount(1)
 
-    // B is deleted: a row removed above C.
-    await taskRow(idB).getByTestId(`project-task-${idB}-delete`).click()
-    await page.getByTestId('project-task-delete-confirm').click()
+    // B is deleted by someone else, then C is stopped from its drawer: the re-read removes a card above C.
+    await deleteTask(idB)
+    await drawerC.getByTestId(`project-task-${idC}-progress`).click()
+    await expect(page.getByText('Task stopped.')).toBeVisible({ timeout: 30_000 })
     await expect(taskRow(idB)).toHaveCount(0, { timeout: 30_000 })
-    await expect(message(taskRow(idC)), 'deleted above').toHaveCount(1)
+    await expect(message(drawerC), 'deleted above').toHaveCount(1)
     await expect(taskRow(idD)).toBeVisible()
+    await page.getByTestId('task-drawer-close').click()
 
     // ── The CRM deal's timeline: three tasks (newest first); the last listed gets the message, those above it change.
     const crmSubjects = ['X', 'Y', 'Z'].map((n) => `Hip R4 deal ${n} ${runId}`)

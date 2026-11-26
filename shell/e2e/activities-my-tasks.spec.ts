@@ -12,6 +12,9 @@
  * activities-api to fail to reach crm-api, which this harness cannot cause without stopping a service; it is
  * covered by activities-api's tasks.test.ts and MyTasksPage.test.tsx.
  *
+ * My tasks is a board (Open, In progress, Done lanes) of compact cards; a card opens a drawer with the task's facts
+ * and actions (helpers/taskBoard.ts).
+ *
  * Prerequisites: see the header of activities-crm.spec.ts (same stack, same env).
  */
 import { expect, test } from '@playwright/test'
@@ -34,6 +37,7 @@ import {
   type ProjectRow,
   type TaskRow,
 } from './helpers/activitiesFixtures'
+import { closeTaskDrawer, openTaskCard, taskActions, taskLane } from './helpers/taskBoard'
 
 const runId = newRunId()
 
@@ -89,10 +93,11 @@ test.describe('specs/20261110-activities T21: My tasks with pre-sales tasks (US-
     await page.getByRole('link', { name: 'My tasks', exact: true }).click()
     await expect(page).toHaveURL(/\/projects\/tasks$/)
     await expect(page.getByRole('heading', { name: 'My tasks', exact: true })).toBeVisible({ timeout: 30_000 })
-    const list = page.getByTestId('my-tasks-list')
-    await expect(list).toBeVisible({ timeout: 30_000 })
+    const board = page.getByTestId('my-tasks-board')
+    await expect(board).toBeVisible({ timeout: 30_000 })
 
-    const rows = [preSales, dueLater, noDue].map((task) => page.getByTestId(`my-task-${task.id}`))
+    const openLane = taskLane(page, 'my-tasks', 'open')
+    const rows = [preSales, dueLater, noDue].map((task) => openLane.getByTestId(`my-task-${task.id}`))
     for (const row of rows) await expect(row).toBeVisible()
     // The server's order, unsorted by the page: pre-sales (2030-01-01), project (2030-03-01), no due date last.
     const ys: number[] = []
@@ -101,12 +106,19 @@ test.describe('specs/20261110-activities T21: My tasks with pre-sales tasks (US-
     // Someone else's task is not mine.
     await expect(page.getByTestId(`my-task-${someoneElses.id}`)).toHaveCount(0)
 
-    // The Pre-sales badge is on the pre-sales row only, with its company; project rows name their project.
+    // The Pre-sales badge is on the pre-sales card only, with its company; project cards name their project.
     await expect(rows[0]!).toContainText('Pre-sales')
-    await expect(rows[0]!).toContainText(`Company: ${company.name}`)
+    await expect(rows[0]!).toContainText(company.name)
     await expect(rows[1]!).not.toContainText('Pre-sales')
-    await expect(rows[1]!.getByRole('link', { name: project.name })).toBeVisible()
+    await expect(rows[1]!).toContainText(project.name)
     await expect(rows[2]!).not.toContainText('Pre-sales')
+    // The drawers say the same, with the company and a link to the project.
+    let details = await openTaskCard(page, 'my-task', preSales.id)
+    await expect(details).toContainText(`Company: ${company.name}`)
+    await closeTaskDrawer(page)
+    details = await openTaskCard(page, 'my-task', dueLater.id)
+    await expect(details.getByRole('link', { name: project.name })).toBeVisible()
+    await closeTaskDrawer(page)
     await expect(page.getByTestId('my-tasks-unavailable')).toHaveCount(0)
     await ctx.close()
   })
@@ -119,40 +131,47 @@ test.describe('specs/20261110-activities T21: My tasks with pre-sales tasks (US-
     await page.goto('/projects/tasks')
     const row = page.getByTestId(`my-task-${preSales.id}`)
     await expect(row).toBeVisible({ timeout: 30_000 })
+    const openLane = taskLane(page, 'my-tasks', 'open')
+    const doneLane = taskLane(page, 'my-tasks', 'done')
 
-    // Only the toggle and the CRM link: no Edit, no Delete, whatever the CRM would allow its author.
-    await expect(row.getByRole('button')).toHaveCount(1)
-    await expect(row.getByRole('button', { name: 'Mark done' })).toBeVisible()
-    await expect(row.getByRole('button', { name: /Edit|Delete/ })).toHaveCount(0)
-    const crmLink = row.getByRole('link', { name: `Open in CRM: ${preSales.subject}` })
+    // The card has no button; its drawer has only Start / Mark done and the CRM link (and, for the assignee, Record
+    // hours, hours-ui's widget): no Edit, no Delete, whatever the CRM would allow its author.
+    await expect(row.getByRole('button')).toHaveCount(0)
+    let details = await openTaskCard(page, 'my-task', preSales.id)
+    const actions = taskActions(details, preSales.subject)
+    await expect(actions.getByRole('button').filter({ hasNotText: /^Record hours/ })).toHaveCount(2)
+    await expect(actions.getByRole('button', { name: 'Start' })).toBeVisible()
+    await expect(actions.getByRole('button', { name: 'Mark done' })).toBeVisible()
+    await expect(details.getByRole('button', { name: /Edit|Delete/ })).toHaveCount(0)
+    const crmLink = details.getByRole('link', { name: `Open in CRM: ${preSales.subject}` })
     await expect(crmLink).toHaveAttribute('href', `/crm/companies/${company.id}`)
 
     // Done: leaves Open, appears in Done, and the CRM agrees (same record, same state).
-    await page.getByTestId(`my-task-${preSales.id}-toggle`).click()
+    await details.getByTestId(`my-task-${preSales.id}-toggle`).click()
     await expect(page.getByText('Task marked done.')).toBeVisible({ timeout: 15_000 })
-    await expect(row).toHaveCount(0)
-    await page.getByTestId('my-tasks-tabs').getByRole('tab', { name: 'Done' }).click()
-    await expect(row).toBeVisible({ timeout: 15_000 })
+    await closeTaskDrawer(page)
+    await expect(openLane.getByTestId(`my-task-${preSales.id}`)).toHaveCount(0)
+    await expect(doneLane.getByTestId(`my-task-${preSales.id}`)).toBeVisible({ timeout: 15_000 })
     await expect(row).toContainText('Pre-sales')
     expect((await getTaskViaApi(sales, preSales.id, { companyId: company.id }))?.task.completedAt).toBeTruthy()
     await page.goto('/crm/tasks')
     await page.getByTestId('crm-tasks-tabs').getByRole('tab', { name: 'Done' }).click()
     await expect(page.getByTestId('crm-tasks-list').getByText(preSales.subject)).toBeVisible({ timeout: 30_000 })
 
-    // Not done again, from the project module's Done view.
+    // Not done again, from the project module's Done lane.
     await page.goto('/projects/tasks')
-    await page.getByTestId('my-tasks-tabs').getByRole('tab', { name: 'Done' }).click()
-    await page.getByTestId(`my-task-${preSales.id}-toggle`).click()
+    await expect(doneLane.getByTestId(`my-task-${preSales.id}`)).toBeVisible({ timeout: 30_000 })
+    details = await openTaskCard(page, 'my-task', preSales.id)
+    await details.getByTestId(`my-task-${preSales.id}-toggle`).click()
     await expect(page.getByText('Task marked not done.')).toBeVisible({ timeout: 15_000 })
-    await expect(row).toHaveCount(0)
+    await closeTaskDrawer(page)
+    await expect(doneLane.getByTestId(`my-task-${preSales.id}`)).toHaveCount(0)
+    await expect(openLane.getByTestId(`my-task-${preSales.id}`)).toBeVisible({ timeout: 15_000 })
     expect((await getTaskViaApi(sales, preSales.id, { companyId: company.id }))?.task.completedAt).toBeNull()
 
-    // "Open in CRM" lands on the company page in the CRM.
-    await page.getByTestId('my-tasks-tabs').getByRole('tab', { name: 'Open' }).click()
-    await page
-      .getByTestId(`my-task-${preSales.id}`)
-      .getByRole('link', { name: `Open in CRM: ${preSales.subject}` })
-      .click()
+    // "Open in CRM" (in the task's drawer) lands on the company page in the CRM.
+    details = await openTaskCard(page, 'my-task', preSales.id)
+    await details.getByRole('link', { name: `Open in CRM: ${preSales.subject}` }).click()
     await expect(page).toHaveURL(new RegExp(`/crm/companies/${company.id}$`), { timeout: 30_000 })
     await expect(page.getByRole('heading', { name: company.name })).toBeVisible({ timeout: 30_000 })
 
