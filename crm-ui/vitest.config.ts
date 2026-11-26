@@ -7,6 +7,7 @@ export default defineConfig({
     dedupe: [
       'react',
       'react-dom',
+      '@dnd-kit/core',
       '@tiptap/core',
       '@tiptap/extension-list',
       '@tiptap/extensions',
@@ -24,6 +25,7 @@ export default defineConfig({
     alias: [
       // The shared component library, compiled from source (ADR 20261031-shared-ui-library-consumed-as-source); exact matches, the longer first.
       { find: /^@operai\/ui\/rich-text$/, replacement: fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url)) },
+      { find: /^@operai\/ui\/board$/, replacement: fileURLToPath(new URL('../operai-ui/src/board.ts', import.meta.url)) },
       { find: /^@operai\/ui$/, replacement: fileURLToPath(new URL('../operai-ui/src/index.ts', import.meta.url)) },
       { find: 'shell/session', replacement: fileURLToPath(new URL('./src/federation/__stubs__/shellSession.ts', import.meta.url)) },
       { find: 'shell/extensions', replacement: fileURLToPath(new URL('./src/federation/__stubs__/shellExtensions.ts', import.meta.url)) },

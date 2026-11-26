@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@dnd-kit/core':
-        specifier: ^6.3.1
+        specifier: 6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-router':
         specifier: 1.170.17

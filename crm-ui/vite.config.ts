@@ -23,6 +23,9 @@ const shellRemoteUrl = process.env['SHELL_REMOTE_URL'] ?? 'http://localhost:5173
 // The library's rich-text entry, which needs TipTap: installed HERE and deduped, so the library's
 // `@tiptap/*` imports resolve to this project's copy (operai-ui/README.md § Rich text).
 const operaiUiRichText = fileURLToPath(new URL('../operai-ui/src/richText.ts', import.meta.url))
+// The library's board entry, which needs @dnd-kit/core: installed HERE (pinned exactly to the library's version) and
+// deduped, like the rich text (operai-ui/README.md § Board).
+const operaiUiBoard = fileURLToPath(new URL('../operai-ui/src/board.ts', import.meta.url))
 const TIPTAP_PACKAGES = [
   '@tiptap/core',
   '@tiptap/extension-list',
@@ -34,12 +37,13 @@ const TIPTAP_PACKAGES = [
 
 export default defineConfig({
   resolve: {
-    // Exact match: only the rich-text entry is compiled into this remote (it needs TipTap, which the
+    // Exact match: only the rich-text and board entries are compiled into this remote (it needs TipTap, which the
     // shell does not install); the main entry is shared, so it must not be aliased.
     alias: [
       { find: /^@operai\/ui\/rich-text$/, replacement: operaiUiRichText },
+      { find: /^@operai\/ui\/board$/, replacement: operaiUiBoard },
     ],
-    dedupe: ['react', 'react-dom', ...TIPTAP_PACKAGES],
+    dedupe: ['react', 'react-dom', '@dnd-kit/core', ...TIPTAP_PACKAGES],
   },
   plugins: [
     react(),
