@@ -10,6 +10,8 @@
  *   writable   the project is not `closed` or `cancelled` (AC-3.8): the project stays readable
  *              and its tasks can be completed or reopened, nothing else is accepted
  *   assignees  the project manager and the team: the only people a task may be given to (AC-3.1)
+ *   projectManagerId  the project manager alone, or null while a project from a deal awaits one: the fact hours-api uses to
+ *              decide who sees a project's per-person hours (specs/20261112-project-hours AC-2.3, AC-2.7)
  *
  * Unlike every other route, a caller WITHOUT `projects:access` is not refused: the answer is
  * `reader:false` with every id `missing` (AC-7.4, AC-8.3 — a project one cannot read is
@@ -55,6 +57,10 @@ const ItemSchema = z.union([
     href: z.string(),
     may: z.object({ write: z.boolean(), manage: z.boolean() }),
     assignees: z.array(z.string()),
+    // The project's manager, stated as a fact, never as a rule: hours-api decides who may see a project's per-person hours
+    // (specs/20261112-project-hours D-P2, AC-2.3). `null` while a project from a deal awaits one (D79, AC-2.7): the purchase
+    // order's ops-manager is deliberately not named here.
+    projectManagerId: z.string().nullable(),
   }),
 ]);
 
@@ -122,6 +128,7 @@ activityHostRouter.openapi(resolveRoute, async (c) => {
           [row.projectManagerId, ...row.members.map((member) => member.userId)].filter((id): id is string => id !== null),
         ),
       ],
+      projectManagerId: row.projectManagerId,
     };
   });
   return c.json({ reader, items }, 200);
